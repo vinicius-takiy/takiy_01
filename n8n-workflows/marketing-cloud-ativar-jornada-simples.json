@@ -1,0 +1,252 @@
+{
+  "name": "Marketing Cloud - Ativar Jornada (SIMPLES)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "▶️ CLIQUE AQUI PARA ATIVAR",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://{{ $json.subdomain }}.auth.marketingcloudapis.com/v2/token",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"grant_type\": \"client_credentials\",\n  \"client_id\": \"{{ $json.client_id }}\",\n  \"client_secret\": \"{{ $json.client_secret }}\",\n  \"account_id\": \"{{ $json.account_id }}\"\n}",
+        "options": {}
+      },
+      "id": "get-token",
+      "name": "🔐 Pegar Token",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://{{ $('⚙️ CONFIGURE AQUI').item.json.subdomain }}.rest.marketingcloudapis.com/interaction/v1/interactions/{{ $('⚙️ CONFIGURE AQUI').item.json.journey_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.access_token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"status\": \"Running\"\n}",
+        "options": {}
+      },
+      "id": "activate",
+      "name": "🚀 Ativar Jornada",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "client_id",
+              "value": ""
+            },
+            {
+              "name": "client_secret",
+              "value": ""
+            },
+            {
+              "name": "subdomain",
+              "value": ""
+            },
+            {
+              "name": "account_id",
+              "value": ""
+            },
+            {
+              "name": "journey_id",
+              "value": ""
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "config",
+      "name": "⚙️ CONFIGURE AQUI",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [460, 300],
+      "notes": "👇 COLE SUAS CREDENCIAIS AQUI:\n\n1. client_id = seu Client ID\n2. client_secret = seu Client Secret  \n3. subdomain = mcXXXXXXXXX\n4. account_id = seu MID\n5. journey_id = UUID da jornada"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "success-check",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "Running",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-success",
+      "name": "✅ Verificar Sucesso",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "resultado",
+              "value": "✅ JORNADA ATIVADA COM SUCESSO!"
+            },
+            {
+              "name": "journey_id",
+              "value": "={{ $('⚙️ CONFIGURE AQUI').item.json.journey_id }}"
+            },
+            {
+              "name": "status",
+              "value": "Running"
+            },
+            {
+              "name": "mensagem",
+              "value": "Sua jornada está rodando agora! 🚀"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "success-message",
+      "name": "🎉 Sucesso!",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [1340, 200]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "resultado",
+              "value": "❌ ERRO AO ATIVAR"
+            },
+            {
+              "name": "mensagem",
+              "value": "Verifique as credenciais e tente novamente"
+            },
+            {
+              "name": "erro_detalhes",
+              "value": "={{ $json }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "error-message",
+      "name": "❌ Erro",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [1340, 400]
+    }
+  ],
+  "connections": {
+    "▶️ CLIQUE AQUI PARA ATIVAR": {
+      "main": [
+        [
+          {
+            "node": "⚙️ CONFIGURE AQUI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⚙️ CONFIGURE AQUI": {
+      "main": [
+        [
+          {
+            "node": "🔐 Pegar Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔐 Pegar Token": {
+      "main": [
+        [
+          {
+            "node": "🚀 Ativar Jornada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🚀 Ativar Jornada": {
+      "main": [
+        [
+          {
+            "node": "✅ Verificar Sucesso",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✅ Verificar Sucesso": {
+      "main": [
+        [
+          {
+            "node": "🎉 Sucesso!",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "❌ Erro",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2026-02-15T00:00:00.000Z",
+      "updatedAt": "2026-02-15T00:00:00.000Z",
+      "id": "1",
+      "name": "Marketing Cloud"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2026-02-15T00:00:00.000Z",
+  "versionId": "1"
+}

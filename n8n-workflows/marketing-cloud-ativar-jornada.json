@@ -1,0 +1,173 @@
+{
+  "name": "Marketing Cloud - Ativar Jornada",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "start-node",
+      "name": "Quando clicar aqui",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://{{ $json.subdomain }}.auth.marketingcloudapis.com/v2/token",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "grant_type",
+              "value": "client_credentials"
+            },
+            {
+              "name": "client_id",
+              "value": "={{ $json.client_id }}"
+            },
+            {
+              "name": "client_secret",
+              "value": "={{ $json.client_secret }}"
+            },
+            {
+              "name": "account_id",
+              "value": "={{ $json.account_id }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "oauth-auth",
+      "name": "1. Autenticar Marketing Cloud",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://{{ $('Configurações').item.json.subdomain }}.rest.marketingcloudapis.com/interaction/v1/interactions/{{ $('Configurações').item.json.journey_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "oAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.access_token }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "status",
+              "value": "Running"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "activate-journey",
+      "name": "2. Ativar Jornada",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "client_id",
+              "value": "SEU_CLIENT_ID_AQUI"
+            },
+            {
+              "name": "client_secret",
+              "value": "SEU_CLIENT_SECRET_AQUI"
+            },
+            {
+              "name": "subdomain",
+              "value": "SEU_SUBDOMAIN_AQUI"
+            },
+            {
+              "name": "account_id",
+              "value": "SEU_ACCOUNT_ID_AQUI"
+            },
+            {
+              "name": "journey_id",
+              "value": "ID_DA_JORNADA_AQUI"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "config-node",
+      "name": "Configurações",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [250, 500],
+      "notes": "Configure suas credenciais aqui"
+    }
+  ],
+  "connections": {
+    "Quando clicar aqui": {
+      "main": [
+        [
+          {
+            "node": "Configurações",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configurações": {
+      "main": [
+        [
+          {
+            "node": "1. Autenticar Marketing Cloud",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "1. Autenticar Marketing Cloud": {
+      "main": [
+        [
+          {
+            "node": "2. Ativar Jornada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2026-02-15T00:00:00.000Z",
+  "versionId": "1"
+}
