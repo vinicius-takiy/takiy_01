@@ -1,0 +1,20 @@
+anthropic>=0.40.0
+APScheduler>=3.10.0
+python-dotenv>=1.0.0
+requests>=2.31.0
+
+# Meta Ads
+facebook-business>=18.0.0
+
+# Google Ads
+google-ads>=24.0.0
+
+# GA4
+google-analytics-data>=0.18.0
+google-auth>=2.27.0
+
+# Email
+# Uses stdlib smtplib — no extra dependency needed
+
+# Utilities
+python-dateutil>=2.8.2
