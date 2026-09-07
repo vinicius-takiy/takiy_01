@@ -3,6 +3,29 @@
 Um único arquivo, `index.html`, sem build e sem instalação. Prova de que o gênero
 roda no iPhone via Safari sem Mac, Xcode ou conta Apple.
 
+## O jogo
+
+Uma avenida vista do telhado. Três contratos em sequência, cada um com **um alvo
+específico** descrito num dossiê, civis andando na mesma calçada, uma janela de
+tempo até o alvo fugir e uma regra própria:
+
+| Contrato | Distância | O que ensina |
+|---|---|---|
+| O Contador | ≈ 240 m | Identificar o alvo entre civis parecidos; atirar quando ele para |
+| A Mensageira | ≈ 360 m | Vento de través; um decoy com o mesmo casaco na rua |
+| O Chefe | ≈ 540 m | Colete: só cabeça mata; seguranças correm com ele se alertados |
+
+Errar o tiro espanta a rua e o alvo corre para o ponto de fuga. Acertar um civil
+cancela o contrato. Acertar um segurança custa pontos.
+
+## Controles de uma mão
+
+- Arraste em qualquer lugar da tela para mirar (sensibilidade dividida pelo zoom)
+- **Segure ATIRAR** para prender o fôlego, **solte** para disparar, deslize o dedo
+  para fora do botão para cancelar
+- Slider vertical à direita ou pinça para o zoom (6× a 24×)
+- Toque no nome do contrato ou em **Dossiê** para pausar e reler a descrição
+
 ## Rodar
 
 - **Local:** abra `index.html` no navegador do PC. Mouse arrasta a mira,
@@ -26,7 +49,7 @@ Os mesmos sistemas do scaffold Unity, em JavaScript:
 | Vento com bandeiras que reagem | `updateWind()` |
 | Alvos com cabeça 5×, torso 1×, membro 0,5× | `makeTarget()` |
 | Killcam por proximidade | `updateKillcam()` |
-| Missão, tempo, estrelas | `start()`, `finish()` |
+| Contratos, dossiê, janela de fuga, pânico da rua | `CONTRACTS`, `updateNpcs()`, `endContract()` |
 
 ## Limitações do Safari no iPhone que o código já contorna
 
