@@ -46,10 +46,23 @@ depois da primeira visita) e ícones em `icons/`. Falta só hospedar em HTTPS.
 
 ### Publicar de graça no GitHub Pages
 
-1. No GitHub: **Settings → Pages → Build and deployment → Source: Deploy from a branch**
-2. Branch: a que contém esta pasta · Folder: **/ (root)** → Save
-3. Em ~1 minuto o jogo estará em
-   `https://<seu-usuario>.github.io/<repo>/castle-defense/`
+O repositório já tem tudo pronto: `index.html` na raiz listando os jogos, `.nojekyll`
+e o workflow `.github/workflows/pages.yml`. Falta **ligar o Pages uma vez** — nem o
+conector do GitHub nem o token do Actions conseguem fazer isso (a API responde
+`Resource not accessible by integration`), só uma pessoa com acesso de admin.
+
+Vá em **Settings → Pages** e escolha um dos dois:
+
+| Opção | O que marcar | Quando usar |
+|---|---|---|
+| **Servir do branch** (mais simples) | Source: *Deploy from a branch* · Branch: `claude/sniper-game-mobile-simulator-dw4abz` · Folder: `/ (root)` | Publica o repositório como está, sem Actions. Atualiza a cada push |
+| **Via Actions** | Source: *GitHub Actions* | Usa o workflow deste repositório, que copia só os jogos para o site |
+
+Endereço final: `https://vinicius-takiy.github.io/takiy_01/castle-defense/`
+
+> Se escolher *GitHub Actions* e o deploy falhar com "Branch is not allowed to deploy
+> to github-pages", vá em **Settings → Environments → github-pages** e libere este
+> branch, ou faça o merge para `main`.
 
 ### Instalar
 
