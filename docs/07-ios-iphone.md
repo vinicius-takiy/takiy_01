@@ -66,13 +66,19 @@ Para portfólio, ninguém vai perguntar em qual celular você testou. E o jogo v
 funcionar no iPhone depois quando você tiver acesso a um Mac — o código é o mesmo.
 
 ### Opção 2 — Unity Remote 5 no iPhone (só para desenvolvimento)
-Funciona no Windows, **mas exige o iTunes instalado** (é ele que faz o driver USB
-do iPhone). O jogo roda no PC e o iPhone vira tela e controle.
+Funciona no Windows, **mas exige o driver USB da Apple** — o Windows sozinho não
+conversa com o iPhone. O jogo roda no PC e o iPhone vira tela e controle.
 
-1. Instale o iTunes (versão da Apple, não da Microsoft Store)
-2. Instale **Unity Remote 5** na App Store
-3. Unity: **Edit → Project Settings → Editor → Unity Remote → Device: Any iOS Device**
-4. Abra o app no iPhone com o cabo conectado, aperte **Play** no editor
+1. Instale o **iTunes** ou o app **Dispositivos Apple** pela Microsoft Store (qualquer
+   um dos dois instala o driver "Apple Mobile Device Support", que é o que importa)
+2. Conecte o iPhone, desbloqueie, toque em **Confiar** neste computador
+3. Instale **Unity Remote 5** na App Store do iPhone
+4. Unity: **Edit → Project Settings → Editor → Unity Remote → Device: Any iOS Device**
+5. Abra o app no iPhone com o cabo conectado, aperte **Play** no editor
+
+Se ficar em tela preta: feche o Unity Remote no iPhone, aperte Play no editor primeiro,
+e só então abra o app. Se o Windows não reconhecer o aparelho, o driver não instalou —
+abra o iTunes/Dispositivos Apple uma vez para ele terminar a configuração.
 
 Serve para ajustar mira, botões e pinça. Não serve para nada que envolva desempenho
 ou o app instalado de verdade.

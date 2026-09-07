@@ -17,13 +17,15 @@ Baixe em <https://unity.com/download>. O Hub é o gerenciador — não é o edit
 ### 2. Instale a Unity 6 LTS
 No Hub: **Installs → Install Editor → Unity 6 LTS**.
 
-Marque estes módulos (essenciais, e fáceis de esquecer):
-- ✅ **Android Build Support**
-  - ✅ Android SDK & NDK Tools
-  - ✅ OpenJDK
-- ✅ **iOS Build Support** (só se você tiver um Mac)
+Módulos de build (~10 GB) — **não instale agora se ainda não tem o aparelho de teste**:
+- **Android Build Support** (+ SDK & NDK Tools + OpenJDK) → quando tiver um Android
+- **iOS Build Support** → só faz sentido com um Mac
 
-> Sem esses módulos você não consegue gerar o `.apk`, e reinstalar depois é chato.
+Dá para adicionar depois sem reinstalar nada: **Unity Hub → Installs → ⚙ → Add Modules**.
+
+> Nas primeiras semanas você vai testar no Editor com mouse e no celular via
+> **Unity Remote** (veja [05](05-build-android.md) e [07](07-ios-iphone.md)), e nenhum
+> dos dois precisa desses módulos.
 
 ### 3. Crie o projeto
 No Hub: **New Project → 3D (URP) → Mobile**.
