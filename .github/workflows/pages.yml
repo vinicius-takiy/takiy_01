@@ -1,0 +1,54 @@
+# Publica os jogos no GitHub Pages.
+#
+# O passo "configure-pages" com enablement: true LIGA o GitHub Pages via API se ele
+# ainda estiver desligado, usando o GITHUB_TOKEN deste workflow. Por isso não é
+# preciso mexer em Settings -> Pages na mão.
+name: Publicar jogos no Pages
+
+on:
+  push:
+    branches: [claude/sniper-game-mobile-simulator-dw4abz]
+    paths:
+      - 'index.html'
+      - 'castle-defense/**'
+      - 'web-prototype/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write        # necessário para ligar o Pages e publicar
+  id-token: write     # necessário para o deploy-pages autenticar
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ligar o Pages se estiver desligado
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Montar o site
+        run: |
+          mkdir -p _site
+          cp index.html _site/
+          cp -r castle-defense _site/castle-defense
+          cp -r web-prototype _site/web-prototype
+          echo "Publicando:"; find _site -type f | sort
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: deploy
+        uses: actions/deploy-pages@v4
