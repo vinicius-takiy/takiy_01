@@ -4,8 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Muralha">
 <meta name="theme-color" content="#f7f2e4">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <title>Muralha dos Rabiscos</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gloria+Hallelujah&family=Patrick+Hand&display=swap">
 <style>
@@ -122,6 +127,12 @@
       <input class="slot" id="slotInput" maxlength="24" placeholder="nome do perfil" autocomplete="off" autocapitalize="off">
       <div id="slotList" class="stack"></div>
       <div class="row"><button class="btn" id="bSlotBack"><span>Voltar</span></button><button class="btn primary" id="bSlotUse"><span>Usar este perfil</span></button></div>
+      <h2 style="margin-top:6px">Levar o progresso para outro lugar</h2>
+      <p>Gera um código com todo o seu progresso. Cole no jogo em outro aparelho, ou no app instalado na tela inicial, que tem memória separada do Safari.</p>
+      <div class="row"><button class="btn" id="bExport"><span>Copiar código</span></button></div>
+      <textarea class="slot" id="importBox" rows="3" placeholder="cole um código aqui" style="resize:vertical;font-size:13px;font-family:monospace"></textarea>
+      <button class="btn gold" id="bImport"><span>Importar código</span></button>
+      <p id="ioMsg" style="font-size:14px"></p>
     </div>
   </div>
 
@@ -509,8 +520,35 @@ $('slotList').addEventListener('click',e=>{ const b=e.target.closest('button'); 
 $('bSlotBack').addEventListener('click',()=>{ $('slotOv').hidden=true; });
 $('bSlotUse').addEventListener('click',async()=>{ await Save.switchSlot($('slotInput').value); $('slotOv').hidden=true; });
 
+// Exportar / importar: base64 de JSON com prefixo e verificação simples
+const IO={ PREFIX:'MURALHA1.',
+  encode(p){ const json=JSON.stringify(p); return this.PREFIX+btoa(unescape(encodeURIComponent(json))); },
+  decode(code){ code=(code||'').trim(); if(!code.startsWith(this.PREFIX)) throw new Error('Esse código não é deste jogo.'); const json=decodeURIComponent(escape(atob(code.slice(this.PREFIX.length)))); const p=JSON.parse(json); if(typeof p!=='object'||typeof p.coins!=='number'||!p.upgrades) throw new Error('Código incompleto.'); return Object.assign(Save.fresh(),p); } };
+$('bExport').addEventListener('click',async()=>{ const code=IO.encode(profile); $('importBox').value=code; let ok=false; try{ await navigator.clipboard.writeText(code); ok=true; }catch(e){} $('ioMsg').textContent=ok?'Copiado. Cole no outro aparelho e toque em Importar.':'Selecione e copie o código acima manualmente.'; });
+$('bImport').addEventListener('click',()=>{ try{ const p=IO.decode($('importBox').value); const keep=confirm(`Importar progresso: onda ${p.best.wave||0}, 🪙 ${p.coins}. Isso substitui o perfil "${Save.slot}" neste aparelho.`); if(!keep) return; profile=p; Save.save(); renderMenu(); $('ioMsg').textContent='Progresso importado.'; }catch(e){ $('ioMsg').textContent=e.message; } });
+
 /* ================= Início ================= */
 resize(); setState('menu'); Save.init(); requestAnimationFrame(frame);
+})();
+</script>
+<script>
+// ---- PWA: registro do service worker e dica de instalação ----
+(function(){
+  if('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+  const standalone=window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+  if(standalone) return;
+  const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+  const card=document.querySelector('#menu .card'); if(!card) return;
+  const box=document.createElement('div'); box.className='cloud'; box.style.marginTop='2px';
+  let deferred=null;
+  window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); deferred=e; render(); });
+  function render(){
+    if(deferred) box.innerHTML='<i></i><span>Instale como app: </span><button class="btn" id="bInstall" style="min-height:32px;padding:2px 10px;font-size:14px">Instalar</button>';
+    else if(isIOS) box.innerHTML='<i></i><span>Para virar app: Compartilhar → <b>Adicionar à Tela de Início</b>. O app instalado tem memória própria; use "Copiar código" em Trocar perfil para levar o progresso.</span>';
+    else box.innerHTML='<i></i><span>No celular, abra este endereço e use "Adicionar à Tela de Início".</span>';
+    const b=document.getElementById('bInstall'); if(b) b.onclick=async()=>{ deferred.prompt(); await deferred.userChoice; deferred=null; box.remove(); };
+  }
+  render(); card.appendChild(box);
 })();
 </script>
 </body>

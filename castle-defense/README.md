@@ -24,6 +24,7 @@ Três camadas, em ordem de confiabilidade crescente:
 |---|---|---|
 | `localStorage` | A cada compra, fim de onda e fim de run | Fechar o Safari, reiniciar o celular |
 | Nuvem (`db` do artefato publicado no claude.ai) | Mesmos momentos, com atraso de 0,8 s para agrupar escritas | Trocar de aparelho, limpar dados do Safari |
+| Código de progresso (Trocar perfil → Copiar / Importar) | Quando você pede | Levar o save para o PWA instalado, outro navegador ou outra pessoa |
 | Backend próprio com login (não implementado) | — | Usuários de verdade, vários jogadores |
 
 O objeto salvo é um só (`profile`): moedas, níveis das melhorias, heróis
@@ -37,6 +38,43 @@ suficiente para um jogador; um produto real precisaria de merge por campo.
 jogo usa um nome de perfil (`saves/<nome>`). Como só quem está logado na conta abre
 o artefato, na prática o perfil é seu. Fora do claude.ai (este arquivo aberto
 direto ou hospedado), `window.claude` não existe e o jogo cai para só local.
+
+## PWA: instalar como app
+
+A pasta já é um PWA completo: `manifest.webmanifest`, `sw.js` (funciona offline
+depois da primeira visita) e ícones em `icons/`. Falta só hospedar em HTTPS.
+
+### Publicar de graça no GitHub Pages
+
+1. No GitHub: **Settings → Pages → Build and deployment → Source: Deploy from a branch**
+2. Branch: a que contém esta pasta · Folder: **/ (root)** → Save
+3. Em ~1 minuto o jogo estará em
+   `https://<seu-usuario>.github.io/<repo>/castle-defense/`
+
+### Instalar
+
+| Aparelho | Como |
+|---|---|
+| iPhone (Safari) | Compartilhar → **Adicionar à Tela de Início**. Não existe botão de instalar no iOS. |
+| Android (Chrome) | O jogo mostra o botão **Instalar** no menu; ou menu ⋮ → Instalar app |
+| Desktop (Chrome/Edge) | Ícone de instalar na barra de endereço |
+
+### O que o iPhone faz de diferente (e como o jogo lida)
+
+- **Memória separada:** o app na Tela de Início não vê o `localStorage` do Safari.
+  Progresso feito no Safari não aparece no app instalado. Solução no jogo: **Trocar
+  perfil → Copiar código** no Safari, **Importar código** no app.
+- **Sem nuvem fora do claude.ai:** `window.claude` só existe dentro do artefato.
+  No PWA o jogo salva só localmente (e exporta/importa por código).
+- **Sem notificações push** a menos que instalado (iOS 16.4+). Não usadas aqui.
+- **Sem splash screen automática:** exigiria uma imagem por tamanho de tela
+  (`apple-touch-startup-image`). Ficou de fora.
+
+### Atualizar o jogo depois de publicado
+
+Mude `VERSION` em `sw.js` (ex.: `muralha-v2`) a cada alteração. O service worker novo
+descarta o cache antigo na ativação; sem isso o celular pode continuar rodando a
+versão anterior por um bom tempo.
 
 ## Rodar
 
