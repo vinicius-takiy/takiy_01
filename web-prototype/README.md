@@ -15,8 +15,13 @@ tempo até o alvo fugir e uma regra própria:
 | A Mensageira | ≈ 360 m | Vento de través; um decoy com o mesmo casaco na rua |
 | O Chefe | ≈ 540 m | Colete: só cabeça mata; seguranças correm com ele se alertados |
 
+**Onde atirar:** cabeça ou torso matam; braço e perna só ferem e o alvo corre.
+O Chefe usa colete, só a cabeça resolve. A tela mostra a queda em centímetros:
+mire essa altura acima do ponto desejado.
+
 Errar o tiro espanta a rua e o alvo corre para o ponto de fuga. Acertar um civil
-cancela o contrato. Acertar um segurança custa pontos.
+cancela o contrato. Acertar um segurança custa pontos. No Fácil e no Normal uma
+seta na borda da luneta aponta para o alvo quando ele está fora de vista.
 
 ## Controles de uma mão
 

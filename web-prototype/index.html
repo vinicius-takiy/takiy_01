@@ -33,6 +33,10 @@
   #idTag{position:fixed;left:50%;top:calc(50% + 34px);transform:translateX(-50%);font:600 12px var(--font-hud);letter-spacing:.14em;text-transform:uppercase;
     padding:4px 10px;border-radius:3px;background:rgba(20,23,26,.8);color:var(--sand);pointer-events:none;z-index:2;opacity:0;transition:opacity .15s}
   #idTag.show{opacity:1} #idTag.t{color:var(--hit)} #idTag.c{color:var(--civil)}
+  #seek{position:fixed;left:0;top:0;z-index:2;pointer-events:none;display:none;flex-direction:column;align-items:center;gap:2px;transform:translate(-50%,-50%)}
+  #seek.show{display:flex}
+  #seek .arr{width:0;height:0;border-left:9px solid transparent;border-right:9px solid transparent;border-bottom:16px solid var(--hit);transform-origin:50% 100%}
+  #seek .txt{font:600 10px var(--font-hud);letter-spacing:.14em;text-transform:uppercase;color:var(--hit);text-shadow:0 1px 2px rgba(0,0,0,.7)}
   .hitmark{position:fixed;left:50%;top:50%;width:44px;height:44px;margin:-22px;pointer-events:none;opacity:0;z-index:2}
   .hitmark.show{animation:hm .4s ease-out}
   @keyframes hm{0%{opacity:1;transform:scale(1.5)}100%{opacity:0;transform:scale(.9)}}
@@ -133,6 +137,7 @@
   </svg>
 </div>
 <div id="idTag" aria-live="polite"></div>
+<div id="seek" aria-hidden="true"><span class="arr"></span><span class="txt">alvo</span></div>
 <div class="hitmark" id="hitmark" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
 
 <div class="hud">
@@ -155,11 +160,11 @@
   <div class="panel">
     <div class="eyebrow">Protótipo web · iPhone Safari</div>
     <h1>Sniper <em>300m</em></h1>
-    <p class="sub">Três contratos numa avenida. Cada um tem <b>um alvo específico</b>, civis no caminho e uma janela até o alvo fugir. Errar o tiro espanta a rua. Acertar um civil cancela o contrato.</p>
+    <p class="sub">Três contratos numa avenida. Cada um tem <b>um alvo específico</b>, civis no caminho e uma janela até o alvo fugir. <b>Cabeça ou torso matam</b>; braço e perna só ferem. Errar o tiro espanta a rua. Acertar um civil cancela o contrato.</p>
     <div class="eyebrow">Dificuldade</div>
     <div class="row" id="modes">
-      <button class="opt" data-m="facil"><b>Fácil</b><span>Queda 30%, sem vento, mira magnética, marcador sobre o alvo.</span><span class="x">pontos ×1.0</span></button>
-      <button class="opt sel" data-m="normal"><b>Normal</b><span>Queda 80%, vento 60%. O retículo identifica quem está sob a mira.</span><span class="x">pontos ×1.8</span></button>
+      <button class="opt" data-m="facil"><b>Fácil</b><span>Queda 30%, sem vento, mira magnética, marcador e seta até o alvo.</span><span class="x">pontos ×1.0</span></button>
+      <button class="opt sel" data-m="normal"><b>Normal</b><span>Queda 80%, vento 60%. Seta até o alvo; o retículo identifica quem está sob a mira.</span><span class="x">pontos ×1.8</span></button>
       <button class="opt" data-m="hardcore"><b>Hardcore</b><span>Física total, sem telêmetro, sem identificação. Só o dossiê e as bandeiras.</span><span class="x">pontos ×3.0</span></button>
     </div>
     <div class="eyebrow">Sensibilidade da mira</div>
@@ -218,7 +223,7 @@ const PROFILES={
   normal:  {name:'Normal',   gravityScale:.8, windScale:.6, speedMul:1.0, sway:.8, breath:5, assistR:.3,  assistS:.25,rangefinder:true,  windHud:true,  identify:true,  marker:false, scoreMul:1.8},
   hardcore:{name:'Hardcore', gravityScale:1,  windScale:1,  speedMul:1.0, sway:1.5,breath:3, assistR:0,   assistS:0,  rangefinder:false, windHud:false, identify:false, marker:false, scoreMul:3.0}
 };
-const WEAPON={muzzle:850, damage:70, bolt:1.6, recoilV:2.0, recoilH:.6, recover:4};
+const WEAPON={muzzle:850, damage:100, bolt:1.6, recoilV:2.0, recoilH:.6, recover:4};
 const GRAVITY=9.81, DRAG=0.0002, FIXED_DT=1/120, BASE_FOV=60, FOV_MAX=10, FOV_MIN=2.5;
 const D2R=Math.PI/180, clamp=(v,a,b)=>Math.max(a,Math.min(b,v)), lerp=(a,b,t)=>a+(b-a)*t;
 const noise=(x,s)=>0.5+0.5*(Math.sin(x+s)*0.5+Math.sin(x*2.3+s*1.7)*0.3+Math.sin(x*4.1+s*.3)*0.2);
@@ -290,7 +295,7 @@ function person(o){
   const head=new THREE.Mesh(new THREE.SphereGeometry(.13,10,8),skinM); head.position.y=1.68;
   const legs=new THREE.Mesh(new THREE.CylinderGeometry(.18,.16,.8,8),legM); legs.position.y=.4;
   const arm=new THREE.Mesh(new THREE.CylinderGeometry(.06,.06,.6,6),coat); arm.position.set(.28,1.15,0);
-  const parts=[[head,'head',5],[torso,'torso',o.vest?0.2:1],[legs,'limb',.5],[arm,'limb',.5]];
+  const parts=[[head,'head',5],[torso,'torso',o.vest?0.2:1],[legs,'limb',.45],[arm,'limb',.45]];
   if(o.hat){ const h=new THREE.Mesh(new THREE.CylinderGeometry(.15,.15,.08,10),mat(o.hat)); h.position.y=1.8; g.add(h); }
   if(o.case){ const c=new THREE.Mesh(new THREE.BoxGeometry(.35,.28,.1),mat(0x3a2a1c)); c.position.set(-.34,.85,0); g.add(c); }
   const n={g,hp:100,alive:true,hidden:false,panic:false,fall:0,i:0,dir:1,wait:o.wait0||0,y:o.y||0,speed:o.speed,path:o.path,loop:!!o.loop,escape:o.escape,hide:o.hide,role:o.role,name:o.name||'',marker:null};
@@ -323,7 +328,7 @@ function panicAround(p,r){ for(const n of npcs){ if(n.alive&&!n.hidden&&n.g.posi
 /* ============ Contratos ============ */
 const CONTRACTS=[
  { id:'contador', name:'O Contador', limit:95, range:'≈ 240 m',
-   who:'Homem de <b>casaco mostarda</b> com uma <b>pasta preta</b>. Calçada leste da avenida, saindo do café em direção ao carro.',
+   where:'<b>Cabeça ou torso</b> matam. Braço ou perna só ferem, e ele corre para o carro.', who:'Homem de <b>casaco mostarda</b> com uma <b>pasta preta</b>. Calçada leste da avenida, saindo do café em direção ao carro.',
    rule:'Ele para duas vezes: no jornaleiro e para atender o telefone. É quando você atira.',
    fail:'Dois civis andam na mesma calçada. Um deles também usa casaco claro — confira a pasta.',
    build(){
@@ -334,7 +339,7 @@ const CONTRACTS=[
      person({role:'civil',coat:0x9a9a8a,speed:0,path:[{x:17.5,z:228}],hide:{x:20.5,z:230},wait0:1e9});
      return tgt; } },
  { id:'mensageira', name:'A Mensageira', limit:80, range:'≈ 360 m',
-   who:'Mulher de <b>casaco verde-água</b> e <b>boné branco</b>, na sacada do 4º andar, fachada oeste.',
+   where:'<b>Cabeça ou torso</b>. Na sacada só o tronco fica exposto acima da grade, então mire no peito e some a queda.', who:'Mulher de <b>casaco verde-água</b> e <b>boné branco</b>, na sacada do 4º andar, fachada oeste.',
    rule:'Ela anda de um lado ao outro da sacada e entra pela porta ao fim. Vento de través a essa distância desloca a bala mais de um metro.',
    fail:'Há uma mulher de casaco verde-água <b>sem boné</b> na calçada, logo abaixo. Não é ela.',
    build(){
@@ -344,7 +349,7 @@ const CONTRACTS=[
      person({role:'civil',coat:0xb0b8c4,speed:.7,loop:true,path:[{x:-17.5,z:365},{x:-17.5,z:330,wait:9}],hide:{x:-20.5,z:318}});
      return tgt; } },
  { id:'chefe', name:'O Chefe', limit:75, range:'≈ 540 m',
-   who:'Homem de <b>terno branco</b> entre dois seguranças de preto, atravessando a avenida no cruzamento até o carro.',
+   where:'<b>Só a cabeça.</b> O colete segura o tiro no torso e ele entra no carro.', who:'Homem de <b>terno branco</b> entre dois seguranças de preto, atravessando a avenida no cruzamento até o carro.',
    rule:'Ele usa <b>colete</b>: tiro no torso não mata. Só a cabeça resolve. Conversa uns 20 segundos antes de atravessar.',
    fail:'Acertar um segurança não cancela o contrato, mas custa pontos e faz os três correrem para o carro.',
    build(){
@@ -466,6 +471,16 @@ bf.addEventListener('pointercancel',e=>{ if(e.pointerId===fId){ fId=null; fCance
 
 /* ============ HUD ============ */
 let hover=null, rangeTimer=0;
+const seekEl=$('seek'), seekV=new THREE.Vector3();
+function updateSeek(){
+  const t=S.target; if(!profile.identify||!t||!t.alive||t.hidden){ seekEl.classList.remove('show'); return; }
+  seekV.set(t.g.position.x,t.y+1.4,t.g.position.z).project(camera);
+  const w=root.clientWidth,h=root.clientHeight, R=0.47*Math.min(w,h);
+  let px=(seekV.x*w)/2, py=(-seekV.y*h)/2; if(seekV.z>1){ px=-px; py=Math.abs(py)+1; }
+  const d=Math.hypot(px,py); if(d<R*0.55){ seekEl.classList.remove('show'); return; }
+  const k=(R*0.86)/d; seekEl.style.left=`${w/2+px*k}px`; seekEl.style.top=`${h/2+py*k}px`;
+  seekEl.querySelector('.arr').style.transform=`rotate(${Math.atan2(py,px)*180/Math.PI+90}deg)`; seekEl.classList.add('show');
+}
 function hudTick(dtReal){
   const c=CONTRACTS[S.ci]; const left=Math.max(0,c.limit-S.elapsed); $('hTime').textContent=`${Math.ceil(left)} s`; $('hWin').style.transform=`scaleX(${(left/c.limit).toFixed(3)})`; $('hWinBox').classList.toggle('low',left<15);
   $('hScore').textContent=Math.round(S.score); $('hWind').textContent=profile.windHud?windReadout():'sem dados'; bf.classList.toggle('cool',S.cool>0);
@@ -484,7 +499,7 @@ function windReadout(){ const f=new THREE.Vector3(); camera.getWorldDirection(f)
 function openBrief(){
   const c=CONTRACTS[S.ci]; S.phase='brief';
   $('bEyebrow').textContent=`Contrato ${S.ci+1} de ${CONTRACTS.length} · ${profile.name}`; $('bTitle').textContent=c.name;
-  $('bDossier').innerHTML=`<div class="k">Alvo</div><div class="v">${c.who}</div><div class="k">Distância</div><div class="v">${c.range}</div><div class="k">Janela</div><div class="v">${c.limit} segundos até ele sumir. Errar o tiro faz a rua correr e o alvo fugir.</div><div class="k">Regra</div><div class="v">${c.rule}</div><div class="k">Cuidado</div><div class="v">${c.fail}</div>`;
+  $('bDossier').innerHTML=`<div class="k">Alvo</div><div class="v">${c.who}</div><div class="k">Onde atirar</div><div class="v">${c.where}</div><div class="k">Distância</div><div class="v">${c.range}</div><div class="k">Janela</div><div class="v">${c.limit} segundos até ele sumir. Errar o tiro faz a rua correr e o alvo fugir.</div><div class="k">Queda</div><div class="v">A tela mostra quantos centímetros a bala cai. Mire essa altura <b>acima</b> do ponto que quer acertar.</div><div class="k">Regra</div><div class="v">${c.rule}</div><div class="k">Cuidado</div><div class="v">${c.fail}</div>`;
   $('bAccept').textContent=S.target?'Voltar ao tiro':'Aceitar contrato'; $('brief').hidden=false;
 }
 function beginContract(){
@@ -543,7 +558,7 @@ function frame(){
   updateWind(gameT);
   const live=S.phase==='play'||S.phase==='ending';
   if(live){ if(S.phase==='play'){ S.elapsed+=dt; if(S.elapsed>=CONTRACTS[S.ci].limit) endContract('timeout'); if(S.cool>0) S.cool-=dt; }
-    updateBreath(dt); updateSway(gameT,dt); updateNpcs(dt,gameT); stepBullets(dt); updateKillcam(dtReal); if(S.phase==='play') hudTick(dtReal); }
+    updateBreath(dt); updateSway(gameT,dt); updateNpcs(dt,gameT); stepBullets(dt); updateKillcam(dtReal); if(S.phase==='play'){ hudTick(dtReal); updateSeek(); } else seekEl.classList.remove('show'); }
   camera.fov=lerp(camera.fov,S.fovT,Math.min(1,dtReal*10)); camera.updateProjectionMatrix();
   yawObj.rotation.y=Math.PI+S.yaw*D2R; pitchObj.rotation.x=S.pitch*D2R; camera.rotation.set(S.sway.y*D2R,S.sway.x*D2R,0);
   const unitsPerMil=0.2/(0.94*camera.fov*D2R); milGroup.setAttribute('transform',`scale(${(unitsPerMil/5).toFixed(4)})`);
