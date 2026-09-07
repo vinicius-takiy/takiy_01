@@ -1,5 +1,35 @@
 # 5. Rodar no celular
 
+Existem três formas, da mais rápida para a mais definitiva:
+
+| Forma | Quando usar | Tempo por teste |
+|---|---|---|
+| **Unity Remote 5** | Testar toque e mira durante o desenvolvimento | ~5 segundos |
+| **Build And Run (USB)** | Medir desempenho real, testar killcam e som | 3–8 minutos |
+| **APK instalado** | Mostrar para outras pessoas, portfólio | Uma vez |
+
+---
+
+## Forma 1 — Unity Remote 5 (sem gerar build)
+
+O celular vira **tela e controle** do jogo que está rodando no seu PC. A imagem é
+transmitida comprimida (fica borrada), mas o toque é real. É a forma certa de ajustar
+sensibilidade da mira, tamanho dos botões e a pinça de zoom.
+
+1. Instale **Unity Remote 5** na Play Store
+2. Ative a **Depuração USB** no celular (veja abaixo) e conecte ao PC
+3. Na Unity: **Edit → Project Settings → Editor → Unity Remote → Device: Any Android Device**
+4. Abra o app no celular, aperte **Play** no editor
+
+Se aparecer tela preta no celular: feche e reabra o app com o editor já em Play.
+
+**Limitação:** o desempenho que você vê é o do PC, não do celular. Nunca use isso
+para julgar FPS.
+
+---
+
+## Forma 2 — Build And Run (o jogo rodando de verdade no aparelho)
+
 ## Configurar o projeto
 
 **File → Build Settings → Android → Switch Platform** (demora, é normal: a Unity
@@ -34,6 +64,17 @@ QualitySettings.vSyncCount = 0;
 2. **Opções do desenvolvedor → Depuração USB** → ligar
 3. Conecte por USB, aceite a autorização
 4. Unity: **Build Settings → Build And Run**
+
+## Forma 3 — Compartilhar o APK
+
+Depois de um **Build** (sem Run), a Unity gera um arquivo `.apk`. Envie por
+WhatsApp/Drive/cabo; quem receber precisa permitir "instalar de fontes desconhecidas"
+quando o Android perguntar.
+
+Para portfólio, esse `.apk` + um vídeo de 30 segundos da killcam vale mais que qualquer
+descrição escrita.
+
+---
 
 ## Perfilar de verdade
 

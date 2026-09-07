@@ -61,5 +61,12 @@ namespace Sniper.Difficulty
 
         public int ProfileCount => profiles != null ? profiles.Length : 0;
         public int CurrentIndex => currentIndex;
+
+        /// <summary>Perfil por indice, para o menu mostrar nome e descricao de cada um.</summary>
+        public DifficultyProfile GetProfile(int index)
+        {
+            if (profiles == null || index < 0 || index >= profiles.Length) return null;
+            return profiles[index];
+        }
     }
 }

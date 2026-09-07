@@ -50,6 +50,10 @@ mais um sistema.
 | `Environment/WindManager.cs` | Vento que muda ao longo da fase |
 | `Input/TouchAimInput.cs` | Controles de toque (arrastar, pinça, botões) |
 | `UI/HudController.cs` | Distância, vento, munição, fôlego, objetivos |
+| `UI/DifficultyMenu.cs` | Menu inicial: escolha do modo e melhor resultado |
+| `UI/MissionResultScreen.cs` | Fim de missão: pontos, estrelas animadas, recorde |
+| `Core/MissionProgress.cs` | Salva melhor resultado por missão e por dificuldade |
+| `Core/GameBootstrap.cs` | 60fps, tela sempre acesa, orientação paisagem |
 
 ---
 
@@ -59,7 +63,8 @@ mais um sistema.
 2. **[docs/02-primeira-cena.md](docs/02-primeira-cena.md)** — montar a cena e dar o primeiro tiro
 3. **[docs/03-como-funciona-a-balistica.md](docs/03-como-funciona-a-balistica.md)** — entender o código da bala
 4. **[docs/04-modos-de-dificuldade.md](docs/04-modos-de-dificuldade.md)** — configurar os três perfis
-5. **[docs/05-build-android.md](docs/05-build-android.md)** — rodar no celular
+5. **[docs/05-build-android.md](docs/05-build-android.md)** — rodar no celular (Unity Remote, USB ou APK)
+6. **[docs/06-menu-e-resultado.md](docs/06-menu-e-resultado.md)** — menu de dificuldade e tela de resultado
 
 ---
 
