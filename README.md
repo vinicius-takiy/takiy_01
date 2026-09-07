@@ -54,6 +54,7 @@ mais um sistema.
 | `UI/MissionResultScreen.cs` | Fim de missão: pontos, estrelas animadas, recorde |
 | `Core/MissionProgress.cs` | Salva melhor resultado por missão e por dificuldade |
 | `Core/GameBootstrap.cs` | 60fps, tela sempre acesa, orientação paisagem |
+| `UI/SafeAreaFitter.cs` | Mantém a UI fora do notch e da barra de home (obrigatório no iPhone) |
 
 ---
 
@@ -65,6 +66,7 @@ mais um sistema.
 4. **[docs/04-modos-de-dificuldade.md](docs/04-modos-de-dificuldade.md)** — configurar os três perfis
 5. **[docs/05-build-android.md](docs/05-build-android.md)** — rodar no celular (Unity Remote, USB ou APK)
 6. **[docs/06-menu-e-resultado.md](docs/06-menu-e-resultado.md)** — menu de dificuldade e tela de resultado
+7. **[docs/07-ios-iphone.md](docs/07-ios-iphone.md)** — jogar no iPhone: com Mac (grátis) ou sem Mac (alternativas)
 
 ---
 

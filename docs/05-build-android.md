@@ -123,6 +123,6 @@ efeitos de slow-motion, siga o mesmo padrão.
 
 ## iOS
 
-Precisa de um Mac com Xcode e uma conta Apple Developer (US$ 99/ano) para instalar num
-aparelho físico. Para um projeto de portfólio, **comece só pelo Android** — é grátis e
-o ciclo de teste é muito mais rápido.
+Precisa de um Mac com Xcode. Rodar no *seu* iPhone é grátis (Apple ID comum); a conta
+paga (US$ 99/ano) só entra para distribuir a outras pessoas. Caminho completo, incluindo
+o que fazer sem Mac, em **[07-ios-iphone.md](07-ios-iphone.md)**.

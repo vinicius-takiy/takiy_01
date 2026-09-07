@@ -17,6 +17,10 @@ Ao criar o Canvas (**GameObject → UI → Canvas**), no componente **Canvas Sca
 
 Tamanho mínimo de botão: **120 × 120 px** na referência. Dedo não é mouse.
 
+**iPhone:** coloque toda a UI dentro de um painel `SafeArea` com o componente
+`SafeAreaFitter`, senão os botões da esquerda ficam embaixo do notch. Detalhes em
+[07-ios-iphone.md](07-ios-iphone.md).
+
 ---
 
 ## Cena `MainMenu`
