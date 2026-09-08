@@ -1,0 +1,76 @@
+# Publica os jogos no GitHub Pages.
+#
+# IMPORTANTE: este workflow NÃO consegue ligar o Pages sozinho. O token do Actions
+# não tem permissão para criar o site (a API responde "Resource not accessible by
+# integration"), então alguém com acesso de admin precisa ligar uma vez em
+# Settings -> Pages. Depois disso este workflow publica a cada push.
+#
+# Enquanto o Pages estiver desligado, o workflow termina em verde com um aviso,
+# em vez de falhar em vermelho a cada push.
+name: Publicar jogos no Pages
+
+on:
+  push:
+    branches: [claude/sniper-game-mobile-simulator-dw4abz]
+    paths:
+      - 'index.html'
+      - 'castle-defense/**'
+      - 'web-prototype/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: O Pages está ligado?
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/pages")
+          if [ "$code" = "200" ]; then
+            echo "ligado=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ligado=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::GitHub Pages está desligado. Ligue em Settings → Pages (Source: GitHub Actions) e rode este workflow de novo. Nada foi publicado."
+          fi
+
+      - name: Montar o site
+        if: steps.check.outputs.ligado == 'true'
+        run: |
+          mkdir -p _site
+          cp index.html .nojekyll _site/
+          cp -r castle-defense _site/castle-defense
+          cp -r web-prototype _site/web-prototype
+          echo "Publicando:"; find _site -type f | sort
+
+      - name: Configurar o Pages
+        if: steps.check.outputs.ligado == 'true'
+        uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        if: steps.check.outputs.ligado == 'true'
+        with:
+          path: _site
+
+      - id: deploy
+        if: steps.check.outputs.ligado == 'true'
+        uses: actions/deploy-pages@v4
