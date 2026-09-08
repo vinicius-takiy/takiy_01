@@ -8,9 +8,14 @@ estrada, os heróis ficam na muralha e atiram sozinhos. Referência de estilo:
 
 | Camada | O que acontece | Onde no código |
 |---|---|---|
-| **Dentro da run** | Ondas crescentes, XP por slime, ao subir de nível escolhe 1 de 3 skills (12 skills, com níveis) | `SKILLS`, `openLevelUp()`, `onHit()` |
+| **Mapa de fases** | 10 fases com número fixo de ondas e dificuldade gradual, mais o modo Infinito depois da fase 10. Vencer dá 1 a 3 estrelas pela vida da muralha (≥70% = 3) e abre a próxima | `LEVELS`, `renderMap()`, `winLevel()` |
+| **Dentro da fase** | Ondas, XP por slime, ao subir de nível escolhe 1 de 3 skills (12 skills, com níveis) | `SKILLS`, `openLevelUp()`, `onHit()` |
 | **Entre runs** | Moedas compram 5 melhorias permanentes (10 níveis cada), heróis novos e vagas extras na muralha (até 3 heróis juntos) | `UPGRADES`, `HEROES`, `SLOT_COST` |
 | **Interação** | Toque em um slime: todos os heróis focam nele por 4 s. Nada mais a fazer com o dedo, de propósito | `pointerdown` no canvas |
+
+Balanceamento medido: o Mago base sem melhorias conclui a fase 1 em ~100 s com a
+muralha em 95%. Cada fase seguinte sobe vida e velocidade dos slimes e o tamanho das
+ondas; as moedas das fases anteriores pagam as melhorias que tornam a próxima viável.
 
 Heróis: **Mago** (bola de fogo com explosão), **Arqueira** (flechas rápidas que
 atravessam), **Bruxa** (veneno ao longo do tempo). Chefe **Rei Slime** a cada 5 ondas,

@@ -74,7 +74,21 @@
   input.slot{font:inherit;font-size:17px;padding:8px 10px;border:2px solid var(--ink);border-radius:10px;background:var(--paper);color:var(--ink);width:100%;box-sizing:border-box}
   .stats{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;font-size:16px} .stats b{font-family:var(--font-title);font-size:14px;color:var(--ink-soft);display:block}
   .lvl{font-family:var(--font-title);font-size:13px;color:var(--xp)}
-  @media (prefers-reduced-motion:reduce){.bar i{transition:none}}
+  /* ---------- Mapa de fases ---------- */
+  #mapOv{padding:0;align-items:stretch;background:var(--paper);background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:26px 26px}
+  #mapWrap{position:relative;width:100%;height:100%;overflow:hidden}
+  #mapWrap svg{position:absolute;inset:0;width:100%;height:100%}
+  #mapTop{position:absolute;left:12px;right:12px;top:max(10px,env(safe-area-inset-top));display:flex;justify-content:space-between;align-items:center;z-index:2}
+  .node{position:absolute;transform:translate(-50%,-50%);width:56px;height:56px;border-radius:50%;border:2.5px solid var(--ink);background:var(--card);box-shadow:3px 3px 0 var(--ink);
+    font:400 22px var(--font-title);color:var(--ink);display:grid;place-items:center;cursor:pointer;padding:0;-webkit-tap-highlight-color:transparent}
+  .node.done{background:var(--slime)} .node.cur{background:#f6dd8a;animation:pulse 1.4s ease-in-out infinite} .node.lock{opacity:.45;box-shadow:1px 1px 0 var(--ink)}
+  .node.inf{border-radius:14px 18px 12px 20px/20px 12px 18px 14px;font-size:18px}
+  .node .st{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:3px;font-size:14px;color:#b8860b;white-space:nowrap;letter-spacing:.05em;text-shadow:0 1px 0 var(--card)}
+  .node .nm{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);margin-bottom:4px;font:400 11px var(--font-ui);color:var(--ink-soft);white-space:nowrap;background:rgba(255,253,246,.85);padding:1px 6px;border-radius:8px}
+  .node:focus-visible{outline:3px solid var(--xp);outline-offset:2px}
+  @keyframes pulse{0%,100%{transform:translate(-50%,-50%) scale(1)}50%{transform:translate(-50%,-50%) scale(1.08)}}
+  .enemyTag{display:inline-block;border:1.5px solid var(--ink);border-radius:999px;padding:1px 8px;font-size:13px;margin:2px 3px 0 0;background:var(--paper)}
+  @media (prefers-reduced-motion:reduce){.bar i{transition:none}.node.cur{animation:none}}
 </style>
 </head>
 <body>
@@ -99,17 +113,17 @@
   <div class="ov" id="menu">
     <div class="card">
       <h1>Muralha dos <span style="color:var(--slime)">Rabiscos</span></h1>
-      <p>Os slimes vêm pela estrada. Seus heróis ficam na muralha e atiram sozinhos. <b>Toque num slime</b> para todos focarem nele. Suba de nível, escolha skills, e gaste moedas em melhorias que ficam para sempre.</p>
+      <p>Dez fases pela estrada até o Trono do Rei Slime, e um modo Infinito no fim. Seus heróis atiram sozinhos; <b>toque num slime</b> para todos focarem nele. Suba de nível, escolha skills, e gaste moedas em melhorias que ficam para sempre.</p>
       <div class="stack">
         <button class="btn primary" id="bContinue" hidden><span>Continuar run <small id="contInfo"></small></span><span>▶</span></button>
-        <button class="btn" id="bNew"><span>Nova run</span><span>▶</span></button>
+        <button class="btn" id="bMap"><span>Mapa de fases</span><span>🗺️</span></button>
         <div class="row">
           <button class="btn" id="bHeroes"><span>Heróis</span></button>
           <button class="btn" id="bUpgrades"><span>Melhorias</span><span class="cost" id="upCoins">🪙 0</span></button>
         </div>
       </div>
       <div class="stats">
-        <div><b>Melhor onda</b><span id="sBest">—</span></div>
+        <div><b>Fases concluídas</b><span id="sBest">0 / 10</span></div>
         <div><b>Runs jogadas</b><span id="sRuns">0</span></div>
         <div><b>Slimes derrotados</b><span id="sKills">0</span></div>
         <div><b>Moedas</b><span id="sCoins">0</span></div>
@@ -174,10 +188,33 @@
     </div>
   </div>
 
+  <!-- Mapa de fases -->
+  <div class="ov" id="mapOv" hidden>
+    <div id="mapWrap">
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path id="mapPath" fill="none" stroke="#2b2b33" stroke-width="3" stroke-dasharray="7 6" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>
+      <div id="mapTop"><button class="pill" id="bMapBack" style="pointer-events:auto;cursor:pointer;font:inherit">← Menu</button><div class="pill gold">🪙 <span id="mapCoins">0</span></div></div>
+      <div id="mapNodes"></div>
+    </div>
+  </div>
+
+  <!-- Briefing da fase -->
+  <div class="ov" id="lvBrief" hidden>
+    <div class="card">
+      <div class="lvl" id="lbEyebrow">Fase 1</div>
+      <h1 id="lbName">—</h1>
+      <p id="lbDesc"></p>
+      <div id="lbEnemies"></div>
+      <div class="stats"><div><b>Ondas</b><span id="lbWaves"></span></div><div><b>Melhor resultado</b><span id="lbBest"></span></div></div>
+      <div class="row"><button class="btn" id="bLbBack"><span>Voltar</span></button><button class="btn primary" id="bLbPlay"><span>Jogar</span><span>▶</span></button></div>
+    </div>
+  </div>
+
   <!-- Fim -->
   <div class="ov" id="overOv" hidden>
     <div class="card">
+      <div class="lvl" id="overEyebrow"></div>
       <h1 id="overTitle">A muralha caiu</h1>
+      <div class="stars" id="oStars" hidden></div>
       <div class="stats">
         <div><b>Onda alcançada</b><span id="oWave"></span></div>
         <div><b>Slimes</b><span id="oKills"></span></div>
@@ -185,7 +222,8 @@
         <div><b>Nível do time</b><span id="oLvl"></span></div>
       </div>
       <p id="oRecord"></p>
-      <button class="btn primary" id="bOverMenu"><span>Voltar ao menu</span></button>
+      <button class="btn primary" id="bOverNext" hidden><span>Próxima fase</span><span>▶</span></button>
+      <div class="row"><button class="btn" id="bOverRetry"><span>Jogar de novo</span></button><button class="btn" id="bOverMap"><span>Mapa</span></button></div>
     </div>
   </div>
 </div>
@@ -225,6 +263,23 @@ const SKILLS=[
   {id:'thorns', ico:'🌵', name:'Espinhos',        desc:'Quem bate na muralha leva 6 de dano/s.',           max:3},
   {id:'magnet', ico:'🧲', name:'Ímã de XP',       desc:'+30% de XP.',                                     max:3}
 ];
+// Fases: dificuldade sobe devagar. hp e spd multiplicam os inimigos; mix e a chance de cada tipo.
+const LEVELS=[
+  {id:1, name:'Portão da Vila',     waves:5, hp:.70, spd:.92, mix:{slime:1},                       reward:60,  desc:'Só slimes comuns. Aprenda o ritmo: toque em quem chega perto da muralha.', x:50, y:90},
+  {id:2, name:'Estrada do Moinho',  waves:5, hp:.85, spd:.96, mix:{slime:.8,rapido:.2},            reward:80,  desc:'Aparecem os slimes rápidos. Gelo e Cadência ajudam.', x:24, y:81},
+  {id:3, name:'Ponte Velha',        waves:6, hp:1.0, spd:1,   mix:{slime:.65,rapido:.35},          reward:100, desc:'Mais rápidos, mais numerosos. Um segundo herói já faz diferença.', x:38, y:71},
+  {id:4, name:'Pântano Verde',      waves:6, hp:1.1, spd:1,   mix:{slime:.55,rapido:.25,gordo:.2}, reward:130, desc:'Slimes gordos aguentam muito. Perfurante e Chamas encurtam a briga.', x:66, y:65},
+  {id:5, name:'Covil do Rei',       waves:6, hp:1.15,spd:1.02,mix:{slime:.6,rapido:.25,gordo:.15}, reward:220, boss:1, desc:'O Rei Slime aparece na última onda e se parte em seis ao morrer.', x:74, y:54},
+  {id:6, name:'Floresta Torta',     waves:7, hp:1.3, spd:1.04,mix:{slime:.5,rapido:.3,gordo:.2},   reward:160, desc:'Ondas mais longas. Reforço na muralha compensa.', x:46, y:48},
+  {id:7, name:'Ruínas',             waves:7, hp:1.45,spd:1.06,mix:{slime:.35,rapido:.45,gordo:.2}, reward:190, desc:'Enxame de rápidos. Tiro duplo e Raio em cadeia brilham aqui.', x:22, y:40},
+  {id:8, name:'Desfiladeiro',       waves:8, hp:1.6, spd:1.08,mix:{slime:.4,rapido:.25,gordo:.35}, reward:220, desc:'Gordos em fila. Meteoro no grupo mais denso.', x:40, y:31},
+  {id:9, name:'Vale da Névoa',      waves:8, hp:1.8, spd:1.1, mix:{slime:.35,rapido:.35,gordo:.3}, reward:260, desc:'Tudo junto. Três heróis e melhorias altas.', x:68, y:25},
+  {id:10,name:'Trono do Rei Slime', waves:8, hp:2.0, spd:1.12,mix:{slime:.4,rapido:.3,gordo:.3},   reward:400, boss:2, desc:'Dois reis na última onda. Concluir esta fase abre o Infinito.', x:52, y:15},
+  {id:'inf', name:'Infinito', endless:true, reward:0, desc:'Sem fim. As ondas só crescem. Até onde a muralha aguenta?', x:76, y:7, needs:10}
+];
+const levelById=id=>LEVELS.find(l=>String(l.id)===String(id));
+const levelStars=id=>(profile.levels&&profile.levels[id]&&profile.levels[id].stars)||0;
+const isUnlocked=l=>{ if(l.id===1) return true; if(l.needs) return levelStars(l.needs)>0; return levelStars(l.id-1)>0; };
 const ENEMIES={
   slime: {hp:30, spd:48, dps:6,  r:15, xp:3,  coin:1, color:'#7fc97f'},
   rapido:{hp:15, spd:92, dps:4,  r:11, xp:3,  coin:1, color:'#7fd0e0'},
@@ -235,8 +290,8 @@ const ENEMIES={
 /* ================= Persistência: local + nuvem ================= */
 const Save={
   KEY:'muralha.save', SLOT_KEY:'muralha.slot', db:null, slot:'principal', timer:null, status:'local',
-  fresh(){ return {v:1, coins:0, upgrades:{dmg:0,rate:0,wall:0,xp:0,gold:0}, heroes:['mago'], slots:1, team:['mago'], best:{wave:0,kills:0}, runs:0, kills:0, run:null, updatedAt:0}; },
-  readLocal(){ try{ const r=localStorage.getItem(this.KEY+'.'+this.slot); return r?JSON.parse(r):null; }catch(e){ return null; } },
+  fresh(){ return {v:2, coins:0, upgrades:{dmg:0,rate:0,wall:0,xp:0,gold:0}, heroes:['mago'], slots:1, team:['mago'], best:{wave:0,kills:0}, levels:{}, runs:0, kills:0, run:null, updatedAt:0}; },
+  readLocal(){ try{ const r=localStorage.getItem(this.KEY+'.'+this.slot); return r?Object.assign(this.fresh(),JSON.parse(r)):null; }catch(e){ return null; } },
   writeLocal(p){ try{ localStorage.setItem(this.KEY+'.'+this.slot,JSON.stringify(p)); localStorage.setItem(this.SLOT_KEY,this.slot); }catch(e){} },
   cleanSlot(s){ return (s||'').trim().toLowerCase().replace(/[^a-z0-9_\-]+/g,'-').replace(/^-+|-+$/g,'').slice(0,24)||'principal'; },
   async init(){
@@ -274,7 +329,7 @@ function wblob(x,y,rx,ry,seed,amp){ const pts=[]; for(let i=0;i<14;i++){ const a
 ctx.lineJoin='round'; ctx.lineCap='round';
 
 /* ================= Estado da run ================= */
-const G={state:'menu',heroes:[],enemies:[],shots:[],parts:[],texts:[],effects:[],wave:0,wallHp:100,wallMax:100,xp:0,lvl:1,skills:{},coins:0,kills:0,queue:[],spawnT:0,t:0,focus:null,focusT:0,meteorT:0,inter:0,lvQueue:0,tipT:0};
+const G={state:'menu',level:LEVELS[0],heroes:[],enemies:[],shots:[],parts:[],texts:[],effects:[],wave:0,wallHp:100,wallMax:100,xp:0,lvl:1,skills:{},coins:0,kills:0,queue:[],spawnT:0,t:0,focus:null,focusT:0,meteorT:0,inter:0,lvQueue:0,tipT:0};
 const wallY=()=>H*0.80;
 const xpNeed=lvl=>Math.round(8+lvl*6+lvl*lvl*0.5);
 const S=id=>G.skills[id]||0;
@@ -285,26 +340,37 @@ function makeHero(id){ const d=HEROES[id]; return {id,x:0,y:0,cool:rnd(0,.5),def
 function heroDmg(h){ let d=h.def.dmg*metaMul('dmg',.10)*(1+S('power')*.25); return d; }
 function heroRate(h){ return h.def.rate*metaMul('rate',.08)*(1+S('haste')*.20); }
 
-function newRun(){
+function newRun(level){
+  G.level=level||LEVELS[0];
   Object.assign(G,{heroes:profile.team.map(makeHero),enemies:[],shots:[],parts:[],texts:[],effects:[],wave:1,xp:0,lvl:1,skills:{},coins:0,kills:0,queue:[],spawnT:0,t:0,focus:null,meteorT:0,lvQueue:0});
-  G.wallMax=Math.round(100*metaMul('wall',.15)); G.wallHp=G.wallMax; layoutHeroes(); startWave(); setState('play'); tip('Toque num slime para focar o fogo nele');
+  G.wallMax=Math.round(100*metaMul('wall',.15)); G.wallHp=G.wallMax; layoutHeroes(); startWave(); setState('play');
+  tip(G.level.id===1?'Toque num slime para focar o fogo nele':`${G.level.name} · ${G.level.endless?'ondas infinitas':G.level.waves+' ondas'}`);
 }
 function continueRun(){
-  const r=profile.run; if(!r) return newRun();
+  const r=profile.run; if(!r) return openMap();
+  G.level=levelById(r.levelId)||LEVELS[0];
   Object.assign(G,{heroes:(r.team||profile.team).map(makeHero),enemies:[],shots:[],parts:[],texts:[],effects:[],wave:r.wave,xp:r.xp,lvl:r.lvl,skills:Object.assign({},r.skills),coins:r.coins,kills:r.kills,queue:[],spawnT:0,t:0,focus:null,meteorT:0,lvQueue:0,wallMax:r.wallMax,wallHp:r.wallHp});
-  layoutHeroes(); startWave(); setState('play'); tip(`Onda ${G.wave} · bem-vindo de volta`);
+  layoutHeroes(); startWave(); setState('play'); tip(`${G.level.name} · onda ${G.wave}${G.level.endless?'':' de '+G.level.waves}`);
 }
-function snapshotRun(){ profile.run={wave:G.wave,xp:G.xp,lvl:G.lvl,skills:G.skills,coins:G.coins,kills:G.kills,wallHp:G.wallHp,wallMax:G.wallMax,team:G.heroes.map(h=>h.id)}; Save.save(); }
+function snapshotRun(){ profile.run={levelId:G.level.id,wave:G.wave,xp:G.xp,lvl:G.lvl,skills:G.skills,coins:G.coins,kills:G.kills,wallHp:G.wallHp,wallMax:G.wallMax,team:G.heroes.map(h=>h.id)}; Save.save(); }
 
+function pickType(mix){ let r=Math.random(); for(const [t,pch] of Object.entries(mix)){ r-=pch; if(r<=0) return t; } return 'slime'; }
 function startWave(){
-  const w=G.wave, q=[]; const n=6+Math.floor(w*1.8);
-  for(let i=0;i<n;i++){ let t='slime'; const r=Math.random(); if(w>=2&&r<0.25) t='rapido'; if(w>=3&&r>0.82) t='gordo'; q.push(t); }
-  if(w%5===0) q.push('rei');
+  const L=G.level, w=G.wave, q=[];
+  if(L.endless){
+    const n=6+Math.floor(w*1.8); for(let i=0;i<n;i++){ let t='slime'; const r=Math.random(); if(w>=2&&r<0.25) t='rapido'; if(w>=3&&r>0.82) t='gordo'; q.push(t); }
+    if(w%5===0) q.push('rei');
+  } else {
+    const n=5+Math.min(L.id,8)+w; for(let i=0;i<n;i++) q.push(pickType(L.mix));
+    if(L.boss&&w===L.waves) for(let i=0;i<L.boss;i++) q.push('rei');
+  }
   G.queue=q; G.spawnT=0.6; G.inter=0; hud();
 }
 function spawn(type){
-  const d=ENEMIES[type], w=G.wave, hpMul=1+(w-1)*0.32+Math.max(0,w-10)*0.15;
-  const e={type,def:d,x:rnd(30,W-30),y:-d.r-rnd(0,40),hp:d.hp*hpMul,max:d.hp*hpMul,r:d.r,spd:d.spd*(1+w*0.012),burn:0,burnT:0,slowT:0,seed:Math.random()*1000,attacking:false,wob:rnd(0,9)};
+  const d=ENEMIES[type], L=G.level, w=G.wave;
+  const hpMul=L.endless?1+(w-1)*0.32+Math.max(0,w-10)*0.15:L.hp*(1+(w-1)*0.15);
+  const spdMul=L.endless?1+w*0.012:L.spd;
+  const e={type,def:d,x:rnd(30,W-30),y:-d.r-rnd(0,40),hp:d.hp*hpMul,max:d.hp*hpMul,r:d.r,spd:d.spd*spdMul,burn:0,burnT:0,slowT:0,seed:Math.random()*1000,attacking:false,wob:rnd(0,9)};
   G.enemies.push(e);
 }
 
@@ -347,7 +413,9 @@ function update(dt){
   for(const p of G.parts){ p.x+=p.vx*dt; p.y+=p.vy*dt; p.vy+=60*dt; p.t-=dt; } G.parts=G.parts.filter(p=>p.t>0);
   for(const t of G.texts){ t.y-=28*dt; t.t-=dt; } G.texts=G.texts.filter(t=>t.t>0);
   // fim da onda
-  if(!G.queue.length&&!G.enemies.length){ G.inter+=dt; if(G.inter>=1.4){ G.coins+=Math.round(G.wave*4*metaMul('gold',.10)); G.wave++; snapshotRun(); startWave(); tip(`Onda ${G.wave}`); } }
+  if(!G.queue.length&&!G.enemies.length){ G.inter+=dt; if(G.inter>=1.4){ G.coins+=Math.round(G.wave*4*metaMul('gold',.10));
+    if(!G.level.endless&&G.wave>=G.level.waves) return winLevel();
+    G.wave++; snapshotRun(); startWave(); tip(G.level.endless?`Onda ${G.wave}`:`Onda ${G.wave} de ${G.level.waves}`); } }
   if(G.tipT>0&&(G.tipT-=dt)<=0) $('tip').classList.remove('show');
   hud();
 }
@@ -447,16 +515,16 @@ function wblobC(c,x,y,rx,ry,seed,amp){ const pts=[]; for(let i=0;i<12;i++){ cons
 cv.addEventListener('pointerdown',e=>{ if(G.state!=='play') return; const r=cv.getBoundingClientRect(); const x=e.clientX-r.left, y=e.clientY-r.top; let best=null,bd=60; for(const en of G.enemies){ const d=Math.hypot(en.x-x,en.y-y)-en.r; if(d<bd){ bd=d; best=en; } } if(best){ G.focus=best; G.focusT=4; for(let i=0;i<6;i++) puff(best.x,best.y,'#e8613c',3,.3,80); } });
 
 /* ================= HUD e telas ================= */
-function hud(){ $('hWave').textContent=G.wave; $('hCoins').textContent=G.coins; $('hWall').style.transform=`scaleX(${clamp(G.wallHp/G.wallMax,0,1)})`; $('hWallT').textContent=`Muralha ${Math.ceil(G.wallHp)} / ${G.wallMax}`;
+function hud(){ $('hWave').textContent=G.level.endless?G.wave:`${G.wave}/${G.level.waves}`; $('hCoins').textContent=G.coins; $('hWall').style.transform=`scaleX(${clamp(G.wallHp/G.wallMax,0,1)})`; $('hWallT').textContent=`Muralha ${Math.ceil(G.wallHp)} / ${G.wallMax}`;
   $('hXp').style.transform=`scaleX(${clamp(G.xp/xpNeed(G.lvl),0,1)})`; $('hXpT').textContent=`Nível ${G.lvl}`; }
 function tip(t){ $('tip').textContent=t; $('tip').classList.add('show'); G.tipT=2.6; }
-const OVS=['menu','slotOv','heroesOv','upOv','lvOv','pauseOv','overOv'];
+const OVS=['menu','slotOv','heroesOv','upOv','lvOv','pauseOv','overOv','mapOv','lvBrief'];
 function setState(s){ G.state=s; OVS.forEach(id=>$(id).hidden=true); $('hud').hidden=!(s==='play'||s==='levelup'||s==='pause');
-  if(s==='menu') $('menu').hidden=false; if(s==='levelup') $('lvOv').hidden=false; if(s==='pause') $('pauseOv').hidden=false; if(s==='over') $('overOv').hidden=false; }
+  if(s==='menu') $('menu').hidden=false; if(s==='map') $('mapOv').hidden=false; if(s==='levelup') $('lvOv').hidden=false; if(s==='pause') $('pauseOv').hidden=false; if(s==='over') $('overOv').hidden=false; }
 
 function renderMenu(){
-  $('bContinue').hidden=!profile.run; if(profile.run) $('contInfo').textContent=`onda ${profile.run.wave} · nível ${profile.run.lvl}`;
-  $('sBest').textContent=profile.best.wave||'—'; $('sRuns').textContent=profile.runs; $('sKills').textContent=profile.kills; $('sCoins').textContent=profile.coins;
+  $('bContinue').hidden=!profile.run; if(profile.run){ const L=levelById(profile.run.levelId)||LEVELS[0]; $('contInfo').textContent=`${L.name} · onda ${profile.run.wave}${L.endless?'':'/'+L.waves}`; }
+  const done=LEVELS.filter(l=>!l.endless&&levelStars(l.id)>0).length; $('sBest').textContent=`${done} / 10`+(profile.best.wave?` · infinito ${profile.best.wave}`:''); $('sRuns').textContent=profile.runs; $('sKills').textContent=profile.kills; $('sCoins').textContent=profile.coins;
   $('upCoins').textContent=`🪙 ${profile.coins}`; $('slotName').textContent=Save.slot;
 }
 function openLevelUp(){ G.lvQueue--; setState('levelup'); $('lvNum').textContent=G.lvl-G.lvQueue;
@@ -468,21 +536,62 @@ $('lvList').addEventListener('click',e=>{ const b=e.target.closest('button'); if
   if(G.lvQueue>0) openLevelUp(); else setState('play'); });
 
 function gameOver(){ setState('over'); endRun(true); }
+function clearField(){ G.heroes=[]; G.enemies=[]; G.shots=[]; G.parts=[]; G.effects=[]; G.texts=[]; }
+function winLevel(){
+  const L=G.level, pct=G.wallHp/G.wallMax, stars=pct>=.7?3:pct>=.35?2:1;
+  const bonus=Math.round(L.reward*stars/3*metaMul('gold',.10)), gained=G.coins+bonus;
+  profile.coins+=gained; profile.runs++; profile.kills+=G.kills;
+  const prev=levelStars(L.id); profile.levels=profile.levels||{}; if(stars>prev) profile.levels[L.id]={stars};
+  profile.run=null; Save.save(); renderMenu(); setState('over');
+  $('overEyebrow').textContent=`Fase ${L.id} · ${L.name}`; $('overTitle').textContent=stars===3?'Fase concluída sem arranhão!':'Fase concluída!';
+  $('oStars').hidden=false; $('oStars').innerHTML=[0,1,2].map(i=>`<span class="${i<stars?'':'off'}">★</span>`).join('');
+  $('oWave').textContent=`${L.waves} / ${L.waves}`; $('oKills').textContent=G.kills; $('oCoins').textContent=`+${gained}`; $('oLvl').textContent=G.lvl;
+  const next=LEVELS.find(l=>l.id===L.id+1);
+  $('oRecord').textContent=stars<3?`Muralha terminou com ${Math.round(pct*100)}%. Três estrelas exigem 70% ou mais.`:(L.id===10?'Você abriu o modo Infinito.':'Bônus da fase multiplicado pelas estrelas.');
+  $('bOverNext').hidden=!next; $('bOverNext').onclick=()=>{ if(next) openBrief(next); };
+  clearField();
+}
 function endRun(fell){
-  const gained=G.coins; profile.coins+=gained; profile.runs++; profile.kills+=G.kills; const record=G.wave>profile.best.wave; if(record){ profile.best.wave=G.wave; profile.best.kills=G.kills; }
+  const L=G.level, gained=G.coins; profile.coins+=gained; profile.runs++; profile.kills+=G.kills;
+  let record=false; if(L.endless&&G.wave>profile.best.wave){ record=true; profile.best.wave=G.wave; profile.best.kills=G.kills; }
   profile.run=null; Save.save(); renderMenu();
-  $('overTitle').textContent=fell?'A muralha caiu':'Run encerrada'; $('oWave').textContent=G.wave; $('oKills').textContent=G.kills; $('oCoins').textContent=`+${gained}`; $('oLvl').textContent=G.lvl;
-  $('oRecord').textContent=record?'Novo recorde de onda! Gaste as moedas em Melhorias antes da próxima.':'Dica: cada melhoria vale em todas as runs. Reforço na muralha ajuda quem cai cedo.';
-  G.heroes=[]; G.enemies=[]; G.shots=[]; G.parts=[]; G.effects=[]; G.texts=[];
+  $('overEyebrow').textContent=L.endless?'Infinito':`Fase ${L.id} · ${L.name}`; $('overTitle').textContent=fell?'A muralha caiu':'Run encerrada'; $('oStars').hidden=true;
+  $('oWave').textContent=L.endless?G.wave:`${G.wave} / ${L.waves}`; $('oKills').textContent=G.kills; $('oCoins').textContent=`+${gained}`; $('oLvl').textContent=G.lvl;
+  $('oRecord').textContent=record?'Novo recorde no Infinito!':fell?'As moedas ficam. Gaste em Melhorias ou abra uma vaga para um segundo herói e tente de novo.':'';
+  $('bOverNext').hidden=true; clearField();
 }
 
+/* ================= Mapa de fases ================= */
+function openMap(){ setState('map'); renderMap(); }
+function renderMap(){
+  $('mapCoins').textContent=profile.coins;
+  const pts=LEVELS.map(l=>[l.x,l.y]); let d=''; pts.forEach((p,i)=>{ const jx=hash(i,3)*1.2, jy=hash(i+40,3)*1.2; d+=(i?' L':'M')+(p[0]+jx)+' '+(p[1]+jy); }); $('mapPath').setAttribute('d',d);
+  let cur=LEVELS.find(l=>!l.endless&&isUnlocked(l)&&levelStars(l.id)===0);
+  $('mapNodes').innerHTML=LEVELS.map(l=>{ const st=levelStars(l.id), un=isUnlocked(l);
+    const cls=['node',l.endless?'inf':'',!un?'lock':st>0?'done':cur&&cur.id===l.id?'cur':''].join(' ');
+    const stars=l.endless?(profile.best.wave?`onda ${profile.best.wave}`:''):st?'★'.repeat(st)+'<span style="color:#c9c3b3">'+'★'.repeat(3-st)+'</span>':'';
+    return `<button class="${cls}" data-l="${l.id}" style="left:${l.x}%;top:${l.y}%" ${un?'':'disabled'} aria-label="${l.name}"><span class="nm">${un?l.name:'🔒 conclua a fase '+(l.needs||l.id-1)}</span>${l.endless?'∞':l.id}<span class="st">${stars}</span></button>`; }).join('');
+}
+function openBrief(L){
+  $('lvBrief').hidden=false; $('lbEyebrow').textContent=L.endless?'Modo extra':`Fase ${L.id} de 10`; $('lbName').textContent=L.name; $('lbDesc').textContent=L.desc;
+  const names={slime:'Slime',rapido:'Rápido',gordo:'Gordo',rei:'Rei Slime'};
+  const tags=L.endless?['Slime','Rápido','Gordo','Rei Slime a cada 5']:Object.keys(L.mix).map(k=>names[k]).concat(L.boss?[`${L.boss>1?L.boss+'× ':''}Rei Slime`]:[]);
+  $('lbEnemies').innerHTML=tags.map(t=>`<span class="enemyTag">${t}</span>`).join('');
+  $('lbWaves').textContent=L.endless?'∞':L.waves; const st=levelStars(L.id); $('lbBest').textContent=L.endless?(profile.best.wave?`onda ${profile.best.wave}`:'—'):st?'★'.repeat(st):'—';
+  $('bLbPlay').onclick=()=>{ $('lvBrief').hidden=true; profile.run=null; newRun(L); };
+}
+$('mapNodes').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b||b.disabled) return; openBrief(levelById(b.dataset.l)); });
+$('bMapBack').addEventListener('click',()=>{ setState('menu'); renderMenu(); });
+$('bLbBack').addEventListener('click',()=>{ $('lvBrief').hidden=true; });
+
 // Menu
-$('bNew').addEventListener('click',()=>{ profile.run=null; newRun(); });
+$('bMap').addEventListener('click',openMap);
 $('bContinue').addEventListener('click',continueRun);
 $('bPause').addEventListener('click',()=>{ if(G.state==='play'){ setState('pause'); $('pauseSkills').innerHTML=Object.keys(G.skills).length?'<p>Skills desta run: '+Object.entries(G.skills).map(([k,v])=>`${SKILLS.find(s=>s.id===k).ico} ${SKILLS.find(s=>s.id===k).name} ×${v}`).join(' · ')+'</p>':'<p>Nenhuma skill ainda.</p>'; } });
 $('bResume').addEventListener('click',()=>setState('play'));
 $('bQuit').addEventListener('click',()=>{ setState('over'); endRun(false); });
-$('bOverMenu').addEventListener('click',()=>{ setState('menu'); renderMenu(); });
+$('bOverMap').addEventListener('click',openMap);
+$('bOverRetry').addEventListener('click',()=>{ profile.run=null; newRun(G.level); });
 document.addEventListener('visibilitychange',()=>{ if(document.hidden&&G.state==='play'){ setState('pause'); $('pauseSkills').innerHTML='<p>Pausado ao sair do app.</p>'; } });
 
 // Heróis
