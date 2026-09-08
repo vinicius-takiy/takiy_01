@@ -308,20 +308,32 @@ const SKILLS=[
   {id:'repair', ico:'🔨', name:'Reforço',         desc:'Repara 40% da muralha e +20% de vida máxima.',    max:4},
   {id:'meteor', ico:'☄️', name:'Meteoro',         desc:'A cada 8 s cai um meteoro no grupo mais denso.',  max:3},
   {id:'thorns', ico:'🌵', name:'Espinhos',        desc:'Quem bate na muralha leva 6 de dano/s.',           max:3},
-  {id:'magnet', ico:'🧲', name:'Ímã de XP',       desc:'+30% de XP.',                                     max:3}
+  {id:'magnet', ico:'🧲', name:'Ímã de XP',       desc:'+30% de XP.',                                     max:3},
+  {id:'venom',    ico:'🧪', name:'Veneno',        desc:'Acertos envenenam: 6 de dano/s por 4 s.',            max:3},
+  {id:'freeze',   ico:'🧊', name:'Congelar',      desc:'12% de chance de congelar o inimigo por 1,5 s.',     max:3},
+  {id:'blast',    ico:'💣', name:'Estouro',       desc:'Cada acerto explode: 40% do dano em raio de 34.',    max:3},
+  {id:'precision',ico:'🎪', name:'Precisão',      desc:'Crítico causa 3× em vez de 2×.',                     max:2},
+  {id:'focus',    ico:'🎯', name:'Mira',          desc:'+35% de dano no inimigo que você marcou.',           max:3},
+  {id:'rage',     ico:'😤', name:'Fúria',         desc:'+40% de dano com a muralha abaixo de metade.',       max:3},
+  {id:'mend',     ico:'🧽', name:'Argamassa',     desc:'A muralha se recupera 1,5/s.',                       max:4},
+  {id:'bounty',   ico:'💰', name:'Pilhagem',      desc:'+25% de moedas.',                                    max:3},
+  {id:'vamp',     ico:'🩸', name:'Vampirismo',    desc:'Heróis de campo curam 15% do dano que causam.',      max:3},
+  {id:'whirl',    ico:'🌀', name:'Rodopio',       desc:'Golpe corpo a corpo atinge todos num raio de 55.',   max:2},
+  {id:'guard',    ico:'🛡️', name:'Guarda',        desc:'Heróis de campo: +10% de armadura e +20 de vida.',   max:3},
+  {id:'swift',    ico:'💨', name:'Volta rápida',  desc:'Heróis de campo voltam 2 s mais cedo.',              max:3}
 ];
 // Fases: dificuldade sobe devagar. hp e spd multiplicam os inimigos; mix e a chance de cada tipo.
 const LEVELS=[
   {id:1, name:'Portão da Vila',     waves:10, hp:.70, spd:.92, mix:{slime:1},                                                          reward:70,  boss:['reizinho'], desc:'Só slimes comuns. Aprenda o ritmo. Nas ondas 4 e 8 vem uma horda.', x:50, y:90},
   {id:2, name:'Estrada do Moinho',  waves:10, hp:.82, spd:.96, mix:{slime:.7,rapido:.3},                                               reward:90,  boss:['reizinho'], desc:'Slimes rápidos entram na conta. Gelo e Cadência ajudam.', x:24, y:81},
-  {id:3, name:'Ponte Velha',        waves:10, hp:.95, spd:1,   mix:{slime:.5,rapido:.3,morcego:.2},                                    reward:110, boss:['bruxo'],    desc:'Morcegos voam em zigue-zague e ignoram espinhos. O Bruxo invoca reforços.', x:38, y:71},
-  {id:4, name:'Pântano Verde',      waves:10, hp:1.05,spd:1,   mix:{slime:.35,rapido:.2,gordo:.25,aranha:.2},                          reward:140, boss:['golem'],    desc:'Aranhas prendem seus heróis de campo em teia e deixam o ataque lento.', x:66, y:65},
-  {id:5, name:'Covil do Rei',       waves:11, hp:1.12,spd:1.02,mix:{slime:.3,rapido:.2,gordo:.2,esqueleto:.3},                         reward:240, boss:['rei'],      desc:'Esqueletos levantam uma vez depois de mortos. O Rei se parte em seis.', x:74, y:54},
-  {id:6, name:'Floresta Torta',     waves:11, hp:1.25,spd:1.04,mix:{slime:.25,rapido:.2,morcego:.2,cogumelo:.2,gordo:.15},             reward:180, boss:['gigante'],  desc:'Cogumelos explodem ao morrer e ferem quem está perto, inclusive a muralha.', x:46, y:48},
-  {id:7, name:'Ruínas',             waves:11, hp:1.4, spd:1.06,mix:{rapido:.35,morcego:.25,aranha:.25,esqueleto:.15},                  reward:210, boss:['bruxo'],    desc:'Tudo rápido e em bando. Tiro duplo e Raio em cadeia brilham aqui.', x:22, y:40},
-  {id:8, name:'Desfiladeiro',       waves:11, hp:1.55,spd:1.08,mix:{gordo:.3,blindado:.3,cogumelo:.2,slime:.2},                        reward:250, boss:['golem'],    desc:'Cascos resistem 60% a projéteis. Só golpe corpo a corpo derruba rápido.', x:40, y:31},
-  {id:9, name:'Vale da Névoa',      waves:11, hp:1.7, spd:1.1, mix:{blindado:.2,curandeiro:.15,esqueleto:.2,aranha:.2,morcego:.25},    reward:300, boss:['gigante','reizinho'], desc:'Curandeiros regeneram os vizinhos sem parar. Mate-os primeiro.', x:68, y:25},
-  {id:10,name:'Trono do Rei Slime', waves:12, hp:1.9, spd:1.12,mix:{slime:.15,rapido:.15,gordo:.15,blindado:.15,esqueleto:.15,cogumelo:.1,curandeiro:.05,aranha:.1}, reward:450, boss:['rei','rei'], desc:'Tudo que existe, dois Reis no fim. Concluir abre o Infinito.', x:52, y:15},
+  {id:3, name:'Ponte Velha',        waves:10, hp:.95, spd:1,   mix:{slime:.45,rapido:.25,morcego:.2,goblin:.1},                                    reward:110, boss:['bruxo'],    desc:'Morcegos voam em zigue-zague. Goblins roubam moedas. O Bruxo invoca reforços.', x:38, y:71},
+  {id:4, name:'Pântano Verde',      waves:10, hp:1.05,spd:1,   mix:{slime:.3,rapido:.15,gordo:.2,aranha:.2,lobo:.15},                          reward:140, boss:['golem'],    desc:'Aranhas prendem seus heróis em teia. Lobos correm mais rápido em matilha.', x:66, y:65},
+  {id:5, name:'Covil do Rei',       waves:11, hp:1.12,spd:1.02,mix:{slime:.2,rapido:.15,gordo:.15,esqueleto:.25,zumbi:.25},                         reward:240, boss:['rei'],      desc:'Zumbis apodrecem quem eles batem. Esqueletos levantam uma vez. O Rei se parte em seis.', x:74, y:54},
+  {id:6, name:'Floresta Torta',     waves:11, hp:1.25,spd:1.04,mix:{slime:.2,morcego:.2,cogumelo:.2,lobo:.2,goblin:.2},             reward:180, boss:['gigante'],  desc:'Cogumelos explodem ao morrer. Goblins roubam suas moedas na muralha.', x:46, y:48},
+  {id:7, name:'Ruínas',             waves:11, hp:1.4, spd:1.06,mix:{rapido:.25,morcego:.2,aranha:.2,espectro:.2,goblin:.15},                  reward:210, boss:['bruxo'],   desc:'Espectros ficam intangíveis por 1 s a cada 3 s. E um Dragão fecha a fase. Tiro duplo e Raio em cadeia brilham aqui.', x:22, y:40},
+  {id:8, name:'Desfiladeiro',       waves:11, hp:1.55,spd:1.08,mix:{gordo:.2,blindado:.25,orc:.25,cogumelo:.15,zumbi:.15},                        reward:250, boss:['golem'],    desc:'Cascos resistem a projétil e Orcs batem em todos os heróis de campo de uma vez.', x:40, y:31},
+  {id:9, name:'Vale da Névoa',      waves:11, hp:1.7, spd:1.1, mix:{blindado:.15,curandeiro:.15,zumbi:.15,espectro:.2,orc:.2,morcego:.15},    reward:300, boss:['dragao'], desc:'Curandeiros, Espectros e Orcs. No fim vem o Dragão: voa, ignora espinhos e cospe fogo na muralha.', x:68, y:25},
+  {id:10,name:'Trono do Rei Slime', waves:12, hp:1.9, spd:1.12,mix:{rapido:.12,gordo:.12,blindado:.12,esqueleto:.12,orc:.12,zumbi:.12,espectro:.12,curandeiro:.08,cogumelo:.08,lobo:.1}, reward:450, boss:['rei','dragao'], desc:'Tudo que existe, o Rei e o Dragão no fim. Concluir abre o Infinito.', x:52, y:15},
   {id:'inf', name:'Infinito', endless:true, reward:0, desc:'Sem fim: novos monstros vão entrando, horda a cada 4 ondas e chefe a cada 5.', x:76, y:7, needs:10}
 ];
 const levelById=id=>LEVELS.find(l=>String(l.id)===String(id));
@@ -338,14 +350,20 @@ const ENEMIES={
   cogumelo:  {hp:52, spd:34, dps:5,  r:17, xp:8,  coin:3, color:'#d4736b', name:'Cogumelo',   boom:70},
   curandeiro:{hp:70, spd:40, dps:4,  r:18, xp:12, coin:5, color:'#f0d264', name:'Curandeiro', heal:11},
   blindado:  {hp:85, spd:36, dps:14, r:20, xp:11, coin:4, color:'#8fa3b8', name:'Casco',      rangedRes:.6},
+  zumbi:     {hp:64, spd:34, dps:10, r:16, xp:9,  coin:3, color:'#87a06b', name:'Zumbi',      rot:7},
+  goblin:    {hp:26, spd:88, dps:6,  r:12, xp:6,  coin:4, color:'#6fa84f', name:'Goblin',     steal:3},
+  lobo:      {hp:34, spd:84, dps:8,  r:14, xp:6,  coin:2, color:'#8a7f74', name:'Lobo',       pack:true},
+  orc:       {hp:150,spd:38, dps:18, r:22, xp:14, coin:5, color:'#5f7a4a', name:'Orc',        cleave:52},
+  espectro:  {hp:42, spd:46, dps:9,  r:16, xp:10, coin:4, color:'#b9c6d6', name:'Espectro',   phase:true},
   // Chefes: um no fim de cada fase. Cada um exige uma resposta diferente.
   reizinho:{hp:300, spd:26, dps:14, r:30, xp:25, coin:12, color:'#e6a8dc', boss:true, name:'Príncipe Slime', splits:3, drop:.35},
   rei:     {hp:1000,spd:24, dps:30, r:42, xp:60, coin:25, color:'#d98fd0', boss:true, name:'Rei Slime', splits:6, drop:.75},
   bruxo:   {hp:580, spd:20, dps:16, r:32, xp:55, coin:24, color:'#8a6fd0', boss:true, name:'Slime Bruxo', summon:5, drop:.5},
   golem:   {hp:950, spd:13, dps:45, r:40, xp:70, coin:30, color:'#9c8262', boss:true, name:'Golem de Lama', drop:.5},
-  gigante: {hp:780, spd:24, dps:32, r:46, xp:75, coin:30, color:'#e0a050', boss:true, name:'Slime Gigante', enrage:true, drop:.55}
+  gigante: {hp:780, spd:24, dps:32, r:46, xp:75, coin:30, color:'#e0a050', boss:true, name:'Slime Gigante', enrage:true, drop:.55},
+  dragao:  {hp:1000,spd:22, dps:30, r:44, xp:90, coin:40, color:'#c4503f', boss:true, name:'Dragão', fly:true, fire:5, drop:.8}
 };
-const BOSS_POOL=['rei','bruxo','golem','gigante'];
+const BOSS_POOL=['rei','bruxo','golem','gigante','dragao'];
 
 /* ================= Persistência: local + nuvem ================= */
 const Save={
@@ -402,9 +420,11 @@ function layoutHeroes(){
   M.forEach((h,i)=>{ h.homeX=W*(M.length===1?0.5:0.3+0.4*i/(M.length-1)); h.homeY=wy-72; if(h.x===0&&h.y===0){ h.x=h.homeX; h.y=h.homeY; } });
 }
 function makeHero(id){ const d=HEROES[id], b=heroBonus(id); const h={id,x:0,y:0,cool:rnd(0,.5),def:d,bob:rnd(0,6),bonus:b};
-  if(d.role==='melee'){ h.hpMax=Math.round(d.hp*(1+b.hp/100)); h.hp=h.hpMax; h.regen=d.regen+b.regen; h.armor=Math.min(.6,d.armor+b.armor/100); h.dodge=Math.min(.7,d.dodge+b.dodge/100); h.speed=d.speed*(1+b.speed/100); h.reach=d.reach; h.dead=false; h.respawn=0; h.tauntCd=3; h.tauntT=0; h.webT=0; h.leapT=0; h.leapZ=0; h.leapCd=4; h.noHitT=9; h.deaths=0; }
+  if(d.role==='melee'){ h.hpMax=Math.round(d.hp*(1+b.hp/100)); h.hp=h.hpMax; h.regen=d.regen+b.regen; h.armor=Math.min(.6,d.armor+b.armor/100); h.dodge=Math.min(.7,d.dodge+b.dodge/100); h.speed=d.speed*(1+b.speed/100); h.reach=d.reach; h.dead=false; h.respawn=0; h.tauntCd=3; h.tauntT=0; h.webT=0; h.leapT=0; h.leapZ=0; h.leapCd=4; h.noHitT=9; h.deaths=0; h.poisonT=0; h.poisonDmg=0; }
   return h; }
-function heroDmg(h){ return h.def.dmg*metaMul('dmg',.10)*(1+S('power')*.25)*(1+(h.bonus?h.bonus.dmg:0)/100); }
+function heroDmg(h){ let d=h.def.dmg*metaMul('dmg',.10)*(1+S('power')*.25)*(1+(h.bonus?h.bonus.dmg:0)/100);
+  if(S('rage')&&G.wallHp/G.wallMax<.5) d*=1+S('rage')*.4;   // Fúria: acorda quando a muralha aperta
+  return d; }
 function heroRate(h){ return h.def.rate*metaMul('rate',.08)*(1+S('haste')*.20)*(1+(h.bonus?h.bonus.rate:0)/100); }
 function critChance(h){ return S('crit')*.15+(h.def.crit||0)+(h.bonus?h.bonus.crit:0)/100; }
 function teamXpBonus(){ return G.heroes.reduce((a,h)=>a+(h.bonus?h.bonus.xp:0),0)/100; }
@@ -428,7 +448,8 @@ function pickType(mix){ const ks=Object.keys(mix); let tot=0; for(const k of ks)
 // No Infinito os tipos vao entrando conforme as ondas passam.
 function endlessMix(w){ const m={slime:1};
   if(w>=2) m.rapido=.6; if(w>=3) m.morcego=.4; if(w>=4) m.gordo=.4; if(w>=6) m.aranha=.4;
-  if(w>=8) m.esqueleto=.5; if(w>=10) m.cogumelo=.4; if(w>=12) m.blindado=.5; if(w>=15) m.curandeiro=.25; return m; }
+  if(w>=7) m.goblin=.4; if(w>=8) m.esqueleto=.5; if(w>=9) m.lobo=.45; if(w>=10) m.cogumelo=.4;
+  if(w>=11) m.zumbi=.4; if(w>=12) m.blindado=.5; if(w>=14) m.orc=.4; if(w>=16) m.espectro=.4; if(w>=18) m.curandeiro=.25; return m; }
 function startWave(){
   const L=G.level, w=G.wave, q=[];
   // Horda: a cada 4 ondas vem quase o dobro de inimigos, e mais rapido.
@@ -448,7 +469,7 @@ function spawn(type){
   const d=ENEMIES[type], L=G.level, w=G.wave;
   const hpMul=L.endless?1+(w-1)*0.32+Math.max(0,w-10)*0.15:L.hp*(1+(w-1)*0.15);
   const spdMul=L.endless?1+w*0.012:L.spd;
-  const e={type,def:d,x:rnd(30,W-30),y:-d.r-rnd(0,40),hp:d.hp*hpMul,max:d.hp*hpMul,r:d.r,spd:d.spd*spdMul,burn:0,burnT:0,slowT:0,seed:Math.random()*1000,attacking:false,wob:rnd(0,9),target:null,aggroT:0,tauntT:0,hitT:0,sumT:0};
+  const e={type,def:d,x:rnd(30,W-30),y:-d.r-rnd(0,40),hp:d.hp*hpMul,max:d.hp*hpMul,r:d.r,spd:d.spd*spdMul,burn:0,burnT:0,slowT:0,frozenT:0,intangT:0,seed:Math.random()*1000,attacking:false,wob:rnd(0,9),target:null,aggroT:0,tauntT:0,hitT:0,sumT:0};
   G.enemies.push(e); if(d.boss) tip(`${d.name} chegou!`); return e;
 }
 
@@ -469,7 +490,12 @@ function update(dt){
   for(const e of G.enemies){
     let sp=e.spd; if(e.slowT>0){ e.slowT-=dt; sp*=.7; } if(S('ice')>=2&&e.slowT>0) sp*=.85;
     if(e.def.enrage) sp*=1+(1-e.hp/e.max)*1.2;
+    if(e.frozenT>0){ e.frozenT-=dt; sp=0; }
     if(e.def.fly) e.x=clamp(e.x+Math.sin(G.t*2.2+e.wob)*52*dt,10,W-10);
+    if(e.def.phase){ e.phaseT=(e.phaseT||0)+dt; e.intangT=(e.phaseT%3)<1?1:0; }   // Espectro some por 1 s a cada 3 s
+    if(e.def.pack){ let n=0; for(const o of G.enemies) if(o!==e&&o.hp>0&&o.def.pack&&Math.hypot(o.x-e.x,o.y-e.y)<110) n++; sp*=1+Math.min(4,n)*.12; }
+    if(e.def.fire){ e.fireT=(e.fireT||0)+dt; if(e.fireT>=e.def.fire&&e.y>0){ e.fireT=0;
+      G.effects.push({kind:'fireball',x:clamp(e.x+rnd(-90,90),20,W-20),y:wy-rnd(10,90),t:0,dur:1}); } }
     if(e.def.heal){ e.healT=(e.healT||0)+dt; if(e.healT>=.5){ e.healT=0; let n=0;
       for(const o of G.enemies){ if(o!==e&&o.hp>0&&o.hp<o.max&&Math.hypot(o.x-e.x,o.y-e.y)<95){ o.hp=Math.min(o.max,o.hp+e.def.heal*.5); n++; } }
       if(n) G.effects.push({kind:'heal',x:e.x,y:e.y,r:95,t:0,dur:.45}); } }
@@ -479,11 +505,15 @@ function update(dt){
     if(e.target){ if(e.target.dead||!G.heroes.includes(e.target)) e.target=null; else if(e.tauntT>0) e.tauntT-=dt; else if((e.aggroT-=dt)<=0) e.target=null; }
     if(e.target){ const h=e.target, dx=h.x-e.x, dy=h.y-e.y, dist=Math.hypot(dx,dy);
       if(dist>e.r+14){ e.x+=dx/dist*sp*dt; e.y+=dy/dist*sp*dt; e.attacking=false; }
-      else { e.attacking=true; e.hitT+=dt; if(e.hitT>=.8){ e.hitT-=.8; heroHit(h,e.def.dps*.8,e); } }
+      else { e.attacking=true; e.hitT+=dt; if(e.hitT>=.8){ e.hitT-=.8;
+        if(e.def.cleave){ for(const o of G.heroes) if(o.def.role==='melee'&&!o.dead&&Math.hypot(o.x-e.x,o.y-e.y)<e.def.cleave) heroHit(o,e.def.dps*.8,e); }
+        else heroHit(h,e.def.dps*.8,e); } }
       e.x=clamp(e.x,12,W-12); continue; }
-    if(e.y<wy-e.r-6){ e.y+=sp*dt; e.attacking=false; } else { e.attacking=true; wallDmg+=e.def.dps*dt; if(S('thorns')&&!e.def.fly) hurt(e,6*S('thorns')*dt,false); }
+    if(e.y<wy-e.r-6){ e.y+=sp*dt; e.attacking=false; } else { e.attacking=true; wallDmg+=e.def.dps*dt; if(S('thorns')&&!e.def.fly) hurt(e,6*S('thorns')*dt,false);
+      if(e.def.steal){ const g=e.def.steal*dt; if(G.coins>0){ G.coins=Math.max(0,G.coins-g); e.stole=(e.stole||0)+g; if(e.stole>=1){ e.stole=0; G.texts.push({x:e.x,y:e.y-e.r-6,v:'-🪙',t:.7}); } } } }
   }
   if(wallDmg>0){ G.wallHp-=wallDmg; if(G.wallHp<=0){ G.wallHp=0; return gameOver(); } }
+  if(S('mend')&&G.wallHp>0) G.wallHp=Math.min(G.wallMax,G.wallHp+1.5*S('mend')*dt);
   // heróis
   if(G.focus&&(!G.enemies.includes(G.focus)||G.focus.hp<=0||(G.focusT-=dt)<=0)) G.focus=null;
   for(const h of G.heroes){
@@ -498,6 +528,9 @@ function update(dt){
     // ---- herói de campo ----
     if(h.dead){ h.respawn-=dt; if(h.respawn<=0){ h.dead=false; h.hp=h.hpMax; h.x=h.homeX; h.y=h.homeY; for(let i=0;i<14;i++) puff(h.x,h.y,h.def.color,4,.5,90); tip(`${h.def.name} voltou ao campo`); } continue; }
     // fora de combate cura rápido; sob ataque quase não cura
+    if(h.poisonT>0){ h.poisonT-=dt; h.hp-=h.poisonDmg*dt; h.noHitT=0;
+      if(Math.random()<dt*6) puff(h.x+rnd(-8,8),h.y-14,'#87a06b',2.5,.4);
+      if(h.hp<=0){ heroDown(h); continue; } }
     h.noHitT+=dt; h.hp=Math.min(h.hpMax,h.hp+h.regen*(h.noHitT>3?1:.2)*dt); if(h.tauntT>0) h.tauntT-=dt; if(h.webT>0) h.webT-=dt; h.tauntCd-=dt; h.cool-=dt; if(h.def.leap) h.leapCd-=dt;
     let t=(G.focus&&G.focus.hp>0)?G.focus:null;
     if(!t){ let bd=1e9; for(const e of G.enemies){ if(e.hp<=0||e.y<wy-280) continue; const d=Math.hypot(e.x-h.x,e.y-h.y); if(d<bd){ bd=d; t=e; } } }
@@ -517,7 +550,7 @@ function update(dt){
   if(S('meteor')){ G.meteorT+=dt; if(G.meteorT>=8/Math.sqrt(S('meteor'))&&G.enemies.length){ G.meteorT=0; const c=densest(); G.effects.push({kind:'meteor',x:c.x,y:c.y,t:0,dur:.9}); } }
   // projéteis
   for(const s of G.shots){ s.x+=s.vx*dt; s.y+=s.vy*dt; s.life-=dt; if(Math.random()<.5) puff(s.x,s.y,s.color,2,.25);
-    for(const e of G.enemies){ if(e.hp<=0||s.hit.has(e)) continue; const d=Math.hypot(e.x-s.x,e.y-s.y); if(d<e.r+4){ onHit(s,e); s.hit.add(e); if(s.pierce-->0) continue; s.life=0; break; } } }
+    for(const e of G.enemies){ if(e.hp<=0||s.hit.has(e)||e.intangT>0) continue; const d=Math.hypot(e.x-s.x,e.y-s.y); if(d<e.r+4){ onHit(s,e); s.hit.add(e); if(s.pierce-->0) continue; s.life=0; break; } } }
   G.shots=G.shots.filter(s=>s.life>0&&s.y>-40&&s.x>-40&&s.x<W+40);
   // efeitos
   for(const f of G.effects){ f.t+=dt; if(f.kind==='meteor'&&!f.done&&f.t>=f.dur){ f.done=true; boom(f.x,f.y,70,40*S('meteor')); } }
@@ -529,9 +562,13 @@ function update(dt){
   for(const p of G.parts){ p.x+=p.vx*dt; p.y+=p.vy*dt; p.vy+=60*dt; p.t-=dt; } G.parts=G.parts.filter(p=>p.t>0);
   for(const t of G.texts){ t.y-=28*dt; t.t-=dt; } G.texts=G.texts.filter(t=>t.t>0);
   // fim da onda
-  if(!G.queue.length&&!G.enemies.length){ G.inter+=dt; if(G.inter>=1.4){ G.coins+=Math.round(G.wave*4*metaMul('gold',.10));
+  // Trava de seguranca: se a onda acabou e nada mais esta em jogo, a fase TEM de terminar.
+  if(!G.queue.length&&!G.enemies.length){ G.inter+=dt; if(G.inter>=1.4){ G.coins+=Math.round(G.wave*4*metaMul('gold',.10)*(1+S('bounty')*.25));
     if(!G.level.endless&&G.wave>=G.level.waves) return winLevel();
     G.wave++; snapshotRun(); startWave(); } }
+  else if(!G.level.endless&&G.wave>=G.level.waves&&!G.queue.length&&G.enemies.length&&G.enemies.every(e=>e.y<-60)){
+    G.enemies.length=0;   // nada pode ficar preso fora da tela e travar a vitoria
+  }
   if(G.tipT>0&&(G.tipT-=dt)<=0) $('tip').classList.remove('show');
   hud();
 }
@@ -548,23 +585,35 @@ function meleeStrike(h,t){
   const d=heroDmg(h)*(1+S('multi')*.35); applyHit(h,t,d,true);
   if(!t.tauntT){ t.target=h; t.aggroT=3; }
   if(S('pierce')) for(const o of G.enemies){ if(o!==t&&o.hp>0&&Math.hypot(o.x-t.x,o.y-t.y)<40) hurt(o,d*.5,false); }
+  if(S('whirl')) for(const o of G.enemies){ if(o!==t&&o.hp>0&&Math.hypot(o.x-h.x,o.y-h.y)<55) hurt(o,d*.6,false); }
+  if(S('vamp')&&!h.dead){ h.hp=Math.min(h.hpMax,h.hp+d*.15*S('vamp')); }
   G.effects.push({kind:'slash',x:t.x,y:t.y,t:0,dur:.18,seed:Math.random()*100}); for(let i=0;i<4;i++) puff(t.x,t.y,h.def.color,3,.25,70);
 }
+function heroDown(h){ h.hp=0; h.dead=true; h.deaths++; h.leapT=0; h.leapZ=0; h.poisonT=0;
+  h.respawn=Math.max(3,10-2*S('swift'));
+  for(let i=0;i<16;i++) puff(h.x,h.y,'#6b6a72',4,.6,110); for(const en of G.enemies) if(en.target===h) en.target=null;
+  tip(`${h.def.name} caiu. Volta em ${Math.round(h.respawn)} s`); }
 function heroHit(h,dmg,e){
   if(h.dead||h.leapT>0) return;
   if(e&&e.def.web&&Math.random()<.5){ h.webT=3; G.texts.push({x:h.x,y:h.y-42,v:'teia!',t:.7}); }
+  if(e&&e.def.rot){ h.poisonT=4; h.poisonDmg=e.def.rot; }
   if(Math.random()<h.dodge){ G.texts.push({x:h.x+rnd(-6,6),y:h.y-30,v:'esquiva',t:.6}); return; }
   h.noHitT=0; let d=dmg*(1-h.armor); if(h.tauntT>0) d*=.85; h.hp-=d; G.texts.push({x:h.x+rnd(-6,6),y:h.y-30,v:'-'+Math.round(d),t:.6});
-  if(h.hp<=0){ h.hp=0; h.dead=true; h.deaths++; h.respawn=10; h.leapT=0; h.leapZ=0; for(let i=0;i<16;i++) puff(h.x,h.y,'#6b6a72',4,.6,110); for(const en of G.enemies) if(en.target===h) en.target=null; tip(`${h.def.name} caiu. Revive em 10 s`); }
+  if(h.hp<=0) heroDown(h);
 }
 function applyHit(h,e,d0,melee){
-  let d=d0, crit=false; if(Math.random()<critChance(h)){ d*=2; crit=true; }
+  let d=d0, crit=false; if(Math.random()<critChance(h)){ d*=2+S('precision'); crit=true; }
   if(!melee&&e.def.rangedRes) d*=1-e.def.rangedRes;   // Casco: couraça só freia projétil
+  if(S('focus')&&e===G.focus) d*=1+S('focus')*.35;
   hurt(e,d,true,crit);
   if(h.def.splash) for(const o of G.enemies){ if(o!==e&&o.hp>0&&Math.hypot(o.x-e.x,o.y-e.y)<h.def.splash) hurt(o,d*.5,false); }
   if(h.def.poison){ e.burn=Math.max(e.burn,h.def.poison); e.burnT=Math.max(e.burnT,3); }
   if(S('fire')){ e.burn=Math.max(e.burn,4*S('fire')); e.burnT=3; }
+  if(S('venom')){ e.burn=Math.max(e.burn,6*S('venom')); e.burnT=Math.max(e.burnT,4); }
   if(S('ice')) e.slowT=1.5;
+  if(S('freeze')&&Math.random()<S('freeze')*.12){ e.frozenT=1.5; G.texts.push({x:e.x,y:e.y-e.r-14,v:'congelado',t:.8}); }
+  if(S('blast')){ for(const o of G.enemies) if(o!==e&&o.hp>0&&Math.hypot(o.x-e.x,o.y-e.y)<34) hurt(o,d*.4*S('blast'),false);
+    for(let i=0;i<5;i++) puff(e.x,e.y,'#e8613c',3,.25,90); }
   if(S('chain')){ let left=S('chain'), from=e, used=new Set([e]); while(left-->0){ let nb=null,bd=95; for(const o of G.enemies){ if(used.has(o)||o.hp<=0) continue; const dd=Math.hypot(o.x-from.x,o.y-from.y); if(dd<bd){ bd=dd; nb=o; } } if(!nb) break; used.add(nb); hurt(nb,d*.6,false); G.effects.push({kind:'zap',x:from.x,y:from.y,x2:nb.x,y2:nb.y,t:0,dur:.15}); from=nb; } }
 }
 function hurt(e,d,show,crit){ e.hp-=d; if(show) G.texts.push({x:e.x+rnd(-6,6),y:e.y-e.r-4,v:Math.round(d),t:.7,crit}); }
@@ -578,13 +627,13 @@ function kill(e){
     for(const h of G.heroes) if(h.def.role==='melee'&&!h.dead&&Math.hypot(h.x-e.x,h.y-e.y)<e.def.boom) heroHit(h,26,null);
     if(e.y>wallY()-e.def.boom) G.wallHp=Math.max(0,G.wallHp-14);
     for(let i=0;i<22;i++) puff(e.x,e.y,'#d4736b',rnd(3,6),rnd(.3,.7),rnd(80,220)); }
-  G.kills++; const xp=e.def.xp*metaMul('xp',.10)*(1+S('magnet')*.30)*(1+teamXpBonus()); G.xp+=xp; G.coins+=Math.round(e.def.coin*metaMul('gold',.10));
+  G.kills++; const xp=e.def.xp*metaMul('xp',.10)*(1+S('magnet')*.30)*(1+teamXpBonus()); G.xp+=xp; G.coins+=Math.round(e.def.coin*metaMul('gold',.10)*(1+S('bounty')*.25));
   for(let i=0;i<10;i++) puff(e.x,e.y,e.def.color,rnd(2,5),rnd(.3,.6),rnd(40,120));
   if(e.def.splits){ for(let i=0;i<e.def.splits;i++){ const s=spawn('slime'); s.x=clamp(e.x+rnd(-60,60),20,W-20); s.y=e.y+rnd(-20,20); } tip(`${e.def.name} se partiu!`); }
   if(e.def.boss){
     if(Math.random()<(e.def.drop||.5)){ const it=rollItem(G.level.id); profile.items=profile.items||[]; profile.items.push(it); G.drops.push(it); Save.save();
       for(let i=0;i<30;i++) puff(e.x,e.y,RARITY[it.rar].c,rnd(3,6),rnd(.5,1),rnd(60,180)); G.texts.push({x:e.x,y:e.y-e.r-20,v:'ITEM!',t:1.4,crit:true}); }
-    else { const c=Math.round(45*metaMul('gold',.10)); G.coins+=c; G.texts.push({x:e.x,y:e.y-e.r-20,v:'+'+c+' 🪙',t:1.4}); tip('Sem item desta vez. Levou moedas no lugar.'); } }
+    else { const c=Math.round(45*metaMul('gold',.10)*(1+S('bounty')*.25)); G.coins+=c; G.texts.push({x:e.x,y:e.y-e.r-20,v:'+'+c+' 🪙',t:1.4}); tip('Sem item desta vez. Levou moedas no lugar.'); } }
   while(G.xp>=xpNeed(G.lvl)){ G.xp-=xpNeed(G.lvl); G.lvl++; G.lvQueue++; }
   if(G.lvQueue>0&&G.state==='play') openLevelUp();
 }
@@ -610,6 +659,12 @@ function draw(time){
   if(hpF<.5){ ctx.strokeStyle='#2b2b33'; ctx.lineWidth=2; for(let i=0;i<Math.round((1-hpF)*8);i++){ const x=(i*97)%W; wpoly([[x,wy+8],[x+9,wy+26],[x+3,wy+44]],61+i,1.5); ctx.stroke(); } }
   // efeitos de chão
   for(const f of G.effects){ if(f.kind==='meteor'){ const k=f.t/f.dur; if(k<1){ ctx.strokeStyle='#e8613c'; ctx.lineWidth=2; ctx.setLineDash([4,6]); wblob(f.x,f.y,60*k+10,60*k+10,71,2); ctx.stroke(); ctx.setLineDash([]); const my=f.y-(1-k)*H*.9; ctx.fillStyle='#e8613c'; wblob(f.x+(1-k)*40,my,12,12,73,2); ctx.fill(); ctx.strokeStyle='#2b2b33'; ctx.stroke(); } else { ctx.strokeStyle='rgba(232,97,60,'+(1-(f.t-f.dur)/.4)+')'; ctx.lineWidth=3; wblob(f.x,f.y,70,70,75,3); ctx.stroke(); } }
+    if(f.kind==='fireball'){ const k=f.t/f.dur;
+      if(k<1){ ctx.strokeStyle='#c4503f'; ctx.lineWidth=2; ctx.setLineDash([4,5]); wblob(f.x,f.y,50*k+8,50*k*.7+8,117,2); ctx.stroke(); ctx.setLineDash([]);
+        ctx.fillStyle='#e8613c'; wblob(f.x,f.y-(1-k)*220,10,10,119,2); ctx.fill(); ctx.strokeStyle='#2b2b33'; ctx.stroke(); }
+      else if(!f.done){ f.done=true; boom(f.x,f.y,60,26);
+        for(const h of G.heroes) if(h.def.role==='melee'&&!h.dead&&Math.hypot(h.x-f.x,h.y-f.y)<60) heroHit(h,24,null);
+        if(f.y>wallY()-70) G.wallHp=Math.max(0,G.wallHp-11); } }
     if(f.kind==='heal'){ const k=f.t/f.dur; ctx.strokeStyle=`rgba(240,210,100,${1-k})`; ctx.lineWidth=3; wblob(f.x,f.y,f.r*k,f.r*k*.8,95,3); ctx.stroke(); }
     if(f.kind==='slam'){ const k=f.t/f.dur; ctx.strokeStyle=`rgba(201,160,109,${1-k})`; ctx.lineWidth=4; wblob(f.x,f.y,f.r*k,f.r*k*.7,99,3); ctx.stroke(); }
     if(f.kind==='taunt'){ const k=f.t/f.dur; ctx.strokeStyle=`rgba(91,127,181,${1-k})`; ctx.lineWidth=3; wblob(f.x,f.y,f.r*k,f.r*k*.8,93,3); ctx.stroke(); }
@@ -658,6 +713,23 @@ function drawSlime(e,time){
     ctx.fillStyle='#fffdf6'; ctx.beginPath(); ctx.arc(e.x-6,e.y-ry*.85,2.6,0,7); ctx.arc(e.x+6,e.y-ry*.7,2.1,0,7); ctx.fill(); }
   if(T==='curandeiro'){ const pz=1+Math.sin(time*4+e.wob)*.12; ctx.fillStyle='#e8613c'; ctx.save(); ctx.translate(e.x,e.y-ry-13); ctx.scale(pz,pz);
     ctx.fillRect(-2.6,-7,5.2,14); ctx.fillRect(-7,-2.6,14,5.2); ctx.strokeStyle='#2b2b33'; ctx.lineWidth=1.4; ctx.strokeRect(-2.6,-7,5.2,14); ctx.restore(); ctx.lineWidth=2.5; ctx.strokeStyle='#2b2b33'; }
+  if(T==='zumbi'){ ctx.strokeStyle='#5c7043'; ctx.lineWidth=2; wpoly([[e.x-rx*.5,e.y-ry*.1],[e.x-rx*.1,e.y+ry*.1]],sd+90,1.2); ctx.stroke();
+    wpoly([[e.x+rx*.2,e.y-ry*.3],[e.x+rx*.55,e.y+ry*.05]],sd+92,1.2); ctx.stroke(); ctx.strokeStyle='#2b2b33'; ctx.lineWidth=2.5;
+    ctx.fillStyle='#5c7043'; ctx.beginPath(); ctx.arc(e.x+rx*.3,e.y+ry*.35,2.4,0,7); ctx.fill(); }
+  if(T==='goblin'){ ctx.fillStyle='#4e7a37'; wpoly([[e.x-rx*.9,e.y-ry*.15],[e.x-rx-9,e.y-ry*.75],[e.x-rx*.55,e.y-ry*.55]],sd+94,1.2,true); ctx.fill(); ctx.stroke();
+    wpoly([[e.x+rx*.9,e.y-ry*.15],[e.x+rx+9,e.y-ry*.75],[e.x+rx*.55,e.y-ry*.55]],sd+96,1.2,true); ctx.fill(); ctx.stroke(); }
+  if(T==='lobo'){ ctx.fillStyle='#6d635a'; wpoly([[e.x-rx*.7,e.y-ry*.4],[e.x-rx*.45,e.y-ry-6],[e.x-rx*.15,e.y-ry*.45]],sd+98,1.1,true); ctx.fill(); ctx.stroke();
+    wpoly([[e.x+rx*.15,e.y-ry*.45],[e.x+rx*.45,e.y-ry-6],[e.x+rx*.7,e.y-ry*.4]],sd+100,1.1,true); ctx.fill(); ctx.stroke(); }
+  if(T==='orc'){ ctx.fillStyle='#fffdf6'; wpoly([[e.x-6,e.y+ry*.28],[e.x-4.5,e.y+ry*.02]],sd+102,.8,true); ctx.fill(); ctx.stroke();
+    wpoly([[e.x+6,e.y+ry*.28],[e.x+4.5,e.y+ry*.02]],sd+104,.8,true); ctx.fill(); ctx.stroke();
+    ctx.fillStyle='#3f5231'; wblob(e.x,e.y-ry*.95,rx*.5,ry*.22,sd+106,1); ctx.fill(); ctx.stroke(); }
+  if(T==='espectro'){ ctx.globalAlpha=e.intangT>0?.3:.75; ctx.fillStyle='#dfe7f0'; wblob(e.x,e.y+ry*.5,rx*.9,ry*.4,sd+108,2); ctx.fill(); ctx.globalAlpha=1;
+    if(e.intangT>0){ ctx.strokeStyle='#8fa8c4'; ctx.setLineDash([4,4]); wblob(e.x,e.y,rx+4,ry+4,sd+110,2); ctx.stroke(); ctx.setLineDash([]); ctx.strokeStyle='#2b2b33'; } }
+  if(T==='dragao'){ ctx.fillStyle='#8f3428'; const fl=Math.sin(time*8+e.wob)*6;
+    wpoly([[e.x-rx*.6,e.y-6],[e.x-rx-26,e.y-24+fl],[e.x-rx-10,e.y+10]],sd+112,1.6,true); ctx.fill(); ctx.stroke();
+    wpoly([[e.x+rx*.6,e.y-6],[e.x+rx+26,e.y-24+fl],[e.x+rx+10,e.y+10]],sd+114,1.6,true); ctx.fill(); ctx.stroke();
+    ctx.fillStyle='#f0c419'; wpoly([[e.x-10,e.y-ry-2],[e.x-6,e.y-ry-16],[e.x,e.y-ry-4],[e.x+6,e.y-ry-16],[e.x+10,e.y-ry-2]],sd+116,1.2,true); ctx.fill(); ctx.stroke(); }
+  if(e.frozenT>0){ ctx.strokeStyle='#7fd0e0'; ctx.lineWidth=3; wblob(e.x,e.y,rx+5,ry+5,sd+120,2.5); ctx.stroke(); ctx.lineWidth=2.5; ctx.strokeStyle='#2b2b33'; }
   if(T==='blindado'){ ctx.fillStyle='#6f8296'; wblob(e.x,e.y-ry*.12,rx*.86,ry*.56,sd+80,1.2); ctx.fill(); ctx.stroke();
     ctx.strokeStyle='#55636f'; ctx.lineWidth=1.6; wpoly([[e.x-rx*.55,e.y-ry*.12],[e.x+rx*.55,e.y-ry*.12]],sd+82,1); ctx.stroke(); ctx.strokeStyle='#2b2b33'; ctx.lineWidth=2.5; }
   // olhos e boca
@@ -714,6 +786,7 @@ function openLevelUp(){ G.lvQueue--; setState('levelup'); $('lvNum').textContent
 }
 $('lvList').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; const id=b.dataset.s; G.skills[id]=S(id)+1;
   if(id==='repair'){ G.wallMax=Math.round(G.wallMax*1.2); G.wallHp=Math.min(G.wallMax,G.wallHp+G.wallMax*.4); }
+  if(id==='guard') for(const h of G.heroes) if(h.def.role==='melee'){ h.armor=Math.min(.6,h.armor+.10); h.hpMax+=20; h.hp+=20; }
   if(G.lvQueue>0) openLevelUp(); else setState('play'); });
 
 function gameOver(){ setState('over'); endRun(true); }
@@ -872,6 +945,8 @@ resize(); setState('menu'); Save.init(); requestAnimationFrame(frame);
   render(); card.appendChild(box);
 })();
 </script>
+</body>
+</html>
 </body>
 </html>
 </body>

@@ -6,6 +6,11 @@ estrada, os heróis ficam na muralha e atiram sozinhos. Referência de estilo:
 
 ## Loop do jogo
 
+**24 skills** para escolher ao subir de nível, três por vez: Tiro duplo, Perfurante, Chamas,
+Gelo, Raio em cadeia, Crítico, Cadência, Força, Reforço, Meteoro, Espinhos, Ímã de XP,
+Veneno, Congelar, Estouro, Precisão, Mira, Fúria, Argamassa, Pilhagem, Vampirismo,
+Rodopio, Guarda e Volta rápida.
+
 | Camada | O que acontece | Onde no código |
 |---|---|---|
 | **Mapa de fases** | Dez fases com dificuldade gradual e um chefe no fim de cada uma; vitória dá 1 a 3 estrelas pela vida da muralha e abre a próxima. Modo Infinito abre ao vencer a fase 10 | `LEVELS`, `renderMap()`, `winLevel()` |
@@ -27,6 +32,12 @@ estrada, os heróis ficam na muralha e atiram sozinhos. Referência de estilo:
 | **Cogumelo** | Explode ao morrer, ferindo heróis de campo por perto e a muralha |
 | **Curandeiro** | Cura 11/s todos os inimigos num raio de 95 px. Mate primeiro |
 | **Casco** | Resiste a 60% do dano de projétil. Só golpe corpo a corpo derruba rápido |
+| **Zumbi** | Apodrece quem ele bate: dano contínuo no herói por 4 s |
+| **Goblin** | Rápido, e rouba suas moedas enquanto bate na muralha |
+| **Lobo** | Corre até 48% mais rápido conforme outros lobos estão por perto |
+| **Orc** | Golpe em área: acerta todos os heróis de campo num raio de 52 px |
+| **Espectro** | Fica intangível 1 s a cada 3 s: projétil atravessa, só corpo a corpo alcança |
+| **Dragão** (chefe) | Voa, ignora espinhos e cospe bolas de fogo na muralha. Fases 9 e 10 |
 
 Cada fase tem de 10 a 12 ondas, com mistura própria que introduz os tipos aos poucos.
 
