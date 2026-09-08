@@ -8,18 +8,28 @@ estrada, os heróis ficam na muralha e atiram sozinhos. Referência de estilo:
 
 | Camada | O que acontece | Onde no código |
 |---|---|---|
-| **Mapa de fases** | 10 fases com número fixo de ondas e dificuldade gradual, mais o modo Infinito depois da fase 10. Vencer dá 1 a 3 estrelas pela vida da muralha (≥70% = 3) e abre a próxima | `LEVELS`, `renderMap()`, `winLevel()` |
-| **Dentro da fase** | Ondas, XP por slime, ao subir de nível escolhe 1 de 3 skills (12 skills, com níveis) | `SKILLS`, `openLevelUp()`, `onHit()` |
-| **Entre runs** | Moedas compram 5 melhorias permanentes (10 níveis cada), heróis novos e vagas extras na muralha (até 3 heróis juntos) | `UPGRADES`, `HEROES`, `SLOT_COST` |
-| **Interação** | Toque em um slime: todos os heróis focam nele por 4 s. Nada mais a fazer com o dedo, de propósito | `pointerdown` no canvas |
+| **Mapa de fases** | Dez fases com dificuldade gradual e um chefe no fim de cada uma; vitória dá 1 a 3 estrelas pela vida da muralha e abre a próxima. Modo Infinito abre ao vencer a fase 10 | `LEVELS`, `renderMap()`, `winLevel()` |
+| **Dentro da fase** | Ondas fixas, XP por slime, ao subir de nível escolhe 1 de 3 skills (12 skills, com níveis) | `SKILLS`, `openLevelUp()`, `applyHit()` |
+| **Chefes** | Príncipe Slime (se parte em 3), Slime Bruxo (invoca a cada 5 s), Golem de Lama (lento, derruba a muralha), Slime Gigante (acelera ao perder vida), Rei Slime (se parte em 6). Todo chefe deixa cair um item | `ENEMIES`, `kill()` |
+| **Itens** | Cinco slots por herói: arma, cabeça, peitoral, mãos, pés. Raridade comum/raro/épico com 1 a 3 afixos sorteados por slot. Baú compartilhado, venda por moedas | `rollItem()`, `heroBonus()`, `renderEquip()` |
+| **Entre fases** | Moedas compram 5 melhorias permanentes, heróis novos e vagas no time (até 3) | `UPGRADES`, `HEROES`, `SLOT_COST` |
+| **Interação** | Toque em um slime: todos os heróis focam nele por 4 s | `pointerdown` no canvas |
 
-Balanceamento medido: o Mago base sem melhorias conclui a fase 1 em ~100 s com a
-muralha em 95%. Cada fase seguinte sobe vida e velocidade dos slimes e o tamanho das
-ondas; as moedas das fases anteriores pagam as melhorias que tornam a próxima viável.
+### Heróis
 
-Heróis: **Mago** (bola de fogo com explosão), **Arqueira** (flechas rápidas que
-atravessam), **Bruxa** (veneno ao longo do tempo). Chefe **Rei Slime** a cada 5 ondas,
-que se parte em 6 slimes ao morrer.
+| Herói | Papel | Como joga |
+|---|---|---|
+| Mago | Muralha | Bola de fogo com explosão pequena |
+| Arqueira | Muralha | Flechas rápidas que atravessam um inimigo |
+| Bruxa | Muralha | Veneno ao longo do tempo |
+| **Cavaleiro** | Campo, tanque | 240 de vida, 30% de armadura, regenera 7/s. A cada 12 s grita e puxa os slimes num raio de 150 px por 5 s: eles largam a muralha e batem nele |
+| **Ladina** | Campo, assassina | 95 de vida, esquiva 35% dos golpes, 20% de crítico base, dano alto, rápida |
+
+Heróis de campo levam dano em golpes discretos a cada 0,8 s (por isso a esquiva é
+visível como texto), morrem e voltam em 10 s no ponto de origem em frente à muralha.
+Slimes que um herói de campo acerta passam a persegui-lo por 3 s. Skills de time
+valem para eles também: Tiro duplo vira +35% de dano por nível, Perfurante vira golpe
+em área.
 
 ## Como o progresso fica salvo
 

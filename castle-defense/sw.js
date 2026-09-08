@@ -1,6 +1,6 @@
 // Service worker: o jogo abre e roda sem internet depois da primeira visita.
 // Mude a versão sempre que publicar uma alteração: o cache antigo é descartado na ativação.
-const VERSION = 'muralha-v2';
+const VERSION = 'muralha-v3';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', e => {
