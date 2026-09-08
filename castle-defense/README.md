@@ -10,10 +10,25 @@ estrada, os heróis ficam na muralha e atiram sozinhos. Referência de estilo:
 |---|---|---|
 | **Mapa de fases** | Dez fases com dificuldade gradual e um chefe no fim de cada uma; vitória dá 1 a 3 estrelas pela vida da muralha e abre a próxima. Modo Infinito abre ao vencer a fase 10 | `LEVELS`, `renderMap()`, `winLevel()` |
 | **Dentro da fase** | Ondas fixas, XP por slime, ao subir de nível escolhe 1 de 3 skills (12 skills, com níveis) | `SKILLS`, `openLevelUp()`, `applyHit()` |
-| **Chefes** | Príncipe Slime (se parte em 3), Slime Bruxo (invoca a cada 5 s), Golem de Lama (lento, derruba a muralha), Slime Gigante (acelera ao perder vida), Rei Slime (se parte em 6). Todo chefe deixa cair um item | `ENEMIES`, `kill()` |
+| **Chefes** | Príncipe Slime (se parte em 3), Slime Bruxo (invoca a cada 5 s), Golem de Lama (lento, derruba a muralha), Slime Gigante (acelera ao perder vida), Rei Slime (se parte em 6). O item **não é garantido**: 35% no Príncipe, 50% no Bruxo e no Golem, 55% no Gigante, 75% no Rei. Sem item, o chefe paga moedas | `ENEMIES`, `kill()` |
+| **Hordas** | A cada 4 ondas vem quase o dobro de inimigos, chegando em metade do tempo. Anunciado no HUD com 🔥 | `startWave()` |
 | **Itens** | Cinco slots por herói: arma, cabeça, peitoral, mãos, pés. Raridade comum/raro/épico com 1 a 3 afixos sorteados por slot. Baú compartilhado, venda por moedas | `rollItem()`, `heroBonus()`, `renderEquip()` |
 | **Entre fases** | Moedas compram 5 melhorias permanentes, heróis novos e vagas no time (até 3) | `UPGRADES`, `HEROES`, `SLOT_COST` |
 | **Interação** | Toque em um slime: todos os heróis focam nele por 4 s | `pointerdown` no canvas |
+
+### Monstros
+
+| Monstro | Truque |
+|---|---|
+| Slime / Rápido / Gordo | Base: comum, veloz e resistente |
+| **Morcego** | Voa em zigue-zague e ignora Espinhos da muralha |
+| **Esqueleto** | Levanta uma vez com metade da vida depois de morto |
+| **Aranha** | Ao bater, tem 50% de prender o herói em teia: metade da cadência por 3 s |
+| **Cogumelo** | Explode ao morrer, ferindo heróis de campo por perto e a muralha |
+| **Curandeiro** | Cura 11/s todos os inimigos num raio de 95 px. Mate primeiro |
+| **Casco** | Resiste a 60% do dano de projétil. Só golpe corpo a corpo derruba rápido |
+
+Cada fase tem de 10 a 12 ondas, com mistura própria que introduz os tipos aos poucos.
 
 ### Heróis
 
@@ -22,7 +37,7 @@ estrada, os heróis ficam na muralha e atiram sozinhos. Referência de estilo:
 | Mago | Muralha | Bola de fogo com explosão pequena |
 | Arqueira | Muralha | Flechas rápidas que atravessam um inimigo |
 | Bruxa | Muralha | Veneno ao longo do tempo |
-| **Cavaleiro** | Campo, tanque | 240 de vida, 30% de armadura, regenera 7/s. A cada 12 s grita e puxa os slimes num raio de 150 px por 5 s: eles largam a muralha e batem nele |
+| **Cavaleiro** | Campo, tanque | 150 de vida, 18% de armadura. A cada 7 s **salta** sobre o alvo distante e bate no chão (170% de dano em raio de 62 px, provoca e atrasa). A cada 12 s grita e puxa os inimigos num raio de 150 px. Regenera 6/s fora de combate, mas só 20% disso sob ataque: cerco longo derruba ele |
 | **Ladina** | Campo, assassina | 95 de vida, esquiva 35% dos golpes, 20% de crítico base, dano alto, rápida |
 
 Heróis de campo levam dano em golpes discretos a cada 0,8 s (por isso a esquiva é
