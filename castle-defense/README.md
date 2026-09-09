@@ -41,6 +41,11 @@ Rodopio, Guarda e Volta rápida.
 
 Cada fase tem de 10 a 12 ondas, com mistura própria que introduz os tipos aos poucos.
 
+**Silhuetas:** morcego, esqueleto, aranha, goblin, lobo, orc, zumbi, espectro, cogumelo,
+golem e dragão têm corpo desenhado do zero em `SHAPES` — não são gosmas com adereço.
+Slime, Rápido, Gordo, Curandeiro, Casco e os chefes-slime seguem com o corpo de gosma,
+que é o que eles são.
+
 ### Heróis
 
 | Herói | Papel | Como joga |
