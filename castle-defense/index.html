@@ -126,7 +126,7 @@
   <div class="ov" id="menu">
     <div class="card">
       <h1>Muralha dos <span style="color:var(--slime)">Rabiscos</span></h1>
-      <p>Dez fases até o Trono do Rei Slime, cada uma com um chefe no fim que deixa cair um item. Heróis da muralha atiram; heróis de campo lutam, caem e voltam. <b>Toque num slime</b> para todos focarem nele.</p>
+      <p>Dez fases até o Trono do Rei Slime, cada uma com um chefe no fim que deixa cair um item. Time de até cinco: três na muralha atirando e dois no campo. Todos têm vida — quem cai volta sozinho depois de alguns segundos. <b>Toque num slime</b> para todos focarem nele.</p>
       <div class="stack">
         <button class="btn primary" id="bContinue" hidden><span>Continuar run <small id="contInfo"></small></span><span>▶</span></button>
         <button class="btn" id="bMap"><span>Mapa de fases</span><span>🗺️</span></button>
@@ -260,12 +260,20 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)), lerp=(a,b,t)=>a+(b-a)*t, rnd=(a,
 
 /* ================= Dados ================= */
 // role: 'ranged' fica na muralha e nao leva dano; 'melee' vai a campo, tem vida, morre e revive em 10 s.
+// role: 'ranged' fica em cima da muralha e 'melee' vai a campo. Desde a versao das equipes
+// de cinco, TODO heroi tem vida: quem esta na muralha leva menos (luta atras da ameia, tem
+// armadura alta e nao pode ser puxado para o campo), mas pode cair e voltar depois.
 const HEROES={
-  mago:     {name:'Mago',      role:'ranged', desc:'Bola de fogo com pequena explosão. Equilibrado.', dmg:12, rate:1.4, spd:420, splash:30, color:'#7b5cd6', cost:0},
-  arqueira: {name:'Arqueira',  role:'ranged', desc:'Flechas rápidas que atravessam um inimigo.',      dmg:7,  rate:2.3, spd:620, pierce:1,  color:'#4c9b6e', cost:300},
+  mago:     {name:'Mago',      role:'ranged', desc:'Bola de fogo com pequena explosão. Equilibrado.', dmg:12, rate:1.4, spd:420, splash:30, hp:90,  regen:5, armor:.30, color:'#7b5cd6', cost:0},
+  arqueira: {name:'Arqueira',  role:'ranged', desc:'Flechas rápidas que atravessam um inimigo.',      dmg:7,  rate:2.3, spd:620, pierce:1,  hp:80,  regen:5, armor:.28, color:'#4c9b6e', cost:300},
   cavaleiro:{name:'Cavaleiro', role:'melee',  desc:'Tanque de campo. A cada 7 s salta sobre o grupo e bate no chão; a cada 12 s grita e puxa os inimigos. Só regenera bem fora de combate, então cerco longo derruba ele.', dmg:13, rate:1.0, hp:150, regen:6, armor:.18, dodge:.05, speed:78, reach:34, taunt:{cd:12,dur:5,r:150}, leap:{cd:7,min:80,range:250,dmg:1.7,r:62}, color:'#5b7fb5', cost:500},
-  bruxa:    {name:'Bruxa',     role:'ranged', desc:'Frasco venenoso: dano ao longo do tempo.',         dmg:5,  rate:1.0, spd:380, poison:5,  color:'#c05aa6', cost:800},
-  ladina:   {name:'Ladina',    role:'melee',  desc:'Assassina de campo. Pouca vida, mas esquiva 35% dos golpes e crita com frequência.', dmg:20, rate:1.7, hp:95, regen:3, armor:0, dodge:.35, crit:.20, speed:150, reach:28, color:'#3d3d4a', cost:900}
+  bruxa:    {name:'Bruxa',     role:'ranged', desc:'Frasco venenoso: dano ao longo do tempo.',         dmg:5,  rate:1.0, spd:380, poison:5,  hp:75,  regen:5, armor:.26, color:'#c05aa6', cost:800},
+  domador:  {name:'Domador',   role:'ranged', desc:'Atira da muralha e mantém a sua Fera lutando no campo. Se a Fera cai, ela volta sozinha — e não ocupa vaga no time.', dmg:8, rate:1.3, spd:400, hp:100, regen:6, armor:.32, color:'#c98a3c', cost:1200, pet:'fera'},
+  ladina:   {name:'Ladina',    role:'melee',  desc:'Assassina de campo. Pouca vida, mas esquiva 35% dos golpes e crita com frequência.', dmg:20, rate:1.7, hp:95, regen:3, armor:0, dodge:.35, crit:.20, speed:150, reach:28, color:'#3d3d4a', cost:900},
+  lanceiro: {name:'Lanceiro',  role:'melee',  desc:'Segura a linha de frente: lança de alcance longo e muita armadura, mas bate devagar. A cada 14 s grita e puxa os inimigos para ele.', dmg:16, rate:.9, hp:175, regen:6, armor:.32, dodge:.05, speed:74, reach:54, taunt:{cd:14,dur:4,r:135}, color:'#7d6b4f', cost:1400},
+  barbaro:  {name:'Bárbaro',   role:'melee',  desc:'Machado pesado: cada golpe acerta todo mundo em volta, mas ele quase não tem defesa.', dmg:24, rate:1.2, hp:125, regen:4, armor:.06, dodge:.08, speed:118, reach:32, cleaveHit:48, color:'#8c3f3f', cost:1600},
+  // Fera: nasce junto com o Domador, nao aparece na loja e nao ocupa vaga.
+  fera:     {name:'Fera',      role:'melee',  hidden:true, desc:'Companheira do Domador.', dmg:11, rate:1.6, hp:115, regen:6, armor:.12, dodge:.12, speed:134, reach:26, color:'#a2673a', cost:0}
 };
 // Itens: 5 slots, raridade e afixos sorteados por slot. Caem de chefes.
 const SLOTS={weapon:'Arma',head:'Cabeça',chest:'Peitoral',hands:'Mãos',feet:'Pés'};
@@ -287,7 +295,10 @@ function heroBonus(heroId){ const eq=(profile.equip||{})[heroId]||{}; const b={d
   for(const slot of Object.keys(SLOTS)){ const it=itemById(eq[slot]); if(it) for(const [k,v] of Object.entries(it.stats)) b[k]+=v; } return b; }
 function itemHtml(it,extra){ const R=RARITY[it.rar]; return `<div class="item" style="border-color:${R.c}"><div class="nm"><span>${SLOT_ICO[it.slot]} ${it.name}</span><span class="rar" style="color:${R.c}">${R.n} · ${SLOTS[it.slot]}</span></div><div class="stt">${Object.entries(it.stats).map(([k,v])=>`<b>+${v}${STATS[k].u}</b> ${STATS[k].n}`).join(' · ')}</div>${extra||''}</div>`; }
 function equipItem(heroId,it){ profile.equip=profile.equip||{}; const other=equippedBy(it.id); if(other) delete profile.equip[other[0]][it.slot]; profile.equip[heroId]=profile.equip[heroId]||{}; profile.equip[heroId][it.slot]=it.id; Save.save(); }
-const SLOT_COST=[0,400,1200];
+// Time de ate 5: no maximo 3 na muralha e 2 em campo. O custo sobe a cada vaga aberta.
+const SLOT_COST=[0,400,1200,2200,3400];
+const MAX_SLOTS=5, MAX_WALL=3, MAX_FIELD=2;
+const teamRole=r=>profile.team.filter(t=>HEROES[t]&&HEROES[t].role===r).length;
 const UPGRADES=[
   {id:'dmg', name:'Dano',        ico:'⚔️', per:'+10% de dano',           base:40},
   {id:'rate',name:'Cadência',    ico:'⏱️', per:'+8% de velocidade de tiro', base:50},
@@ -319,8 +330,8 @@ const SKILLS=[
   {id:'bounty',   ico:'💰', name:'Pilhagem',      desc:'+25% de moedas.',                                    max:3},
   {id:'vamp',     ico:'🩸', name:'Vampirismo',    desc:'Heróis de campo curam 15% do dano que causam.',      max:3},
   {id:'whirl',    ico:'🌀', name:'Rodopio',       desc:'Golpe corpo a corpo atinge todos num raio de 55.',   max:2},
-  {id:'guard',    ico:'🛡️', name:'Guarda',        desc:'Heróis de campo: +10% de armadura e +20 de vida.',   max:3},
-  {id:'swift',    ico:'💨', name:'Volta rápida',  desc:'Heróis de campo voltam 2 s mais cedo.',              max:3}
+  {id:'guard',    ico:'🛡️', name:'Guarda',        desc:'Todos os heróis: +10% de armadura e +20 de vida.',   max:3},
+  {id:'swift',    ico:'💨', name:'Volta rápida',  desc:'Heróis que caem voltam 2 s mais cedo.',              max:3}
 ];
 // Fases: dificuldade sobe devagar. hp e spd multiplicam os inimigos; mix e a chance de cada tipo.
 const LEVELS=[
@@ -329,31 +340,33 @@ const LEVELS=[
   // tanto quanto o multiplicador. Ordem: slime/rapido/gordo (base, sem truque) -> goblin/lobo
   // (truque simples) -> morcego/aranha/cogumelo (exige ajuste tatico) -> esqueleto/zumbi/espectro
   // (exige estrategia) -> blindado/orc/curandeiro (exige time montado, o mais dificil de driblar).
-  // Chefes na mesma logica, por dps fixo e complexidade do truque: reizinho (14 dps, so se parte)
-  // -> bruxo (16 dps, invoca) -> gigante (32 dps, acelera perdendo vida) -> golem (45 dps, o mais
-  // forte de todos, mas lento) -> dragao (30 dps + fogo a distancia, ignora contramedidas) ->
-  // rei (30 dps, se parte em 6) so aparece no trono, no fim, nunca antes.
-  {id:1, name:'Portão da Vila',      waves:10, hp:.70, spd:.92, mix:{slime:1},
-    reward:70,  boss:['reizinho'], desc:'Só slimes comuns. Aprenda o ritmo. Nas ondas 4 e 8 vem uma horda.', x:50, y:90},
-  {id:2, name:'Estrada do Moinho',   waves:10, hp:.82, spd:.96, mix:{slime:.7,rapido:.3},
-    reward:90,  boss:['reizinho'], desc:'Slimes rápidos entram na conta. Gelo e Cadência ajudam.', x:24, y:81},
-  {id:3, name:'Ponte Velha',         waves:10, hp:.95, spd:1,   mix:{slime:.4,rapido:.25,gordo:.2,goblin:.15},
-    reward:110, boss:['bruxo'],    desc:'Slimes gordos aguentam mais golpes, e Goblins fogem com suas moedas. O Slime Bruxo invoca reforços — mate-o rápido.', x:38, y:71},
-  {id:4, name:'Pântano Verde',       waves:10, hp:1.05,spd:1,   mix:{slime:.25,rapido:.15,gordo:.15,goblin:.1,lobo:.2,morcego:.15},
-    reward:140, boss:['bruxo'],    desc:'Lobos aceleram em matilha e Morcegos voam ignorando os espinhos da muralha.', x:66, y:65},
-  {id:5, name:'Colina Amaldiçoada',  waves:11, hp:1.12,spd:1.02,mix:{rapido:.15,gordo:.15,goblin:.1,lobo:.15,morcego:.15,aranha:.15,cogumelo:.15},
-    reward:190, boss:['gigante'],  desc:'Aranhas prendem seus heróis em teia. Cogumelos explodem ao morrer — cuidado ao chegar perto. O Slime Gigante acelera conforme perde vida.', x:74, y:54},
-  {id:6, name:'Floresta Torta',      waves:11, hp:1.25,spd:1.04,mix:{gordo:.15,lobo:.15,morcego:.1,aranha:.15,cogumelo:.15,esqueleto:.3},
-    reward:180, boss:['golem'],    desc:'Esqueletos levantam uma vez com metade da vida. O Golem de Lama é lento mas devastador — não deixe ele chegar.', x:46, y:48},
-  {id:7, name:'Ruínas',              waves:11, hp:1.4, spd:1.06,mix:{morcego:.1,aranha:.15,cogumelo:.1,esqueleto:.2,zumbi:.2,espectro:.25},
-    reward:210, boss:['gigante'],  desc:'Zumbis apodrecem quem eles batem. Espectros ficam intangíveis por 1 s a cada 3 s — só corpo a corpo os alcança nesse instante.', x:22, y:40},
-  {id:8, name:'Desfiladeiro',        waves:11, hp:1.35,spd:1.06,mix:{gordo:.1,esqueleto:.15,zumbi:.15,espectro:.15,blindado:.2,orc:.25},
-    reward:250, boss:['golem'],    desc:'Cascos resistem a projétil e Orcs batem em todos os heróis de campo de uma vez. Leve alguém para o corpo a corpo.', x:40, y:31},
-  {id:9, name:'Vale da Névoa',       waves:11, hp:1.7, spd:1.1, mix:{zumbi:.15,espectro:.2,blindado:.15,orc:.2,curandeiro:.15,esqueleto:.15},
-    reward:300, boss:['dragao'],   desc:'Curandeiros regeneram os vizinhos sem parar — mate-os primeiro. No fim vem o Dragão: voa, ignora espinhos e cospe fogo na muralha.', x:68, y:25},
-  {id:10,name:'Trono do Rei Slime',  waves:12, hp:1.9, spd:1.12,mix:{rapido:.1,gordo:.1,goblin:.08,lobo:.08,aranha:.08,cogumelo:.08,blindado:.1,esqueleto:.1,orc:.1,zumbi:.1,espectro:.1,curandeiro:.08},
+  // Cada fase tem seu proprio cenario (theme) e um chefe que combina com ele e com os
+  // monstros daquela fase — Rei Goblin na estrada, Troll na ponte, Rainha Aranha na colina,
+  // Lorde Esqueleto na mata, Rei Espectro nas ruinas, Chefe Orc no desfiladeiro. Os chefes
+  // sobem em dps junto com a fase: reizinho 14 -> chefeGoblin 15 -> troll 19 -> bruxo 16
+  // -> rainhaAranha 22 -> lordeEsqueleto 26 -> reiEspectro 24 -> chefeOrc 34 -> dragao 30
+  // -> rei+dragao no trono. Golem (45) e Gigante (32) ficam guardados para o Infinito.
+  {id:1, name:'Portão da Vila',      waves:10, hp:.75, spd:.92, mix:{slime:1}, theme:'vila',
+    reward:70,  boss:['reizinho'], desc:'Só slimes comuns, no campo aberto da vila. Aprenda o ritmo. Nas ondas 4 e 8 vem uma horda, e no fim o Príncipe Slime, que se parte em três.', x:50, y:90},
+  {id:2, name:'Estrada do Moinho',   waves:10, hp:1.00, spd:.96, mix:{slime:.5,rapido:.25,goblin:.25}, theme:'moinho',
+    reward:90,  boss:['chefeGoblin'], desc:'Slimes rápidos entram na conta e os Goblins fogem com suas moedas. No fim da estrada vem o Rei Goblin, que rouba moedas e chama mais goblins.', x:24, y:81},
+  {id:3, name:'Ponte Velha',         waves:10, hp:1.25, spd:1,   mix:{slime:.35,rapido:.2,gordo:.2,goblin:.25}, theme:'ponte',
+    reward:110, boss:['troll'],    desc:'Slimes gordos aguentam mais golpes. Sob a ponte mora o Troll, que se cura sozinho sem parar — só dano concentrado derruba ele.', x:38, y:71},
+  {id:4, name:'Pântano Verde',       waves:10, hp:1.50,spd:1,   mix:{slime:.25,rapido:.15,gordo:.15,goblin:.1,lobo:.2,morcego:.15}, theme:'pantano',
+    reward:140, boss:['bruxo'],    desc:'Lobos aceleram em matilha e Morcegos voam ignorando os espinhos. No brejo, o Slime Bruxo invoca reforços — mate-o rápido.', x:66, y:65},
+  {id:5, name:'Colina Amaldiçoada',  waves:11, hp:1.75,spd:1.02,mix:{rapido:.15,gordo:.15,goblin:.1,lobo:.15,morcego:.15,aranha:.15,cogumelo:.15}, theme:'colina',
+    reward:190, boss:['rainhaAranha'], desc:'Aranhas prendem seus heróis em teia e Cogumelos explodem ao morrer. No topo da colina espera a Rainha Aranha, com sua própria ninhada.', x:74, y:54},
+  {id:6, name:'Floresta Torta',      waves:11, hp:2.05,spd:1.04,mix:{gordo:.15,lobo:.15,morcego:.1,aranha:.15,cogumelo:.15,esqueleto:.3}, theme:'floresta',
+    reward:180, boss:['lordeEsqueleto'], desc:'Esqueletos levantam uma vez com metade da vida. No fundo da mata, o Lorde Esqueleto levanta junto e ainda chama os seus.', x:46, y:48},
+  {id:7, name:'Ruínas',              waves:11, hp:2.35, spd:1.06,mix:{morcego:.1,aranha:.15,cogumelo:.1,esqueleto:.2,zumbi:.2,espectro:.25}, theme:'ruinas',
+    reward:210, boss:['reiEspectro'], desc:'Zumbis apodrecem quem eles batem e Espectros somem por 1 s a cada 3 s. O Rei Espectro faz o mesmo — mire nos instantes em que ele aparece.', x:22, y:40},
+  {id:8, name:'Desfiladeiro',        waves:11, hp:2.60,spd:1.06,mix:{gordo:.1,esqueleto:.15,zumbi:.15,espectro:.15,blindado:.2,orc:.25}, theme:'desfilad',
+    reward:250, boss:['chefeOrc'], desc:'Cascos resistem a projétil e Orcs batem em todos os heróis de campo de uma vez. O Chefe Orc faz isso num raio maior e enlouquece ao perder vida.', x:40, y:31},
+  {id:9, name:'Vale da Névoa',       waves:11, hp:3.00, spd:1.1, mix:{zumbi:.15,espectro:.2,blindado:.15,orc:.2,curandeiro:.15,esqueleto:.15}, theme:'nevoa',
+    reward:300, boss:['dragao'],   desc:'Curandeiros regeneram os vizinhos sem parar — mate-os primeiro. Da névoa desce o Dragão: voa, ignora espinhos e cospe fogo na muralha.', x:68, y:25},
+  {id:10,name:'Trono do Rei Slime',  waves:12, hp:3.40, spd:1.12,mix:{rapido:.1,gordo:.1,goblin:.08,lobo:.08,aranha:.08,cogumelo:.08,blindado:.1,esqueleto:.1,orc:.1,zumbi:.1,espectro:.1,curandeiro:.08}, theme:'trono',
     reward:450, boss:['rei','dragao'], desc:'Tudo que existe, e o próprio Rei Slime no trono — pela primeira vez — ao lado do Dragão. Concluir abre o Infinito.', x:52, y:15},
-  {id:'inf', name:'Infinito', endless:true, reward:0, desc:'Sem fim: novos monstros vão entrando, horda a cada 4 ondas e chefe a cada 5.', x:76, y:7, needs:10}
+  {id:'inf', name:'Infinito', endless:true, reward:0, theme:'vazio', desc:'Sem fim: novos monstros vão entrando, horda a cada 4 ondas e chefe a cada 5 — incluindo o Golem de Lama e o Slime Gigante.', x:76, y:7, needs:10}
 ];
 const levelById=id=>LEVELS.find(l=>String(l.id)===String(id));
 const levelStars=id=>(profile.levels&&profile.levels[id]&&profile.levels[id].stars)||0;
@@ -374,26 +387,51 @@ const ENEMIES={
   lobo:      {hp:34, spd:84, dps:8,  r:14, xp:6,  coin:2, color:'#8a7f74', name:'Lobo',       pack:true},
   orc:       {hp:125,spd:38, dps:16, r:22, xp:14, coin:5, color:'#5f7a4a', name:'Orc',        cleave:52},
   espectro:  {hp:42, spd:46, dps:9,  r:16, xp:10, coin:4, color:'#b9c6d6', name:'Espectro',   phase:true},
-  // Chefes: um no fim de cada fase. Cada um exige uma resposta diferente.
+  // Chefes: um no fim de cada fase, cada um combinando com o cenario e com os monstros
+  // que aquela fase apresenta — nem todo chefe e slime.
   reizinho:{hp:300, spd:26, dps:14, r:30, xp:25, coin:12, color:'#e6a8dc', boss:true, name:'Príncipe Slime', splits:3, drop:.35},
+  chefeGoblin:{hp:360, spd:30, dps:15, r:28, xp:32, coin:16, color:'#6fa84f', boss:true, name:'Rei Goblin', steal:7, summon:6, summonType:'goblin', drop:.4},
+  troll:      {hp:540, spd:22, dps:19, r:34, xp:46, coin:22, color:'#7d9b6a', boss:true, name:'Troll da Ponte', selfHeal:15, drop:.45},
+  rainhaAranha:{hp:700,spd:26, dps:22, r:34, xp:60, coin:26, color:'#4a4a55', boss:true, name:'Rainha Aranha', web:true, summon:4, summonType:'aranha', drop:.55},
+  lordeEsqueleto:{hp:820,spd:20,dps:26, r:34, xp:66, coin:28, color:'#ded9c8', boss:true, name:'Lorde Esqueleto', revive:true, summon:6, summonType:'esqueleto', drop:.55},
+  reiEspectro:{hp:760, spd:30, dps:24, r:34, xp:68, coin:28, color:'#b9c6d6', boss:true, name:'Rei Espectro', phase:true, drop:.6},
+  chefeOrc:   {hp:980, spd:30, dps:34, r:38, xp:74, coin:32, color:'#5f7a4a', boss:true, name:'Chefe Orc', cleave:72, enrage:true, drop:.6},
   rei:     {hp:1000,spd:24, dps:30, r:42, xp:60, coin:25, color:'#d98fd0', boss:true, name:'Rei Slime', splits:6, drop:.75},
   bruxo:   {hp:580, spd:20, dps:16, r:32, xp:55, coin:24, color:'#8a6fd0', boss:true, name:'Slime Bruxo', summon:5, drop:.5},
   golem:   {hp:950, spd:13, dps:45, r:40, xp:70, coin:30, color:'#9c8262', boss:true, name:'Golem de Lama', drop:.5},
   gigante: {hp:780, spd:24, dps:32, r:46, xp:75, coin:30, color:'#e0a050', boss:true, name:'Slime Gigante', enrage:true, drop:.55},
   dragao:  {hp:1000,spd:22, dps:30, r:44, xp:90, coin:40, color:'#c4503f', boss:true, name:'Dragão', fly:true, fire:5, drop:.8}
 };
-const BOSS_POOL=['rei','bruxo','golem','gigante','dragao'];
+const BOSS_POOL=['rei','bruxo','golem','gigante','dragao','troll','rainhaAranha','lordeEsqueleto','reiEspectro','chefeOrc'];
 
 /* ================= Persistência: local + nuvem ================= */
 const Save={
   KEY:'muralha.save', SLOT_KEY:'muralha.slot', db:null, slot:'principal', timer:null, status:'local',
   fresh(){ return {v:3, coins:0, upgrades:{dmg:0,rate:0,wall:0,xp:0,gold:0}, heroes:['mago'], slots:1, team:['mago'], best:{wave:0,kills:0}, levels:{}, items:[], equip:{}, runs:0, kills:0, run:null, updatedAt:0}; },
+  // Conserta save antigo ou estragado: saldo negativo volta a zero, time respeita os tetos de
+  // 3 na muralha / 2 em campo e nao carrega heroi que nao existe mais nem o pet.
+  sanitize(){
+    profile.coins=clampCoins(profile.coins);
+    profile.upgrades=profile.upgrades||{dmg:0,rate:0,wall:0,xp:0,gold:0};
+    profile.best=profile.best||{wave:0,kills:0};
+    profile.heroes=(profile.heroes||[]).filter(id=>HEROES[id]&&!HEROES[id].hidden);
+    if(!profile.heroes.includes('mago')) profile.heroes.unshift('mago');
+    profile.slots=clamp(Math.round(profile.slots||1),1,MAX_SLOTS);
+    const out=[];
+    for(const id of (profile.team||[])){ const d=HEROES[id];
+      if(!d||d.hidden||out.includes(id)||!profile.heroes.includes(id)) continue;
+      const cap=d.role==='melee'?MAX_FIELD:MAX_WALL;
+      if(out.filter(t=>HEROES[t].role===d.role).length>=cap) continue;
+      if(out.length>=profile.slots) break;
+      out.push(id); }
+    profile.team=out.length?out:['mago'];
+  },
   readLocal(){ try{ const r=localStorage.getItem(this.KEY+'.'+this.slot); return r?Object.assign(this.fresh(),JSON.parse(r)):null; }catch(e){ return null; } },
   writeLocal(p){ try{ localStorage.setItem(this.KEY+'.'+this.slot,JSON.stringify(p)); localStorage.setItem(this.SLOT_KEY,this.slot); }catch(e){} },
   cleanSlot(s){ return (s||'').trim().toLowerCase().replace(/[^a-z0-9_\-]+/g,'-').replace(/^-+|-+$/g,'').slice(0,24)||'principal'; },
   async init(){
     try{ this.slot=this.cleanSlot(localStorage.getItem(this.SLOT_KEY)||'principal'); }catch(e){}
-    profile=this.readLocal()||this.fresh(); profile.coins=Math.min(COIN_CAP,Math.round(profile.coins||0)); renderMenu();
+    profile=this.readLocal()||this.fresh(); this.sanitize(); this.writeLocal(profile); renderMenu();
     if(!(window.claude&&typeof window.claude.use==='function')) return;
     try{ this.db=await window.claude.use('db'); }catch(e){ this.db=null; }
     if(!this.db){ this.setStatus('local'); return; }
@@ -402,14 +440,14 @@ const Save={
   async pullCloud(){
     try{
       const snap=await this.db.doc('saves/'+this.slot).get();
-      if(snap.exists){ const c=snap.data(); if((c.updatedAt||0)>(profile.updatedAt||0)){ profile=Object.assign(this.fresh(),c); profile.coins=Math.min(COIN_CAP,Math.round(profile.coins||0)); this.writeLocal(profile); } }
+      if(snap.exists){ const c=snap.data(); if((c.updatedAt||0)>(profile.updatedAt||0)){ profile=Object.assign(this.fresh(),c); this.sanitize(); this.writeLocal(profile); } }
       await this.db.doc('saves/'+this.slot).set(profile); this.setStatus('cloud'); renderMenu();
     }catch(e){ this.setStatus('err'); }
   },
-  save(){ profile.coins=Math.min(COIN_CAP,Math.round(profile.coins||0)); profile.updatedAt=Date.now(); this.writeLocal(profile); if(!this.db) return;
+  save(){ profile.coins=clampCoins(profile.coins); profile.updatedAt=Date.now(); this.writeLocal(profile); if(!this.db) return;
     clearTimeout(this.timer); this.timer=setTimeout(async()=>{ try{ await this.db.doc('saves/'+this.slot).set(profile); this.setStatus('cloud'); }catch(e){ this.setStatus('err'); } },800); },
   async listSlots(){ if(!this.db) return []; try{ const q=await this.db.collection('saves').limit(50).get(); return q.docs.map(d=>({id:d.id,...d.data()})); }catch(e){ return []; } },
-  async switchSlot(name){ this.slot=this.cleanSlot(name); try{ localStorage.setItem(this.SLOT_KEY,this.slot); }catch(e){} profile=this.readLocal()||this.fresh(); renderMenu(); if(this.db) await this.pullCloud(); },
+  async switchSlot(name){ this.slot=this.cleanSlot(name); try{ localStorage.setItem(this.SLOT_KEY,this.slot); }catch(e){} profile=this.readLocal()||this.fresh(); this.sanitize(); renderMenu(); if(this.db) await this.pullCloud(); },
   setStatus(s){ this.status=s; const el=$('cloud'); el.className='cloud '+(s==='cloud'?'on':s==='err'?'err':'');
     el.querySelector('span').textContent=s==='cloud'?'Salvo neste aparelho e na nuvem':s==='err'?'Nuvem indisponível agora · salvo neste aparelho':'Salvo neste aparelho'; }
 };
@@ -426,10 +464,15 @@ function wblob(x,y,rx,ry,seed,amp){ const pts=[]; for(let i=0;i<14;i++){ const a
 ctx.lineJoin='round'; ctx.lineCap='round';
 
 /* ================= Estado da run ================= */
-const G={state:'menu',level:LEVELS[0],drops:[],heroes:[],enemies:[],shots:[],parts:[],texts:[],effects:[],wave:0,wallHp:100,wallMax:100,xp:0,lvl:1,skills:{},coins:0,kills:0,queue:[],spawnT:0,t:0,focus:null,focusT:0,meteorT:0,inter:0,waveAwarded:false,lvQueue:0,tipT:0};
+const G={state:'menu',level:LEVELS[0],drops:[],heroes:[],enemies:[],shots:[],parts:[],texts:[],effects:[],wave:0,wallHp:100,wallMax:100,xp:0,lvl:1,skills:{},coins:0,kills:0,queue:[],spawnT:0,t:0,focus:null,focusT:0,meteorT:0,inter:0,waveClearedAt:0,lvQueue:0,tipT:0};
 const wallY=()=>H*0.80;
 const COIN_CAP=999999;   // teto de seguranca: nenhuma partida legitima chega perto disso
 function addCoins(n){ G.coins=clamp(Math.round(G.coins+n),0,COIN_CAP); }
+// Saldo do perfil sempre entre 0 e o teto: NaN, undefined ou negativo viram 0. Compra alguma
+// ja deixou o saldo negativo e travou a loja inteira -- agora todo debito passa por pay().
+const clampCoins=v=>clamp(Math.round(v||0),0,COIN_CAP);
+function canPay(n){ return clampCoins(profile.coins)>=n; }
+function pay(n){ if(!canPay(n)) return false; profile.coins=clampCoins(profile.coins-n); return true; }
 const xpNeed=lvl=>Math.round(8+lvl*6+lvl*lvl*0.5);
 const S=id=>G.skills[id]||0;
 const metaMul=(id,per)=>1+(profile.upgrades[id]||0)*per;
@@ -440,8 +483,17 @@ function layoutHeroes(){
   M.forEach((h,i)=>{ h.homeX=W*(M.length===1?0.5:0.3+0.4*i/(M.length-1)); h.homeY=wy-72; if(h.x===0&&h.y===0){ h.x=h.homeX; h.y=h.homeY; } });
 }
 function makeHero(id){ const d=HEROES[id], b=heroBonus(id); const h={id,x:0,y:0,cool:rnd(0,.5),def:d,bob:rnd(0,6),bonus:b};
-  if(d.role==='melee'){ h.hpMax=Math.round(d.hp*(1+b.hp/100)); h.hp=h.hpMax; h.regen=d.regen+b.regen; h.armor=Math.min(.6,d.armor+b.armor/100); h.dodge=Math.min(.7,d.dodge+b.dodge/100); h.speed=d.speed*(1+b.speed/100); h.reach=d.reach; h.dead=false; h.respawn=0; h.tauntCd=3; h.tauntT=0; h.webT=0; h.leapT=0; h.leapZ=0; h.leapCd=4; h.noHitT=9; h.deaths=0; h.poisonT=0; h.poisonDmg=0; }
+  // todo heroi tem vida agora, inclusive quem fica na muralha
+  h.hpMax=Math.round((d.hp||90)*(1+b.hp/100)); h.hp=h.hpMax;
+  h.regen=(d.regen||5)+b.regen; h.armor=Math.min(.6,(d.armor||0)+b.armor/100); h.dodge=Math.min(.7,(d.dodge||0)+b.dodge/100);
+  h.dead=false; h.respawn=0; h.tauntT=0; h.webT=0; h.noHitT=9; h.deaths=0; h.poisonT=0; h.poisonDmg=0;
+  if(d.role==='melee'){ h.speed=d.speed*(1+b.speed/100); h.reach=d.reach; h.tauntCd=3; h.leapT=0; h.leapZ=0; h.leapCd=4; }
   return h; }
+// O time entra em campo com os herois escolhidos mais os bichos de quem tem pet (a Fera do
+// Domador), que lutam como heroi de campo mas nao ocupam vaga nenhuma.
+function buildTeam(ids){ const list=(ids||[]).filter(id=>HEROES[id]); const hs=list.map(makeHero);
+  for(const id of list){ const pet=HEROES[id].pet; if(pet&&HEROES[pet]) hs.push(makeHero(pet)); }
+  return hs.length?hs:[makeHero('mago')]; }
 function heroDmg(h){ let d=h.def.dmg*metaMul('dmg',.10)*(1+S('power')*.25)*(1+(h.bonus?h.bonus.dmg:0)/100);
   if(S('rage')&&G.wallHp/G.wallMax<.5) d*=1+S('rage')*.4;   // Fúria: acorda quando a muralha aperta
   return d; }
@@ -451,17 +503,17 @@ function teamXpBonus(){ return G.heroes.reduce((a,h)=>a+(h.bonus?h.bonus.xp:0),0
 
 function newRun(level){
   G.level=level||LEVELS[0];
-  Object.assign(G,{heroes:profile.team.map(makeHero),enemies:[],shots:[],parts:[],texts:[],effects:[],drops:[],wave:1,xp:0,lvl:1,skills:{},coins:0,kills:0,queue:[],spawnT:0,t:0,focus:null,meteorT:0,lvQueue:0});
+  Object.assign(G,{heroes:buildTeam(profile.team),enemies:[],shots:[],parts:[],texts:[],effects:[],drops:[],wave:1,xp:0,lvl:1,skills:{},coins:0,kills:0,queue:[],spawnT:0,t:0,focus:null,meteorT:0,lvQueue:0});
   G.wallMax=Math.round(100*metaMul('wall',.15)); G.wallHp=G.wallMax; layoutHeroes(); startWave(); setState('play');
   tip(G.level.id===1?'Toque num slime para focar o fogo nele':`${G.level.name} · ${G.level.endless?'ondas infinitas':G.level.waves+' ondas'}`);
 }
 function continueRun(){
   const r=profile.run; if(!r) return openMap();
   G.level=levelById(r.levelId)||LEVELS[0];
-  Object.assign(G,{heroes:(r.team||profile.team).map(makeHero),enemies:[],shots:[],parts:[],texts:[],effects:[],drops:[],wave:r.wave,xp:r.xp,lvl:r.lvl,skills:Object.assign({},r.skills),coins:r.coins,kills:r.kills,queue:[],spawnT:0,t:0,focus:null,meteorT:0,lvQueue:0,wallMax:r.wallMax,wallHp:r.wallHp});
+  Object.assign(G,{heroes:buildTeam(r.team||profile.team),enemies:[],shots:[],parts:[],texts:[],effects:[],drops:[],wave:r.wave,xp:r.xp,lvl:r.lvl,skills:Object.assign({},r.skills),coins:r.coins,kills:r.kills,queue:[],spawnT:0,t:0,focus:null,meteorT:0,lvQueue:0,wallMax:r.wallMax,wallHp:r.wallHp});
   layoutHeroes(); startWave(); setState('play'); tip(`${G.level.name} · onda ${G.wave}${G.level.endless?'':' de '+G.level.waves}`);
 }
-function snapshotRun(){ profile.run={levelId:G.level.id,wave:G.wave,xp:G.xp,lvl:G.lvl,skills:G.skills,coins:G.coins,kills:G.kills,wallHp:G.wallHp,wallMax:G.wallMax,team:G.heroes.map(h=>h.id)}; Save.save(); }
+function snapshotRun(){ profile.run={levelId:G.level.id,wave:G.wave,xp:G.xp,lvl:G.lvl,skills:G.skills,coins:G.coins,kills:G.kills,wallHp:G.wallHp,wallMax:G.wallMax,team:G.heroes.filter(h=>!h.def.hidden).map(h=>h.id)}; Save.save(); }
 
 // Aceita pesos que nao somam 1: normaliza pelo total.
 function pickType(mix){ const ks=Object.keys(mix); let tot=0; for(const k of ks) tot+=mix[k]; let r=Math.random()*tot; for(const k of ks){ r-=mix[k]; if(r<=0) return k; } return ks[0]; }
@@ -482,21 +534,33 @@ function startWave(){
   // Horda: a cada 4 ondas vem quase o dobro de inimigos, e mais rapido.
   const surge=w%4===0&&(L.endless||w!==L.waves);
   if(L.endless){
-    const n=Math.round((5+w*1.4)*(surge?1.8:1)); for(let i=0;i<n;i++) q.push(pickType(endlessMix(w)));
+    const n=Math.round((7+w*1.6)*(surge?1.8:1)); for(let i=0;i<n;i++) q.push(pickType(endlessMix(w)));
     if(w%5===0) q.push(pick(BOSS_POOL));
   } else {
-    const n=Math.round((3+w*.5+L.id*.25)*(surge?1.9:1)); for(let i=0;i<n;i++) q.push(pickType(L.mix));
+    // Mais bichos por onda (antes as ondas esvaziavam rapido demais) e o acrescimo pesa
+    // mais na fase do que na base, pra dar variedade sem tornar a fase 1 injogavel para
+    // quem ainda so tem o Mago.
+    const n=Math.round((3.8+w*.6+L.id*.95)*(surge?1.9:1)); for(let i=0;i<n;i++) q.push(pickType(L.mix));
     if(L.boss&&w===L.waves) for(const b of L.boss) q.push(b);
   }
-  G.surge=surge; G.queue=q; G.spawnT=surge?.3:.6; G.inter=0; G.waveAwarded=false; hud();
+  G.surge=surge; G.queue=q; G.spawnT=surge?.3:.6; G.inter=0; hud();
   if(surge) tip(`HORDA! Onda ${w}${L.endless?'':' de '+L.waves} com o dobro de inimigos`);
   else if(w>1) tip(L.endless?`Onda ${w}`:`Onda ${w} de ${L.waves}`);
 }
+// Poder de ataque tambem sobe com a fase, nao só vida: leve pra nao desequilibrar
+// as fases ja calibradas, mas o bastante pra exigir upgrades/skills conforme avanca.
+function dpsMul(){ const L=G.level; return L.endless?Math.min(2.2,1+(G.wave-1)*0.012):1+(L.id-1)*0.06; }
 function spawn(type){
   const d=ENEMIES[type], L=G.level, w=G.wave;
-  const hpMul=L.endless?1+(w-1)*0.32+Math.max(0,w-10)*0.15:L.hp*(1+(w-1)*0.15);
+  // Quem faz o monstro ficar mais forte e A FASE, nao a onda: dentro de uma mesma fase a
+  // vida quase nao sobe (so 4% por onda, pra onda final nao ser identica a primeira) e o
+  // que cresce de verdade e a QUANTIDADE de bichos. O salto de dificuldade real acontece
+  // ao trocar de fase, onde vida (L.hp), velocidade (L.spd) e poder (dpsMul) sobem juntos.
+  const hpMul=L.endless?1+(w-1)*0.32+Math.max(0,w-10)*0.15:L.hp*(1+(w-1)*0.04);
   const spdMul=L.endless?1+w*0.012:L.spd;
-  const e={type,def:d,x:rnd(30,W-30),y:-d.r-rnd(0,40),hp:d.hp*hpMul,max:d.hp*hpMul,r:d.r,spd:d.spd*spdMul,burn:0,burnT:0,slowT:0,frozenT:0,intangT:0,seed:Math.random()*1000,attacking:false,wob:rnd(0,9),target:null,aggroT:0,tauntT:0,hitT:0,sumT:0};
+  const dMul=dpsMul();
+  const pad=L.theme==='desfilad'?W*.22:30;   // no desfiladeiro os bichos vem pelo corredor
+  const e={type,def:d,x:rnd(pad,W-pad),y:-d.r-rnd(0,40),hp:d.hp*hpMul,max:d.hp*hpMul,r:d.r,spd:d.spd*spdMul,dps:d.dps*dMul,dpsMul:dMul,burn:0,burnT:0,slowT:0,frozenT:0,intangT:0,seed:Math.random()*1000,attacking:false,wob:rnd(0,9),target:null,aggroT:0,tauntT:0,hitT:0,sumT:0};
   G.enemies.push(e); if(d.boss) tip(`${d.name} chegou!`); return e;
 }
 
@@ -522,21 +586,29 @@ function update(dt){
     if(e.def.phase){ e.phaseT=(e.phaseT||0)+dt; e.intangT=(e.phaseT%3)<1?1:0; }   // Espectro some por 1 s a cada 3 s
     if(e.def.pack){ let n=0; for(const o of G.enemies) if(o!==e&&o.hp>0&&o.def.pack&&Math.hypot(o.x-e.x,o.y-e.y)<110) n++; sp*=1+Math.min(4,n)*.12; }
     if(e.def.fire){ e.fireT=(e.fireT||0)+dt; if(e.fireT>=e.def.fire&&e.y>0){ e.fireT=0;
-      G.effects.push({kind:'fireball',x:clamp(e.x+rnd(-90,90),20,W-20),y:wy-rnd(10,90),t:0,dur:1}); } }
+      G.effects.push({kind:'fireball',x:clamp(e.x+rnd(-90,90),20,W-20),y:wy-rnd(10,90),t:0,dur:1,dpsMul:e.dpsMul||1}); } }
     if(e.def.heal){ e.healT=(e.healT||0)+dt; if(e.healT>=.5){ e.healT=0; let n=0;
       for(const o of G.enemies){ if(o!==e&&o.hp>0&&o.hp<o.max&&Math.hypot(o.x-e.x,o.y-e.y)<95){ o.hp=Math.min(o.max,o.hp+e.def.heal*.5); n++; } }
       if(n) G.effects.push({kind:'heal',x:e.x,y:e.y,r:95,t:0,dur:.45}); } }
-    if(e.def.summon){ e.sumT+=dt; if(e.sumT>=e.def.summon&&e.y>0){ e.sumT=0; for(let i=0;i<2;i++){ const s=spawn('slime'); s.x=clamp(e.x+rnd(-50,50),20,W-20); s.y=e.y+rnd(-10,30); puff(s.x,s.y,'#8a6fd0',4,.4,60); } } }
+    if(e.def.selfHeal&&e.hp<e.max&&e.y>0){ e.hp=Math.min(e.max,e.hp+e.def.selfHeal*dt);
+      if(Math.random()<dt*4) puff(e.x+rnd(-e.r,e.r),e.y-e.r*.5,'#8fd08f',3,.5,50); }
+    if(e.def.summon){ e.sumT+=dt; if(e.sumT>=e.def.summon&&e.y>0){ e.sumT=0; const st=e.def.summonType||'slime';
+      for(let i=0;i<2;i++){ const s=spawn(st); s.x=clamp(e.x+rnd(-50,50),20,W-20); s.y=e.y+rnd(-10,30); puff(s.x,s.y,e.def.color,4,.4,60); } } }
     if(e.burnT>0){ e.burnT-=dt; hurt(e,e.burn*dt,false); if(Math.random()<dt*8) puff(e.x+rnd(-e.r,e.r),e.y-e.r,'#e8613c'); }
     // alvo em campo: um herói o puxou (provocação) ou o acertou (aggro curto)
     if(e.target){ if(e.target.dead||!G.heroes.includes(e.target)) e.target=null; else if(e.tauntT>0) e.tauntT-=dt; else if((e.aggroT-=dt)<=0) e.target=null; }
     if(e.target){ const h=e.target, dx=h.x-e.x, dy=h.y-e.y, dist=Math.hypot(dx,dy);
       if(dist>e.r+14){ e.x+=dx/dist*sp*dt; e.y+=dy/dist*sp*dt; e.attacking=false; }
       else { e.attacking=true; e.hitT+=dt; if(e.hitT>=.8){ e.hitT-=.8;
-        if(e.def.cleave){ for(const o of G.heroes) if(o.def.role==='melee'&&!o.dead&&Math.hypot(o.x-e.x,o.y-e.y)<e.def.cleave) heroHit(o,e.def.dps*.8,e); }
-        else heroHit(h,e.def.dps*.8,e); } }
+        if(e.def.cleave){ for(const o of G.heroes) if(o.def.role==='melee'&&!o.dead&&Math.hypot(o.x-e.x,o.y-e.y)<e.def.cleave) heroHit(o,e.dps*.8,e); }
+        else heroHit(h,e.dps*.8,e); } }
       e.x=clamp(e.x,12,W-12); continue; }
-    if(e.y<wy-e.r-6){ e.y+=sp*dt; e.attacking=false; } else { e.attacking=true; wallDmg+=e.def.dps*dt; if(S('thorns')&&!e.def.fly) hurt(e,6*S('thorns')*dt,false);
+    if(e.y<wy-e.r-6){ e.y+=sp*dt; e.attacking=false; } else { e.attacking=true;
+      // quem chega na ameia pode bater no heroi que esta ali em cima em vez de so na parede:
+      // metade do estrago vai pro heroi, metade pra muralha.
+      const wh=wallHeroNear(e.x);
+      if(wh){ wallDmg+=e.dps*.5*dt; heroDot(wh,e.dps*.5*dt,e); } else wallDmg+=e.dps*dt;
+      if(S('thorns')&&!e.def.fly) hurt(e,6*S('thorns')*dt,false);
       if(e.def.steal&&G.coins>0){ e.stole=(e.stole||0)+e.def.steal*dt;
         if(e.stole>=1){ const n=Math.floor(e.stole); e.stole-=n; G.coins=Math.max(0,G.coins-n);
           G.texts.push({x:e.x,y:e.y-e.r-6,v:'-'+n+' 🪙',t:.7}); } } }
@@ -546,7 +618,14 @@ function update(dt){
   // heróis
   if(G.focus&&(!G.enemies.includes(G.focus)||G.focus.hp<=0||(G.focusT-=dt)<=0)) G.focus=null;
   for(const h of G.heroes){
-    if(h.def.role==='ranged'){ h.cool-=dt; if(h.cool<=0){ const t=G.focus||nearestEnemy(h); if(t){ fire(h,t); h.cool=1/heroRate(h); } } continue; }
+    if(h.def.role==='ranged'){
+      if(h.dead){ h.respawn-=dt; if(h.respawn<=0){ h.dead=false; h.hp=h.hpMax; h.noHitT=9;
+          for(let i=0;i<12;i++) puff(h.x,h.y,h.def.color,4,.5,80); tip(`${h.def.name} voltou para a muralha`); } continue; }
+      if(h.poisonT>0){ h.poisonT-=dt; h.hp-=h.poisonDmg*dt; h.noHitT=0;
+        if(Math.random()<dt*6) puff(h.x+rnd(-8,8),h.y-14,'#87a06b',2.5,.4);
+        if(h.hp<=0){ heroDown(h); continue; } }
+      h.noHitT+=dt; h.hp=Math.min(h.hpMax,h.hp+h.regen*(h.noHitT>3?1:.2)*dt);
+      h.cool-=dt; if(h.cool<=0){ const t=G.focus||nearestEnemy(h); if(t){ fire(h,t); h.cool=1/heroRate(h); } } continue; }
     // no ar: intocavel, so completa o arco do salto
     if(h.leapT>0){ h.leapT-=dt; const k=clamp(1-h.leapT/h.leapDur,0,1);
       h.x=lerp(h.leapFrom.x,h.leapTo.x,k); h.y=lerp(h.leapFrom.y,h.leapTo.y,k); h.leapZ=Math.sin(k*Math.PI)*48;
@@ -590,15 +669,37 @@ function update(dt){
   if(G.wallHp<=0) return gameOver();   // explosao de cogumelo tambem derruba a muralha
   for(const p of G.parts){ p.x+=p.vx*dt; p.y+=p.vy*dt; p.vy+=60*dt; p.t-=dt; } G.parts=G.parts.filter(p=>p.t>0);
   for(const t of G.texts){ t.y-=28*dt; t.t-=dt; } G.texts=G.texts.filter(t=>t.t>0);
-  // fim da onda. G.waveAwarded garante que o bonus so pode ser dado UMA vez por onda,
-  // mesmo que este bloco seja avaliado em mais de um quadro antes do estado mudar --
-  // foi um disparo repetido assim que corrompeu um save (runs e moedas na casa dos milhoes).
-  if(!G.queue.length&&!G.enemies.length){ G.inter+=dt; if(G.inter>=1.4&&!G.waveAwarded){ G.waveAwarded=true;
-    addCoins(G.wave*4*metaMul('gold',.10)*(1+S('bounty')*.25));
-    if(!G.level.endless&&G.wave>=G.level.waves) return winLevel();
-    G.wave++; snapshotRun(); startWave(); } }
-  else if(!G.level.endless&&G.wave>=G.level.waves&&!G.queue.length&&G.enemies.length&&G.enemies.every(e=>e.y<-60)){
-    G.enemies.length=0;   // nada pode ficar preso fora da tela e travar a vitoria
+  // fim da onda. G.waveClearedAt guarda o numero da onda ja premiada, entao o bonus
+  // so pode ser dado uma vez por onda (mesmo que este bloco rode em mais de um quadro),
+  // sem depender de uma flag separada que precisava ser resetada em startWave() --
+  // uma flag assim podia ficar travada em true pra sempre se qualquer coisa no meio
+  // do caminho (Save, snapshotRun, winLevel) falhasse, deixando a fase encalhada sem
+  // tela de vitoria e sem forma de continuar a nao ser sair. Aqui, se der erro, o jogo
+  // se recupera sozinho: G.wave ja mudou, entao o proximo quadro tenta de novo; e se
+  // a falha for justo na fase final, caimos num encerramento seguro em vez de travar.
+  if(!G.queue.length&&!G.enemies.length){ G.inter+=dt;
+    if(G.inter>=1.4&&G.waveClearedAt!==G.wave){
+      try{
+        addCoins(G.wave*4*metaMul('gold',.10)*(1+S('bounty')*.25));
+        if(!G.level.endless&&G.wave>=G.level.waves){ G.waveClearedAt=G.wave; return winLevel(); }
+        G.waveClearedAt=G.wave; G.wave++; snapshotRun(); startWave();
+      }catch(err){
+        console.error('Falha ao concluir onda/fase — aplicando saida segura', err);
+        try{ profile.run=null; Save.writeLocal(profile); }catch(e2){}
+        try{ endRun(false); }catch(e3){ forceOver(); }
+      }
+    }
+    // Rede de seguranca final: se passaram 6 s com o campo limpo e mesmo assim a fase nao
+    // avancou nem terminou, alguma coisa falhou no caminho normal. Em vez de deixar o
+    // jogador preso sem tela de resultado (so podendo sair pela pausa), destrava na marra.
+    else if(G.inter>=6){
+      console.warn('Onda ficou travada depois de limpa — destravando na marra');
+      if(!G.level.endless&&G.wave>=G.level.waves){ try{ winLevel(); }catch(e){ forceOver(); } }
+      else { G.wave++; G.waveClearedAt=G.wave; try{ snapshotRun(); }catch(e){} try{ startWave(); }catch(e){ G.inter=0; } }
+    }
+  }
+  else if(!G.queue.length&&G.enemies.length&&G.enemies.every(e=>e.y<-60)){
+    G.enemies.length=0;   // nada pode ficar preso fora da tela e travar a onda (em qualquer onda)
   }
   if(G.tipT>0&&(G.tipT-=dt)<=0) $('tip').classList.remove('show');
   hud();
@@ -617,6 +718,8 @@ function meleeStrike(h,t){
   if(!t.tauntT){ t.target=h; t.aggroT=3; }
   if(S('pierce')) for(const o of G.enemies){ if(o!==t&&o.hp>0&&Math.hypot(o.x-t.x,o.y-t.y)<40) hurt(o,d*.5,false); }
   if(S('whirl')) for(const o of G.enemies){ if(o!==t&&o.hp>0&&Math.hypot(o.x-h.x,o.y-h.y)<55) hurt(o,d*.6,false); }
+  // Barbaro: o machado pega todo mundo em volta do alvo
+  if(h.def.cleaveHit) for(const o of G.enemies){ if(o!==t&&o.hp>0&&Math.hypot(o.x-t.x,o.y-t.y)<h.def.cleaveHit) hurt(o,d*.7,true); }
   if(S('vamp')&&!h.dead){ h.hp=Math.min(h.hpMax,h.hp+d*.15*S('vamp')); }
   G.effects.push({kind:'slash',x:t.x,y:t.y,t:0,dur:.18,seed:Math.random()*100}); for(let i=0;i<4;i++) puff(t.x,t.y,h.def.color,3,.25,70);
 }
@@ -624,6 +727,20 @@ function heroDown(h){ h.hp=0; h.dead=true; h.deaths++; h.leapT=0; h.leapZ=0; h.p
   h.respawn=Math.max(3,10-2*S('swift'));
   for(let i=0;i<16;i++) puff(h.x,h.y,'#6b6a72',4,.6,110); for(const en of G.enemies) if(en.target===h) en.target=null;
   tip(`${h.def.name} caiu. Volta em ${Math.round(h.respawn)} s`); }
+
+// Dano continuo (inimigo batendo na muralha bem em cima de um heroi): usa armadura, mas nao
+// esquiva -- esquivar de um golpe faz sentido, de uma pancadaria constante nao.
+function heroDot(h,dmg,e){
+  if(h.dead) return;
+  h.noHitT=0; h.hp-=dmg*(1-h.armor);
+  if(Math.random()<dmg*.5) G.texts.push({x:h.x+rnd(-6,6),y:h.y-30,v:'!',t:.4});
+  if(e&&e.def.rot&&Math.random()<dmg*.4){ h.poisonT=4; h.poisonDmg=e.def.rot; }
+  if(h.hp<=0) heroDown(h);
+}
+// heroi da muralha mais proximo do inimigo que chegou na ameia
+function wallHeroNear(x){ let best=null,bd=58;
+  for(const h of G.heroes){ if(h.def.role!=='ranged'||h.dead) continue; const d=Math.abs(h.x-x); if(d<bd){ bd=d; best=h; } }
+  return best; }
 function heroHit(h,dmg,e){
   if(h.dead||h.leapT>0) return;
   if(e&&e.def.web&&Math.random()<.5){ h.webT=3; G.texts.push({x:h.x,y:h.y-42,v:'teia!',t:.7}); }
@@ -655,8 +772,8 @@ function kill(e){
     G.texts.push({x:e.x,y:e.y-e.r-8,v:'levanta!',t:1,crit:true}); for(let i=0;i<10;i++) puff(e.x,e.y,'#ded9c8',3,.5,90); return; }
   // Cogumelo explode e fere quem estiver por perto, muralha inclusive
   if(e.def.boom){ G.effects.push({kind:'slam',x:e.x,y:e.y,r:e.def.boom,t:0,dur:.5});
-    for(const h of G.heroes) if(h.def.role==='melee'&&!h.dead&&Math.hypot(h.x-e.x,h.y-e.y)<e.def.boom) heroHit(h,26,null);
-    if(e.y>wallY()-e.def.boom) G.wallHp=Math.max(0,G.wallHp-14);
+    for(const h of G.heroes) if(h.def.role==='melee'&&!h.dead&&Math.hypot(h.x-e.x,h.y-e.y)<e.def.boom) heroHit(h,26*(e.dpsMul||1),null);
+    if(e.y>wallY()-e.def.boom) G.wallHp=Math.max(0,G.wallHp-14*(e.dpsMul||1));
     for(let i=0;i<22;i++) puff(e.x,e.y,'#d4736b',rnd(3,6),rnd(.3,.7),rnd(80,220)); }
   G.kills++; const xp=e.def.xp*metaMul('xp',.10)*(1+S('magnet')*.30)*(1+teamXpBonus()); G.xp+=xp; addCoins(e.def.coin*metaMul('gold',.10)*(1+S('bounty')*.25));
   for(let i=0;i<10;i++) puff(e.x,e.y,e.def.color,rnd(2,5),rnd(.3,.6),rnd(40,120));
@@ -674,6 +791,7 @@ function puff(x,y,color,r,t,v){ G.parts.push({x,y,vx:rnd(-1,1)*(v||30),vy:rnd(-1
 function draw(time){
   ctx.clearRect(0,0,W,H);
   const wy=wallY();
+  drawScene(wy);
   // estrada
   ctx.strokeStyle='rgba(43,43,51,.25)'; ctx.lineWidth=2; ctx.setLineDash([9,11]); wpoly([[W*.5,0],[W*.5,wy-40]],3,1.5); ctx.stroke(); ctx.setLineDash([]);
   // castelo ao fundo da muralha
@@ -693,9 +811,9 @@ function draw(time){
     if(f.kind==='fireball'){ const k=f.t/f.dur;
       if(k<1){ ctx.strokeStyle='#c4503f'; ctx.lineWidth=2; ctx.setLineDash([4,5]); wblob(f.x,f.y,50*k+8,50*k*.7+8,117,2); ctx.stroke(); ctx.setLineDash([]);
         ctx.fillStyle='#e8613c'; wblob(f.x,f.y-(1-k)*220,10,10,119,2); ctx.fill(); ctx.strokeStyle='#2b2b33'; ctx.stroke(); }
-      else if(!f.done){ f.done=true; boom(f.x,f.y,60,26);
-        for(const h of G.heroes) if(h.def.role==='melee'&&!h.dead&&Math.hypot(h.x-f.x,h.y-f.y)<60) heroHit(h,24,null);
-        if(f.y>wallY()-70) G.wallHp=Math.max(0,G.wallHp-11); } }
+      else if(!f.done){ f.done=true; const fm=f.dpsMul||1; boom(f.x,f.y,60,26);
+        for(const h of G.heroes) if(h.def.role==='melee'&&!h.dead&&Math.hypot(h.x-f.x,h.y-f.y)<60) heroHit(h,24*fm,null);
+        if(f.y>wallY()-70) G.wallHp=Math.max(0,G.wallHp-11*fm); } }
     if(f.kind==='heal'){ const k=f.t/f.dur; ctx.strokeStyle=`rgba(240,210,100,${1-k})`; ctx.lineWidth=3; wblob(f.x,f.y,f.r*k,f.r*k*.8,95,3); ctx.stroke(); }
     if(f.kind==='slam'){ const k=f.t/f.dur; ctx.strokeStyle=`rgba(201,160,109,${1-k})`; ctx.lineWidth=4; wblob(f.x,f.y,f.r*k,f.r*k*.7,99,3); ctx.stroke(); }
     if(f.kind==='taunt'){ const k=f.t/f.dur; ctx.strokeStyle=`rgba(91,127,181,${1-k})`; ctx.lineWidth=3; wblob(f.x,f.y,f.r*k,f.r*k*.8,93,3); ctx.stroke(); }
@@ -707,6 +825,9 @@ function draw(time){
   if(G.focus){ ctx.strokeStyle='#e8613c'; ctx.lineWidth=2.5; ctx.setLineDash([6,5]); wblob(G.focus.x,G.focus.y,G.focus.r+9,G.focus.r*.8+9,91,1.5); ctx.stroke(); ctx.setLineDash([]); }
   // heróis
   for(const h of G.heroes){
+    if(h.dead&&h.def.role==='ranged'){   // caiu na muralha: fica a marca no lugar dele
+      ctx.strokeStyle='#8a8578'; ctx.lineWidth=2.2; wpoly([[h.x-9,h.y+6],[h.x+9,h.y-12]],303,1.4); ctx.stroke(); wpoly([[h.x-9,h.y-12],[h.x+9,h.y+6]],305,1.4); ctx.stroke();
+      ctx.textAlign='center'; ctx.font='13px "Gloria Hallelujah", cursive'; ctx.fillStyle='#2b2b33'; ctx.fillText(`${Math.ceil(h.respawn)}s`,h.x,h.y+22); continue; }
     if(h.def.role==='melee'&&h.dead){ ctx.fillStyle='#b9b4a6'; ctx.strokeStyle='#2b2b33'; ctx.lineWidth=2.5; wpoly([[h.homeX-11,h.homeY+14],[h.homeX-11,h.homeY-8],[h.homeX,h.homeY-18],[h.homeX+11,h.homeY-8],[h.homeX+11,h.homeY+14]],301,1.2,true); ctx.fill(); ctx.stroke();
       ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(h.homeX,h.homeY-10); ctx.lineTo(h.homeX,h.homeY+4); ctx.moveTo(h.homeX-5,h.homeY-5); ctx.lineTo(h.homeX+5,h.homeY-5); ctx.stroke();
       ctx.textAlign='center'; ctx.font='13px "Gloria Hallelujah", cursive'; ctx.fillStyle='#2b2b33'; ctx.fillText(`${Math.ceil(h.respawn)}s`,h.homeX,h.homeY+30); continue; }
@@ -714,7 +835,8 @@ function draw(time){
     if(lz>0){ ctx.fillStyle='rgba(43,43,51,.18)'; ctx.beginPath(); ctx.ellipse(h.x,h.y+8,13,4.5,0,0,7); ctx.fill(); }
     drawHero(ctx,h.id,h.x,h.y-lz+Math.sin(time*3+h.bob)*1.5,1);
     if(h.webT>0){ ctx.strokeStyle='rgba(255,253,246,.9)'; ctx.lineWidth=1.6; for(let i=0;i<3;i++){ wpoly([[h.x-14,h.y-24+i*10],[h.x+14,h.y-20+i*10]],111+i,2); ctx.stroke(); } }
-    if(h.def.role==='melee'){ const w=34, y=h.y-lz-46; ctx.fillStyle='#fffdf6'; ctx.fillRect(h.x-w/2,y,w,5); ctx.fillStyle=h.tauntT>0?'#5b7fb5':'#4c9b6e'; ctx.fillRect(h.x-w/2,y,w*clamp(h.hp/h.hpMax,0,1),5); ctx.strokeStyle='#2b2b33'; ctx.lineWidth=1.2; ctx.strokeRect(h.x-w/2,y,w,5); }
+    { const w=h.def.role==='melee'?34:28, y=h.y-lz-(h.def.role==='melee'?46:34);
+      if(h.def.role==='ranged'&&h.hp>=h.hpMax){} else { ctx.fillStyle='#fffdf6'; ctx.fillRect(h.x-w/2,y,w,5); ctx.fillStyle=h.tauntT>0?'#5b7fb5':'#4c9b6e'; ctx.fillRect(h.x-w/2,y,w*clamp(h.hp/h.hpMax,0,1),5); ctx.strokeStyle='#2b2b33'; ctx.lineWidth=1.2; ctx.strokeRect(h.x-w/2,y,w,5); } }
   }
   // projéteis
   for(const s of G.shots){ ctx.fillStyle=s.color; ctx.strokeStyle='#2b2b33'; ctx.lineWidth=1.5; wblob(s.x,s.y,5,5,101,1); ctx.fill(); ctx.stroke(); }
@@ -727,8 +849,122 @@ function draw(time){
 // Cada bicho abaixo tem silhueta propria: nada de gosma com adereco.
 // k normaliza o desenho pelo raio do inimigo. Todos olham para baixo, na direcao da muralha.
 const INK='#2b2b33';
+
+/* ============ Cenario por fase ============
+   Cada fase pinta o campo de um jeito e espalha seus proprios cenarios de rabisco, pra
+   combinar com o tema e com o chefe dela. Tudo desenhado com as mesmas linhas tremidas do
+   resto do jogo e com posicoes deterministicas (derivadas do indice), pra nao pular de lugar
+   a cada quadro — so a linha e que "ferve", como no caderno. */
+const THEMES={
+  vila:    {wash:'rgba(150,190,130,.16)', ink:'#5d7a4a'},
+  moinho:  {wash:'rgba(214,190,120,.18)', ink:'#8a7038'},
+  ponte:   {wash:'rgba(130,170,200,.18)', ink:'#4a6f8a'},
+  pantano: {wash:'rgba(110,160,110,.22)', ink:'#3f6b45'},
+  colina:  {wash:'rgba(150,130,170,.18)', ink:'#5f4a72'},
+  floresta:{wash:'rgba(110,150,110,.20)', ink:'#3d6340'},
+  ruinas:  {wash:'rgba(180,170,150,.20)', ink:'#7a7059'},
+  desfilad:{wash:'rgba(190,150,120,.20)', ink:'#8a5f3f'},
+  nevoa:   {wash:'rgba(160,180,200,.22)', ink:'#5a6f85'},
+  trono:   {wash:'rgba(200,140,190,.18)', ink:'#7a3f70'},
+  vazio:   {wash:'rgba(120,120,170,.18)', ink:'#4a4a72'}
+};
+// espalha n elementos em posicoes fixas por fase (hash simples, sem Math.random)
+function spread(n,i,seed){ const h=Math.abs(Math.sin((i+1)*seed)*10000); return h-Math.floor(h); }
+function tree(x,y,s,seed,fill,twist){
+  ctx.fillStyle=fill; ctx.strokeStyle=INK; ctx.lineWidth=2;
+  const lean=twist?s*6:0;
+  wpoly([[x-2.5*s,y],[x-1.5*s+lean,y-9*s],[x+1.5*s+lean,y-9*s],[x+2.5*s,y]],seed,1,true); ctx.fill(); ctx.stroke();
+  if(twist) wblob(x+lean,y-13*s,6*s,5*s,seed+3,1.6);
+  else wblob(x,y-13*s,6.5*s,6*s,seed+3,1.4);
+  ctx.fill(); ctx.stroke();
+}
+function drawScene(wy){
+  const L=G.level||LEVELS[0], th=THEMES[L.theme||'vila']||THEMES.vila;
+  ctx.fillStyle=th.wash; ctx.fillRect(0,0,W,wy);            // banho de cor do campo
+  ctx.strokeStyle=th.ink; ctx.fillStyle=th.ink;
+  const k=L.theme;
+  if(k==='moinho'){                                          // moinho + cerca
+    ctx.fillStyle='#e8dcc0'; ctx.strokeStyle=INK; ctx.lineWidth=2.4;
+    const mx=W*.16, my=wy*.20;
+    wpoly([[mx-16,my+46],[mx-11,my-6],[mx+11,my-6],[mx+16,my+46]],201,1.2,true); ctx.fill(); ctx.stroke();
+    wpoly([[mx-13,my-6],[mx,my-20],[mx+13,my-6]],203,1.2,true); ctx.fill(); ctx.stroke();
+    ctx.lineWidth=2.6; for(let a=0;a<4;a++){ const ang=a*Math.PI/2+jt*.02;
+      wpoly([[mx,my-4],[mx+Math.cos(ang)*30,my-4+Math.sin(ang)*30]],205+a,1.2); ctx.stroke(); }
+    ctx.strokeStyle=th.ink; ctx.lineWidth=2;
+    for(let i=0;i<7;i++){ const x=W*.62+i*22; wpoly([[x,wy*.42],[x,wy*.42+16]],211+i,1); ctx.stroke(); }
+    wpoly([[W*.62,wy*.42+6],[W*.62+6*22,wy*.42+6]],219,1.2); ctx.stroke();
+  } else if(k==='ponte'){                                    // rio atravessando + tabuas
+    ctx.fillStyle='rgba(90,150,200,.30)'; ctx.strokeStyle=th.ink; ctx.lineWidth=2;
+    wpoly([[-4,wy*.34],[W+4,wy*.30],[W+4,wy*.56],[-4,wy*.60]],221,2.5,true); ctx.fill(); ctx.stroke();
+    ctx.lineWidth=1.6; for(let i=0;i<5;i++){ const y=wy*.36+i*wy*.05; wpoly([[W*.1,y],[W*.42,y-3]],227+i,1.4); ctx.stroke(); }
+    ctx.fillStyle='#c9a06d'; ctx.strokeStyle=INK; ctx.lineWidth=2.2;
+    for(let i=0;i<6;i++){ const y=wy*.31+i*wy*.05; wpoly([[W*.34,y],[W*.66,y],[W*.66,y+wy*.035],[W*.34,y+wy*.035]],233+i,1,true); ctx.fill(); ctx.stroke(); }
+  } else if(k==='pantano'){                                  // pocas e juncos
+    for(let i=0;i<7;i++){ const x=spread(7,i,12.9)*W, y=wy*(.12+spread(7,i,7.3)*.7);
+      ctx.fillStyle='rgba(70,130,90,.30)'; ctx.strokeStyle=th.ink; ctx.lineWidth=1.8;
+      wblob(x,y,16+spread(7,i,3.1)*16,7+spread(7,i,5.7)*6,241+i,2); ctx.fill(); ctx.stroke(); }
+    ctx.strokeStyle=th.ink; ctx.lineWidth=2;
+    for(let i=0;i<9;i++){ const x=spread(9,i,21.7)*W, y=wy*(.18+spread(9,i,4.4)*.66);
+      wpoly([[x,y],[x+2,y-18]],251+i,1.4); ctx.stroke();
+      ctx.fillStyle='#6b5334'; wblob(x+2,y-21,2.6,4.5,255+i,1); ctx.fill(); ctx.stroke(); }
+  } else if(k==='colina'){                                   // arvores secas e lapides
+    for(let i=0;i<5;i++){ const x=spread(5,i,15.3)*W, y=wy*(.2+spread(5,i,6.1)*.6);
+      ctx.strokeStyle=th.ink; ctx.lineWidth=2.2; wpoly([[x,y],[x,y-26]],261+i,1.3); ctx.stroke();
+      for(const g of [-1,1]){ wpoly([[x,y-16],[x+g*11,y-25]],265+i*2+g,1.3); ctx.stroke(); } }
+    for(let i=0;i<4;i++){ const x=spread(4,i,9.7)*W, y=wy*(.3+spread(4,i,11.2)*.5);
+      ctx.fillStyle='#b9b2a2'; ctx.strokeStyle=INK; ctx.lineWidth=2;
+      wpoly([[x-9,y],[x-9,y-14],[x,y-20],[x+9,y-14],[x+9,y]],271+i,1.1,true); ctx.fill(); ctx.stroke(); }
+  } else if(k==='floresta'){                                 // mata fechada e torta
+    for(let i=0;i<11;i++){ const x=spread(11,i,17.1)*W, y=wy*(.1+spread(11,i,5.9)*.78);
+      tree(x,y,1.6+spread(11,i,2.7)*.9,281+i,'#3f6b45',true); }
+  } else if(k==='ruinas'){                                   // colunas quebradas e arco
+    for(let i=0;i<6;i++){ const x=spread(6,i,13.7)*W, y=wy*(.16+spread(6,i,8.3)*.66), h=22+spread(6,i,4.1)*26;
+      ctx.fillStyle='#ded6c2'; ctx.strokeStyle=INK; ctx.lineWidth=2.2;
+      wpoly([[x-7,y],[x-6,y-h],[x+6,y-h],[x+7,y]],291+i,1.2,true); ctx.fill(); ctx.stroke();
+      wpoly([[x-9,y-h],[x+9,y-h],[x+9,y-h-5],[x-9,y-h-5]],297+i,1,true); ctx.fill(); ctx.stroke(); }
+  } else if(k==='desfilad'){                                 // paredoes de pedra dos dois lados
+    ctx.fillStyle='rgba(160,110,80,.35)'; ctx.strokeStyle=INK; ctx.lineWidth=2.4;
+    wpoly([[-4,0],[W*.20,0],[W*.13,wy*.3],[W*.20,wy*.55],[W*.10,wy*.8],[W*.16,wy],[-4,wy]],301,2.5,true); ctx.fill(); ctx.stroke();
+    wpoly([[W+4,0],[W*.80,0],[W*.87,wy*.28],[W*.79,wy*.52],[W*.90,wy*.78],[W*.83,wy],[W+4,wy]],303,2.5,true); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle=th.ink; ctx.lineWidth=1.6;
+    for(let i=0;i<5;i++){ const y=wy*(.12+i*.18); wpoly([[W*.02,y],[W*.14,y+6]],307+i,1.4); ctx.stroke(); wpoly([[W*.98,y+10],[W*.86,y+16]],313+i,1.4); ctx.stroke(); }
+  } else if(k==='nevoa'){                                    // pinheiros + faixas de neblina
+    for(let i=0;i<7;i++){ const x=spread(7,i,19.3)*W, y=wy*(.12+spread(7,i,7.7)*.72), s=1.5+spread(7,i,3.3)*.8;
+      ctx.fillStyle='#4a6b58'; ctx.strokeStyle=INK; ctx.lineWidth=2;
+      wpoly([[x,y-26*s],[x+7*s,y-8*s],[x+4*s,y-8*s],[x+9*s,y],[x-9*s,y],[x-4*s,y-8*s],[x-7*s,y-8*s]],321+i,1.2,true); ctx.fill(); ctx.stroke(); }
+    ctx.strokeStyle='rgba(220,230,240,.75)'; ctx.lineWidth=7;
+    for(let i=0;i<5;i++){ const y=wy*(.18+i*.17)+Math.sin(G.t*.5+i)*5; wpoly([[-10,y],[W+10,y+4]],331+i,3.5); ctx.stroke(); }
+    ctx.lineWidth=2.5;
+  } else if(k==='trono'){                                    // trono, tapete e tochas
+    ctx.fillStyle='rgba(190,80,160,.22)'; ctx.strokeStyle=th.ink; ctx.lineWidth=2;
+    wpoly([[W*.36,wy],[W*.42,wy*.14],[W*.58,wy*.14],[W*.64,wy]],341,2,true); ctx.fill(); ctx.stroke();
+    ctx.fillStyle='#c9a06d'; ctx.strokeStyle=INK; ctx.lineWidth=2.6;
+    wpoly([[W*.42,wy*.30],[W*.42,wy*.08],[W*.58,wy*.08],[W*.58,wy*.30]],343,1.4,true); ctx.fill(); ctx.stroke();
+    wpoly([[W*.40,wy*.30],[W*.60,wy*.30],[W*.60,wy*.38],[W*.40,wy*.38]],345,1.2,true); ctx.fill(); ctx.stroke();
+    for(const x of [W*.18,W*.82]){ ctx.fillStyle='#7a6046'; wpoly([[x-4,wy*.46],[x-3,wy*.18],[x+3,wy*.18],[x+4,wy*.46]],347+x,1.1,true); ctx.fill(); ctx.stroke();
+      ctx.fillStyle='#e8613c'; wblob(x,wy*.15+Math.sin(G.t*6+x)*2,7,9,349+x,2); ctx.fill(); ctx.stroke(); }
+  } else if(k==='vazio'){                                    // infinito: so o vazio e estrelas
+    ctx.strokeStyle='rgba(120,120,190,.6)'; ctx.lineWidth=2;
+    for(let i=0;i<22;i++){ const x=spread(22,i,23.9)*W, y=wy*spread(22,i,11.3), s=2+spread(22,i,6.7)*3;
+      wpoly([[x-s,y],[x+s,y]],361+i,1); ctx.stroke(); wpoly([[x,y-s],[x,y+s]],381+i,1); ctx.stroke(); }
+    ctx.lineWidth=2.5;
+  } else {                                                   // vila: capim e casinhas ao longe
+    for(let i=0;i<4;i++){ const x=spread(4,i,14.2)*W*.9+W*.05, y=wy*(.10+spread(4,i,6.6)*.16);
+      ctx.fillStyle='#e8dcc0'; ctx.strokeStyle=INK; ctx.lineWidth=2.2;
+      wpoly([[x-13,y+16],[x-13,y],[x+13,y],[x+13,y+16]],391+i,1.1,true); ctx.fill(); ctx.stroke();
+      ctx.fillStyle='#c96b53'; wpoly([[x-16,y],[x,y-11],[x+16,y]],395+i,1.1,true); ctx.fill(); ctx.stroke(); }
+    ctx.strokeStyle=th.ink; ctx.lineWidth=1.8;
+    for(let i=0;i<14;i++){ const x=spread(14,i,25.1)*W, y=wy*(.34+spread(14,i,9.4)*.6);
+      for(const g of [-1,0,1]){ wpoly([[x,y],[x+g*4,y-8-Math.abs(g)*-2]],401+i*3+g,1.2); ctx.stroke(); } }
+  }
+  ctx.lineWidth=2.5; ctx.strokeStyle=INK;
+}
 function limb(x1,y1,x2,y2,seed,w){ ctx.lineWidth=w||2.2; wpoly([[x1,y1],[x2,y2]],seed,1); ctx.stroke(); ctx.lineWidth=2.5; }
 function eyes(x,y,r,c){ ctx.fillStyle=c||INK; ctx.beginPath(); ctx.arc(x-r*1.6,y,r,0,7); ctx.arc(x+r*1.6,y,r,0,7); ctx.fill(); }
+// Coroa de rabisco pros chefes "reais": marca quem manda sem precisar de outra silhueta.
+function crown(e,y,color){ const k=e.r/12; ctx.fillStyle=color||'#f5c542'; ctx.strokeStyle=INK; ctx.lineWidth=2.2;
+  wpoly([[e.x-7*k,y],[e.x-8.5*k,y-8*k],[e.x-3.5*k,y-3.5*k],[e.x,y-9.5*k],[e.x+3.5*k,y-3.5*k],[e.x+8.5*k,y-8*k],[e.x+7*k,y]],Math.floor(e.seed)+41,1.2,true);
+  ctx.fill(); ctx.stroke(); }
 const SHAPES={
   morcego(e,t,sd){ const k=e.r/12, fl=Math.sin(t*13+e.wob)*.4;
     ctx.strokeStyle=INK; ctx.lineWidth=2.2; ctx.fillStyle='#4a3f60';
@@ -865,6 +1101,23 @@ const SHAPES={
     eyes(e.x,e.y-15*k,2.4*k,'#f5e050');
     ctx.fillStyle='#f0c419'; wpoly([[e.x-6*k,e.y-8*k],[e.x-4*k,e.y-3*k],[e.x-2*k,e.y-8*k],[e.x,e.y-3*k],[e.x+2*k,e.y-8*k],[e.x+4*k,e.y-3*k],[e.x+6*k,e.y-8*k]],sd+11,.8,true); ctx.fill(); ctx.stroke(); }
 };
+// Chefes tematicos: reaproveitam a silhueta do bicho que manda naquela fase, em tamanho de
+// chefe (as formas ja escalam por e.r), com coroa pros que sao realeza. Assim cada fase
+// termina com um chefe que combina com o cenario dela, e nao com mais um slime.
+SHAPES.chefeGoblin   =(e,t,sd)=>{ SHAPES.goblin(e,t,sd);    crown(e,e.y-e.r*.95); };
+SHAPES.rainhaAranha  =(e,t,sd)=>{ SHAPES.aranha(e,t,sd);    crown(e,e.y-e.r*.75,'#c0a0e0'); };
+SHAPES.lordeEsqueleto=(e,t,sd)=>{ SHAPES.esqueleto(e,t,sd); crown(e,e.y-e.r*1.05,'#cfc6a4'); };
+SHAPES.reiEspectro   =(e,t,sd)=>{ SHAPES.espectro(e,t,sd);  crown(e,e.y-e.r*.85,'#9fd6e8'); };
+SHAPES.chefeOrc      =(e,t,sd)=>{ SHAPES.orc(e,t,sd); };
+SHAPES.troll=(e,t,sd)=>{ const k=e.r/16, sw=Math.sin(t*4+e.wob)*2.5*k;
+  ctx.strokeStyle=INK; ctx.lineWidth=2.8; ctx.fillStyle=e.def.color;
+  wblob(e.x,e.y+6*k,13*k,12*k,sd+1,1.6); ctx.fill(); ctx.stroke();                       // barrigao
+  limb(e.x-8*k,e.y+16*k,e.x-9*k+sw,e.y+24*k,sd+3,3.2); limb(e.x+8*k,e.y+16*k,e.x+9*k-sw,e.y+24*k,sd+4,3.2);
+  limb(e.x-12*k,e.y+2*k,e.x-19*k,e.y+12*k,sd+5,3); limb(e.x+12*k,e.y+2*k,e.x+19*k,e.y+12*k,sd+6,3);
+  wblob(e.x,e.y-9*k,10*k,8.5*k,sd+7,1.4); ctx.fill(); ctx.stroke();                      // cabeca
+  for(const g of [-1,1]){ wpoly([[e.x+g*9*k,e.y-11*k],[e.x+g*14*k,e.y-15*k],[e.x+g*9*k,e.y-6*k]],sd+8+g,1.1,true); ctx.fill(); ctx.stroke(); }
+  eyes(e.x,e.y-10*k,2*k,'#f5e050');
+  ctx.fillStyle='#ece7d7'; for(const g of [-1,1]){ wpoly([[e.x+g*3.5*k,e.y-4*k],[e.x+g*5*k,e.y-9*k],[e.x+g*6.5*k,e.y-4*k]],sd+12+g,.8,true); ctx.fill(); ctx.stroke(); } };
 function hpBar(e,top){ if(e.hp>=e.max) return; const w=e.r*2;
   ctx.fillStyle='#fffdf6'; ctx.fillRect(e.x-w/2,top,w,5); ctx.fillStyle='#e8613c'; ctx.fillRect(e.x-w/2,top,w*clamp(e.hp/e.max,0,1),5);
   ctx.strokeStyle=INK; ctx.lineWidth=1.2; ctx.strokeRect(e.x-w/2,top,w,5); ctx.lineWidth=2.5; }
@@ -902,6 +1155,18 @@ function drawBlob(e,time){
 }
 function drawHero(c,id,x,y,s){
   const d=HEROES[id]; c.save(); c.translate(x,y); c.scale(s,s); c.strokeStyle='#2b2b33'; c.lineWidth=2.5; c.lineCap='round';
+  // A Fera e bicho, nao gente: desenha inteira aqui e sai antes do corpo humanoide padrao.
+  if(id==='fera'){
+    c.fillStyle=d.color; wblobC(c,0,2,12,8,287,1.4); c.fill(); c.stroke();                       // tronco
+    c.lineWidth=2.2; c.beginPath(); c.moveTo(-9,8); c.lineTo(-11,15); c.moveTo(-3,9); c.lineTo(-4,16);
+    c.moveTo(4,9); c.lineTo(5,16); c.moveTo(9,8); c.lineTo(11,15); c.stroke(); c.lineWidth=2.5;   // patas
+    c.beginPath(); c.moveTo(11,-1); c.lineTo(19,-7); c.stroke();                                  // rabo
+    c.fillStyle=d.color; wblobC(c,-2,-11,7.5,6.5,289,1.2); c.fill(); c.stroke();                  // cabeca
+    for(const g of [-1,1]){ wpolyC(c,[[-2+g*4,-16],[-2+g*7,-23],[-2+g*9,-14]],291+g,1,true); c.fill(); c.stroke(); }
+    c.fillStyle='#2b2b33'; c.beginPath(); c.arc(-5,-12,1.3,0,7); c.arc(1,-12,1.3,0,7); c.fill();
+    c.fillStyle='#fffdf6'; wpolyC(c,[[-6,-7],[-3,-4],[0,-7]],293,.8,true); c.fill(); c.stroke();  // dentes
+    c.restore(); return;
+  }
   // corpo em manto
   c.fillStyle=d.color; wpolyC(c,[[-11,14],[-7,-6],[7,-6],[11,14]],201,1.2,true); c.fill(); c.stroke();
   // cabeça
@@ -910,6 +1175,16 @@ function drawHero(c,id,x,y,s){
   if(id==='mago'){ c.fillStyle=d.color; wpolyC(c,[[-12,-16],[0,-36],[10,-16]],221,1.2,true); c.fill(); c.stroke(); c.beginPath(); c.moveTo(12,-6); c.lineTo(15,-30); c.stroke(); c.fillStyle='#f0c419'; wblobC(c,15,-32,4,4,231,1); c.fill(); c.stroke(); }
   if(id==='arqueira'){ c.strokeStyle='#2b2b33'; c.beginPath(); c.arc(14,-8,12,-1.3,1.3); c.stroke(); c.beginPath(); c.moveTo(17,-19); c.lineTo(17,3); c.stroke(); c.fillStyle='#4c9b6e'; wpolyC(c,[[-8,-17],[8,-17],[0,-22]],241,1,true); c.fill(); c.stroke(); }
   if(id==='bruxa'){ c.fillStyle='#2b2b33'; wpolyC(c,[[-16,-17],[16,-17],[9,-18],[3,-38],[-4,-18]],251,1.2,true); c.fill(); c.stroke(); c.fillStyle='#8fd77f'; wblobC(c,14,-4,4,5,261,1); c.fill(); c.stroke(); }
+  if(id==='domador'){ c.fillStyle='#6b4a22'; wpolyC(c,[[-13,-15],[13,-15],[9,-19],[-9,-19]],281,1.1,true); c.fill(); c.stroke();
+    c.beginPath(); c.moveTo(-12,-4); c.lineTo(-17,-14); c.stroke(); c.fillStyle='#e0c088'; wblobC(c,-18,-16,3.5,3.5,283,1); c.fill(); c.stroke();
+    c.fillStyle='#a2673a'; wblobC(c,13,4,5,4,285,1.1); c.fill(); c.stroke(); }
+  if(id==='lanceiro'){ c.fillStyle='#9aa7b8'; wpolyC(c,[[-9,-16],[-9,-9],[9,-9],[9,-16],[0,-22]],293,1,true); c.fill(); c.stroke();
+    c.beginPath(); c.moveTo(13,10); c.lineTo(13,-30); c.stroke(); c.fillStyle='#c9c2ae'; wpolyC(c,[[10,-28],[13,-38],[16,-28]],295,1,true); c.fill(); c.stroke();
+    c.fillStyle='#6b7a55'; wblobC(c,-13,0,6,8,297,1.2); c.fill(); c.stroke(); }
+  if(id==='barbaro'){ c.fillStyle='#c98a5a'; wblobC(c,0,-2,10,7,299,1.3); c.fill(); c.stroke();
+    c.strokeStyle='#2b2b33'; c.beginPath(); c.moveTo(12,6); c.lineTo(17,-22); c.stroke();
+    c.fillStyle='#b8b2a2'; wpolyC(c,[[10,-20],[24,-26],[22,-12],[13,-13]],302,1.2,true); c.fill(); c.stroke();
+    c.fillStyle='#6b3f2a'; wpolyC(c,[[-9,-18],[9,-18],[7,-22],[-7,-22]],304,1,true); c.fill(); c.stroke(); }
   if(id==='cavaleiro'){ c.fillStyle='#9aa7b8'; wpolyC(c,[[-9,-16],[-9,-8],[9,-8],[9,-16],[0,-24]],271,1,true); c.fill(); c.stroke(); c.beginPath(); c.moveTo(-6,-13); c.lineTo(6,-13); c.stroke();
     c.fillStyle='#c9a06d'; wpolyC(c,[[-22,-8],[-10,-8],[-10,10],[-16,14],[-22,10]],281,1.2,true); c.fill(); c.stroke(); c.beginPath(); c.moveTo(12,2); c.lineTo(24,-24); c.stroke(); c.beginPath(); c.moveTo(9,-6); c.lineTo(17,-2); c.stroke(); }
   if(id==='ladina'){ c.fillStyle='#3d3d4a'; wpolyC(c,[[-11,-8],[-9,-24],[0,-30],[9,-24],[11,-8]],291,1.2,true); c.fill(); c.stroke(); c.fillStyle='#e8613c'; wpolyC(c,[[-9,-6],[9,-6],[12,-1],[-6,-1]],292,1,true); c.fill(); c.stroke();
@@ -935,23 +1210,47 @@ function renderMenu(){
   const done=LEVELS.filter(l=>!l.endless&&levelStars(l.id)>0).length; $('sBest').textContent=`${done} / 10`+(profile.best.wave?` · infinito ${profile.best.wave}`:''); $('sRuns').textContent=profile.runs; $('sKills').textContent=profile.kills; $('sCoins').textContent=profile.coins;
   $('upCoins').textContent=`🪙 ${profile.coins}`; $('slotName').textContent=Save.slot;
 }
+// So funcionam com heroi de campo (dependem do golpe corpo a corpo). Guarda e Volta rapida
+// sairam da lista: agora que todo heroi tem vida, elas valem tambem para quem fica na muralha.
+const MELEE_ONLY_SKILLS=new Set(['vamp','whirl']);
 function openLevelUp(){ G.lvQueue--; setState('levelup'); $('lvNum').textContent=G.lvl-G.lvQueue;
-  const pool=SKILLS.filter(s=>S(s.id)<s.max); const opts=[]; while(opts.length<3&&pool.length){ const s=pick(pool); pool.splice(pool.indexOf(s),1); opts.push(s); }
+  const hasMelee=G.heroes.some(h=>h.def.role==='melee');
+  const pool=SKILLS.filter(s=>S(s.id)<s.max&&(hasMelee||!MELEE_ONLY_SKILLS.has(s.id)));
+  const opts=[]; while(opts.length<3&&pool.length){ const s=pick(pool); pool.splice(pool.indexOf(s),1); opts.push(s); }
+  // Sem nenhuma skill disponivel o cartao ficaria vazio e sem saida: volta direto pro jogo.
+  if(!opts.length){ G.lvQueue=0; setState('play'); return; }
   $('lvList').innerHTML=opts.map(s=>`<button class="btn skill" data-s="${s.id}"><span class="ico">${s.ico}</span><span><div class="nm">${s.name} <span class="lvl">${S(s.id)?`nível ${S(s.id)+1}`:'novo'}</span></div><div class="ds">${s.desc}</div></span></button>`).join('');
 }
 $('lvList').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; const id=b.dataset.s; G.skills[id]=S(id)+1;
   if(id==='repair'){ G.wallMax=Math.round(G.wallMax*1.2); G.wallHp=Math.min(G.wallMax,G.wallHp+G.wallMax*.4); }
-  if(id==='guard') for(const h of G.heroes) if(h.def.role==='melee'){ h.armor=Math.min(.6,h.armor+.10); h.hpMax+=20; h.hp+=20; }
+  if(id==='guard') for(const h of G.heroes){ h.armor=Math.min(.6,h.armor+.10); h.hpMax+=20; h.hp+=20; }
   if(G.lvQueue>0) openLevelUp(); else setState('play'); });
 
+// Ultimo recurso: se ate endRun() falhar (ex.: profile corrompido), forca a tela de fim
+// na marra, sem depender de renderMenu()/Save, so pra nunca deixar o jogador travado.
+function forceOver(){
+  try{ setState('over'); }catch(e){}
+  try{
+    $('overEyebrow').textContent=(G.level&&G.level.name)||''; $('overTitle').textContent='Fase encerrada';
+    $('oStars').hidden=true; $('oWave').textContent=String(G.wave||''); $('oKills').textContent=String(G.kills||0);
+    $('oCoins').textContent='+0'; $('oLvl').textContent=String(G.lvl||1);
+    $('oRecord').textContent='Algo deu errado ao concluir a fase, mas nada foi perdido — tente de novo.';
+    $('bOverNext').hidden=true;
+  }catch(e){}
+  try{ clearField(); }catch(e){}
+}
 function gameOver(){ setState('over'); endRun(true); }
 function clearField(){ G.heroes=[]; G.enemies=[]; G.shots=[]; G.parts=[]; G.effects=[]; G.texts=[]; }
 function winLevel(){
   const L=G.level, pct=G.wallHp/G.wallMax, stars=pct>=.7?3:pct>=.35?2:1;
   const bonus=Math.round(L.reward*stars/3*metaMul('gold',.10)), gained=Math.round(G.coins)+bonus;
-  profile.coins=Math.min(COIN_CAP,Math.round(profile.coins+gained)); profile.runs++; profile.kills+=G.kills;
+  // A tela de vitoria sobe ANTES de qualquer coisa que possa falhar (salvar, redesenhar
+  // o menu): se o save estiver estranho, o jogador ainda ve o resultado da fase em vez
+  // de ficar preso olhando pro campo vazio com a fase impossivel de concluir.
+  setState('over');
+  profile.coins=clampCoins(profile.coins+gained); profile.runs++; profile.kills+=G.kills;
   const prev=levelStars(L.id); profile.levels=profile.levels||{}; if(stars>prev) profile.levels[L.id]={stars};
-  profile.run=null; Save.save(); renderMenu(); setState('over');
+  profile.run=null; try{ Save.save(); }catch(e){} try{ renderMenu(); }catch(e){}
   $('overEyebrow').textContent=`Fase ${L.id} · ${L.name}`; $('overTitle').textContent=stars===3?'Fase concluída sem arranhão!':'Fase concluída!';
   $('oStars').hidden=false; $('oStars').innerHTML=[0,1,2].map(i=>`<span class="${i<stars?'':'off'}">★</span>`).join('');
   $('oWave').textContent=`${L.waves} / ${L.waves}`; $('oKills').textContent=G.kills; $('oCoins').textContent=`+${gained}`; $('oLvl').textContent=G.lvl;
@@ -961,9 +1260,11 @@ function winLevel(){
   renderDrops(); clearField();
 }
 function endRun(fell){
-  const L=G.level, gained=Math.round(G.coins); profile.coins=Math.min(COIN_CAP,Math.round(profile.coins+gained)); profile.runs++; profile.kills+=G.kills;
+  setState('over');   // mesma regra do winLevel: a tela sobe antes do que pode falhar
+  const L=G.level, gained=Math.round(G.coins); profile.coins=clampCoins(profile.coins+gained); profile.runs++; profile.kills+=G.kills;
+  profile.best=profile.best||{wave:0,kills:0};
   let record=false; if(L.endless&&G.wave>profile.best.wave){ record=true; profile.best.wave=G.wave; profile.best.kills=G.kills; }
-  profile.run=null; Save.save(); renderMenu();
+  profile.run=null; try{ Save.save(); }catch(e){} try{ renderMenu(); }catch(e){}
   $('overEyebrow').textContent=L.endless?'Infinito':`Fase ${L.id} · ${L.name}`; $('overTitle').textContent=fell?'A muralha caiu':'Run encerrada'; $('oStars').hidden=true;
   $('oWave').textContent=L.endless?G.wave:`${G.wave} / ${L.waves}`; $('oKills').textContent=G.kills; $('oCoins').textContent=`+${gained}`; $('oLvl').textContent=G.lvl;
   $('oRecord').textContent=record?'Novo recorde no Infinito!':fell?'As moedas ficam. Gaste em Melhorias ou abra uma vaga para um segundo herói e tente de novo.':'';
@@ -1012,20 +1313,30 @@ document.addEventListener('visibilitychange',()=>{ if(document.hidden&&G.state==
 
 // Heróis
 function renderHeroes(){
-  const canAddSlot=profile.slots<3;
-  $('heroesInfo').innerHTML=`Vagas no time: <b>${profile.team.length} / ${profile.slots}</b>. Toque em um herói para colocar ou tirar do time. 🪙 ${profile.coins}`;
-  let html=Object.entries(HEROES).map(([id,d])=>{ const owned=profile.heroes.includes(id), inTeam=profile.team.includes(id);
+  const canAddSlot=profile.slots<MAX_SLOTS;
+  $('heroesInfo').innerHTML=`Vagas no time: <b>${profile.team.length} / ${profile.slots}</b> · muralha ${teamRole('ranged')}/${MAX_WALL} · campo ${teamRole('melee')}/${MAX_FIELD}. Toque em um herói para colocar ou tirar do time. 🪙 ${profile.coins}`;
+  let html=Object.entries(HEROES).filter(([id,d])=>!d.hidden).map(([id,d])=>{ const owned=profile.heroes.includes(id), inTeam=profile.team.includes(id);
     const action=owned?`<div class="acts"><button class="btn ${inTeam?'':'primary'}" data-act="team" data-id="${id}">${inTeam?'Tirar':'Colocar'}</button><button class="btn" data-act="equip" data-id="${id}">Itens ${Object.keys((profile.equip||{})[id]||{}).length}/5</button></div>`:`<button class="btn gold" data-act="buy" data-id="${id}" ${profile.coins<d.cost?'disabled':''}>🪙 ${d.cost}</button>`;
-    const line=d.role==='melee'?`campo · vida ${d.hp} · dano ${d.dmg} · ${d.rate}/s${d.dodge>=.2?' · esquiva '+Math.round(d.dodge*100)+'%':''}${d.armor?' · armadura '+Math.round(d.armor*100)+'%':''}`:`muralha · dano ${d.dmg} · ${d.rate}/s`;
+    const line=d.role==='melee'?`campo · vida ${d.hp} · dano ${d.dmg} · ${d.rate}/s${d.dodge>=.2?' · esquiva '+Math.round(d.dodge*100)+'%':''}${d.armor?' · armadura '+Math.round(d.armor*100)+'%':''}`:`muralha · vida ${d.hp} · dano ${d.dmg} · ${d.rate}/s · armadura ${Math.round((d.armor||0)*100)}%`;
     return `<div class="hero ${inTeam?'in':''}"><canvas data-hero="${id}" width="104" height="104"></canvas><div><div class="nm">${d.name}</div><div class="ds">${d.desc}<br>${line}</div></div>${action}</div>`; }).join('');
   if(canAddSlot) html+=`<button class="btn gold" data-act="slot" ${profile.coins<SLOT_COST[profile.slots]?'disabled':''}><span>Abrir ${profile.slots+1}ª vaga no time</span><span class="cost">🪙 ${SLOT_COST[profile.slots]}</span></button>`;
   $('heroList').innerHTML=html;
   $('heroList').querySelectorAll('canvas[data-hero]').forEach(c=>{ const k=c.getContext('2d'); k.setTransform(2,0,0,2,0,0); k.clearRect(0,0,52,52); drawHero(k,c.dataset.hero,26,34,1.05); });
 }
 $('heroList').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b||b.disabled) return; const {act,id}=b.dataset;
-  if(act==='buy'){ profile.coins-=HEROES[id].cost; profile.heroes.push(id); if(profile.team.length<profile.slots) profile.team.push(id); }
-  if(act==='team'){ if(profile.team.includes(id)){ if(profile.team.length>1) profile.team=profile.team.filter(t=>t!==id); else tip('Precisa de pelo menos um herói'); } else if(profile.team.length<profile.slots) profile.team.push(id); else { return flashInfo('Vagas cheias. Tire alguém ou abra outra vaga.'); } }
-  if(act==='slot'){ profile.coins-=SLOT_COST[profile.slots]; profile.slots++; }
+  if(act==='buy'){ if(!pay(HEROES[id].cost)) return flashInfo('Moedas insuficientes para esse herói.');
+    profile.heroes.push(id);
+    const r=HEROES[id].role, cap=r==='melee'?MAX_FIELD:MAX_WALL;
+    if(profile.team.length<profile.slots&&teamRole(r)<cap) profile.team.push(id); }
+  if(act==='team'){
+    if(profile.team.includes(id)){ if(profile.team.length>1) profile.team=profile.team.filter(t=>t!==id); else tip('Precisa de pelo menos um herói'); }
+    else {
+      const r=HEROES[id].role, cap=r==='melee'?MAX_FIELD:MAX_WALL;
+      if(profile.team.length>=profile.slots) return flashInfo('Vagas cheias. Tire alguém ou abra outra vaga.');
+      if(teamRole(r)>=cap) return flashInfo(r==='melee'?`No máximo ${MAX_FIELD} heróis em campo.`:`No máximo ${MAX_WALL} heróis na muralha.`);
+      profile.team.push(id); } }
+  if(act==='slot'){ const c=SLOT_COST[profile.slots]; if(c==null||profile.slots>=MAX_SLOTS) return;
+    if(!pay(c)) return flashInfo('Moedas insuficientes para abrir a vaga.'); profile.slots++; }
   if(act==='equip'){ return openEquip(id); }
   Save.save(); renderHeroes(); renderMenu(); });
 
@@ -1047,7 +1358,7 @@ $('eqSlots').addEventListener('click',e=>{ const b=e.target.closest('button'); i
   if(b.dataset.pick){ eqSlot=eqSlot===b.dataset.pick?null:b.dataset.pick; renderEquip(); } });
 $('eqPick').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; const it=itemById(b.dataset.i); if(!it) return;
   if(b.dataset.do==='eq'){ equipItem(eqHero,it); eqSlot=null; }
-  if(b.dataset.do==='sell'){ profile.coins=Math.min(COIN_CAP,profile.coins+RARITY[it.rar].sell); profile.items=profile.items.filter(x=>x.id!==it.id); Save.save(); }
+  if(b.dataset.do==='sell'){ profile.coins=clampCoins(profile.coins+RARITY[it.rar].sell); profile.items=profile.items.filter(x=>x.id!==it.id); Save.save(); }
   renderEquip(); renderMenu(); });
 $('bEqBack').addEventListener('click',()=>{ $('equipOv').hidden=true; renderHeroes(); });
 function flashInfo(t){ $('heroesInfo').innerHTML=`<b style="color:var(--hurt)">${t}</b>`; }
@@ -1058,7 +1369,7 @@ $('bHeroesBack').addEventListener('click',()=>{ $('heroesOv').hidden=true; });
 function renderUpgrades(){ $('upCoins2').textContent=`Você tem 🪙 ${profile.coins}.`;
   $('upList').innerHTML=UPGRADES.map(u=>{ const lvl=profile.upgrades[u.id]||0, max=lvl>=10, cost=upCost(u,lvl);
     return `<button class="btn ${max?'':'gold'}" data-up="${u.id}" ${max||profile.coins<cost?'disabled':''}><span class="skill"><span class="ico">${u.ico}</span><span><div class="nm">${u.name} <span class="lvl">nível ${lvl}/10</span></div><div class="ds">${u.per} por nível</div></span></span><span class="cost">${max?'máx':'🪙 '+cost}</span></button>`; }).join(''); }
-$('upList').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b||b.disabled) return; const u=UPGRADES.find(x=>x.id===b.dataset.up); const lvl=profile.upgrades[u.id]||0; profile.coins-=upCost(u,lvl); profile.upgrades[u.id]=lvl+1; Save.save(); renderUpgrades(); renderMenu(); });
+$('upList').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b||b.disabled) return; const u=UPGRADES.find(x=>x.id===b.dataset.up); const lvl=profile.upgrades[u.id]||0; if(!pay(upCost(u,lvl))){ renderUpgrades(); return; } profile.upgrades[u.id]=lvl+1; Save.save(); renderUpgrades(); renderMenu(); });
 $('bUpgrades').addEventListener('click',()=>{ renderUpgrades(); $('upOv').hidden=false; });
 $('bUpBack').addEventListener('click',()=>{ $('upOv').hidden=true; });
 
@@ -1101,17 +1412,5 @@ resize(); setState('menu'); Save.init(); requestAnimationFrame(frame);
   render(); card.appendChild(box);
 })();
 </script>
-</body>
-</html>
-</body>
-</html>
-</body>
-</html>
-</body>
-</html>
-</body>
-</html>
-</body>
-</html>
 </body>
 </html>

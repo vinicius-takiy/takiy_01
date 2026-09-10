@@ -41,37 +41,48 @@ Rodopio, Guarda e Volta rápida.
 
 Cada fase tem de 10 a 12 ondas, com mistura própria que introduz os tipos aos poucos.
 
-### Alocação por dificuldade
+### Cenário e chefe por fase
 
-O dano de cada monstro é **fixo** — não escala pela fase, só a vida escala (pelo
-multiplicador da fase e pela onda). Então quem aparece em qual fase importa tanto
-quanto o multiplicador de vida. A ordem segue dano fixo + complexidade do truque:
+Cada fase tem **cenário próprio** desenhado no mesmo traço tremido do resto do jogo
+(`THEMES` + `drawScene()`) e um **chefe que combina com o lugar e com os monstros
+daquela fase** — nem todo chefe é slime.
 
-| Fase | Novo na mistura | Chefe |
-|---|---|---|
-| 1–2 | Slime, Rápido | Príncipe Slime (14 dano) |
-| 3–4 | Gordo, Goblin, Lobo, Morcego — truque simples | Slime Bruxo (16 dano, invoca) |
-| 5 | Aranha, Cogumelo — exige ajuste tático | Slime Gigante (32 dano, acelera perdendo vida) |
-| 6–7 | Esqueleto, Zumbi, Espectro — exige estratégia | Golem de Lama (6) → Gigante de novo (7) |
-| 8–9 | Casco, Orc, Curandeiro — exige time montado | Golem (45 dano, o mais forte) → Dragão (9, estreia sozinho) |
-| 10 | Tudo junto | **Rei Slime** (se parte em 6) — só aparece aqui, pela primeira vez — + Dragão |
+| Fase | Cenário | Novo na mistura | Chefe |
+|---|---|---|---|
+| 1 | Vila: casinhas ao longe e capim | Slime | Príncipe Slime (14 dano, se parte em 3) |
+| 2 | Moinho: pás girando e cerca | Rápido, Goblin | **Rei Goblin** (rouba moedas e chama goblins) |
+| 3 | Ponte: rio atravessando e tábuas | Gordo | **Troll da Ponte** (cura 15/s sozinho) |
+| 4 | Pântano: poças e juncos | Lobo, Morcego | Slime Bruxo (invoca reforços) |
+| 5 | Colina: árvores secas e lápides | Aranha, Cogumelo | **Rainha Aranha** (teia + ninhada) |
+| 6 | Floresta torta: mata fechada | Esqueleto | **Lorde Esqueleto** (levanta e chama os seus) |
+| 7 | Ruínas: colunas quebradas | Zumbi, Espectro | **Rei Espectro** (some 1 s a cada 3 s) |
+| 8 | Desfiladeiro: paredões dos dois lados | Casco, Orc | **Chefe Orc** (área de 72 px, enlouquece) |
+| 9 | Vale da névoa: pinheiros e neblina | Curandeiro | Dragão (voa e cospe fogo) |
+| 10 | Trono: tapete, tochas e o trono | Tudo junto | **Rei Slime** + Dragão |
 
-O Rei Slime estava na fase 5 antes, cedo demais para um chefe de 1000 de vida com
-divisão em seis. Agora só é enfrentado no trono, no fim — o nome da fase 10 já
-prometia isso e agora entrega. A fase 5 mudou de nome (era "Covil do Rei") para
-não anunciar um chefe que não está mais lá.
+Golem de Lama (45 de dano, o mais forte) e Slime Gigante ficaram guardados para o
+**Infinito**, junto com todos os outros no sorteio de chefe a cada 5 ondas.
 
-Verificado em partidas automatizadas: fase 1 trivial (100% de muralha), fase 3
-com a estreia do Bruxo fechada em 58%, fase 5 com a estreia do Gigante em 100%
-(bem mais fácil que o Rei que estava lá antes), fase 8 em 55%, fase 10 **perdida**
-por pouco na penúltima onda — apropriado para o desafio final do jogo.
+Os chefes novos reaproveitam a silhueta do bicho que manda na fase, em tamanho de
+chefe — as formas em `SHAPES` já escalam pelo raio — com **coroa** para a realeza
+(Rei Goblin, Rainha Aranha, Lorde Esqueleto, Rei Espectro). O Troll tem corpo próprio.
 
-**Silhuetas:** morcego, esqueleto, aranha, goblin, lobo, orc, zumbi, espectro, cogumelo,
-golem e dragão têm corpo desenhado do zero em `SHAPES` — não são gosmas com adereço.
-Slime, Rápido, Gordo e os chefes-slime (Príncipe Slime, Rei Slime, Slime Bruxo) seguem
-redondos — é literalmente o que são. Casco (Blindado) e Curandeiro, os dois últimos que
-não tinham "Slime" no nome mas ainda eram bolha, ganharam corpo próprio também: casco de
-tartaruga com cabeça esticada, e um clérigo de túnica com cajado.
+### Dificuldade: vem da FASE, não da onda
+
+Antes a vida do monstro subia **15% por onda** dentro da mesma fase, o que fazia a
+onda 10 ter mais que o dobro da vida da onda 1 — a dificuldade vinha de avançar as
+ondas, não de avançar no jogo. Agora é o contrário:
+
+- **Dentro da fase** a vida quase não mexe (4% por onda). O que cresce é a
+  **quantidade** de monstros por onda, e a cada 4 ondas vem uma horda.
+- **Entre fases** sobem juntos vida (`L.hp`: 0,75 → 3,40 da fase 1 à 10),
+  velocidade (`L.spd`) e, novidade, **poder de ataque** (`dpsMul()`: +6% por fase,
+  1,00 → 1,54). O dano do monstro não era escalado por nada antes.
+- O **volume por onda** também pesa mais por fase: `3,8 + onda×0,6 + fase×0,95`.
+
+Verificado em partidas automatizadas: fase 1 com o time inicial (só o Mago, zero
+melhorias) fecha em 100% de muralha — continua sendo tutorial; fase 2 com Mago +
+Arqueira fecha inteira; fase 5 com time de cinco fecha sem levar dano.
 
 ## Sobre o bug do dinheiro quase infinito
 
@@ -81,30 +92,67 @@ fim de onda disparou em rajada, somando o bônus de moedas repetidas vezes antes
 estado do jogo mudar.
 
 Duas correções estruturais:
-- **Trava de disparo único** (`G.waveAwarded`): o bônus de fim de onda só pode ser dado
-  uma vez por onda, reforçado por uma flag explícita e não só pela fila estar vazia.
-  Testado chamando `update()` 50 vezes seguidas no mesmo estado "travado" — o bônus
-  saiu uma vez só, não cinquenta.
+- **Trava de disparo único** (`G.waveClearedAt`): o bônus de fim de onda só pode ser dado
+  uma vez por onda. A trava guarda o **número da onda já premiada** em vez de um booleano
+  que precisava ser zerado em `startWave()` — um booleano assim ficava preso em `true`
+  para sempre se qualquer coisa no meio do caminho falhasse, e a fase encalhava.
 - **Teto de moedas** (`COIN_CAP = 999.999`): nenhuma partida legítima chega perto disso.
-  Toda soma passa por `addCoins()`, que arredonda e trava no teto; `profile.coins`
-  também é limitado em todo ponto de escrita (fim de fase, fim de run, venda de item,
-  save local e nuvem).
+  Toda soma passa por `addCoins()`, que arredonda e trava no teto.
+- **Piso de moedas (saldo negativo)**: um jogador ficou com `coins: -721` e não conseguia
+  mais comprar nada. As compras debitavam direto (`profile.coins -= custo`) confiando só
+  no botão desabilitado. Agora todo débito passa por `pay()`, que **recusa** se não houver
+  saldo, e `clampCoins()` prende o saldo entre 0 e o teto em todo ponto de escrita —
+  `NaN` e `undefined` viram 0. `Save.sanitize()` conserta saves já estragados na abertura.
 
-### Heróis
+## A fase que não terminava
 
-| Herói | Papel | Como joga |
-|---|---|---|
-| Mago | Muralha | Bola de fogo com explosão pequena |
-| Arqueira | Muralha | Flechas rápidas que atravessam um inimigo |
-| Bruxa | Muralha | Veneno ao longo do tempo |
-| **Cavaleiro** | Campo, tanque | 150 de vida, 18% de armadura. A cada 7 s **salta** sobre o alvo distante e bate no chão (170% de dano em raio de 62 px, provoca e atrasa). A cada 12 s grita e puxa os inimigos num raio de 150 px. Regenera 6/s fora de combate, mas só 20% disso sob ataque: cerco longo derruba ele |
-| **Ladina** | Campo, assassina | 95 de vida, esquiva 35% dos golpes, 20% de crítico base, dano alto, rápida |
+Outro jogador concluiu a fase 2 e ficou preso: nenhuma tela de resultado, e a única saída
+era encerrar a run pela pausa. A causa é a ordem dentro de `winLevel()` — ela chamava
+`Save.save()` e `renderMenu()` **antes** de `setState('over')`. Se qualquer uma dessas
+falhasse (um save com campo nulo, por exemplo), a tela nunca subia e o jogo ficava em
+`play` com o campo vazio: sem ondas, sem vitória, sem saída.
 
-Heróis de campo levam dano em golpes discretos a cada 0,8 s (por isso a esquiva é
-visível como texto), morrem e voltam em 10 s no ponto de origem em frente à muralha.
-Slimes que um herói de campo acerta passam a persegui-lo por 3 s. Skills de time
-valem para eles também: Tiro duplo vira +35% de dano por nível, Perfurante vira golpe
-em área.
+Três camadas de proteção, todas verificadas com falha injetada de propósito num teste:
+1. `winLevel()` e `endRun()` **sobem a tela primeiro** e só depois salvam/redesenham, cada
+   um desses passos em `try/catch`.
+2. O bloco de fim de onda inteiro está em `try/catch`, com saída segura para a tela de fim.
+3. **Watchdog**: se passarem 6 s com o campo limpo e a fase não avançar nem terminar, o
+   jogo destrava sozinho em vez de deixar o jogador preso.
+
+### Heróis: time de até cinco
+
+**3 na muralha + 2 no campo**, no máximo — as vagas são compradas uma a uma
+(400, 1.200, 2.200 e 3.400 moedas).
+
+| Herói | Papel | Custo | Como joga |
+|---|---|---|---|
+| Mago | Muralha | inicial | Bola de fogo com explosão pequena |
+| Arqueira | Muralha | 300 | Flechas rápidas que atravessam um inimigo |
+| Bruxa | Muralha | 800 | Veneno ao longo do tempo |
+| **Domador** | Muralha | 1.200 | Atira da muralha e mantém a **Fera** lutando no campo. A Fera volta sozinha se cair e **não ocupa vaga** |
+| Cavaleiro | Campo, tanque | 500 | 150 de vida, salta sobre o grupo a cada 7 s e provoca a cada 12 s |
+| Ladina | Campo, assassina | 900 | 95 de vida, esquiva 35%, 20% de crítico base |
+| **Lanceiro** | Campo, linha de frente | 1.400 | 175 de vida, 32% de armadura, alcance de 54 px, bate devagar e provoca a cada 14 s |
+| **Bárbaro** | Campo, dano em área | 1.600 | 125 de vida e quase nenhuma defesa; **cada golpe acerta todos num raio de 48 px** |
+
+**Todo herói tem vida agora, inclusive quem fica na muralha.** Antes o herói de muralha
+era intocável. Agora, quando um monstro chega na ameia, ele divide o estrago: **metade
+vai para a muralha e metade para o herói que está bem ali em cima** (`wallHeroNear()` +
+`heroDot()`). Quem está na muralha compensa com armadura alta (26–32%, luta atrás da
+ameia) e regeneração; se cair, volta depois de alguns segundos, como os de campo.
+
+Por causa disso, duas skills mudaram de escopo: **Guarda** (+armadura e +vida) e **Volta
+rápida** (voltar mais cedo) agora valem para **todos** os heróis. Só **Vampirismo** e
+**Rodopio** continuam restritas a corpo a corpo — e são escondidas da escolha de nível
+quando o time não tem ninguém no campo, para não oferecer skill inútil.
+
+**A Fera** é um herói de campo escondido (`hidden: true`): não aparece na loja, não conta
+vaga, e nasce junto com o Domador em `buildTeam()`. Com isso ela reaproveita toda a IA,
+o desenho, a morte e o respawn dos heróis de campo, sem código novo de companheiro.
+
+`Save.sanitize()` conserta saves antigos na abertura: tira herói que não existe mais,
+tira a Fera do time salvo, corta o time para caber em 3 muralha / 2 campo e prende
+`slots` entre 1 e 5.
 
 ## Como o progresso fica salvo
 
