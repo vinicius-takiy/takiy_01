@@ -43,8 +43,27 @@ Cada fase tem de 10 a 12 ondas, com mistura própria que introduz os tipos aos p
 
 **Silhuetas:** morcego, esqueleto, aranha, goblin, lobo, orc, zumbi, espectro, cogumelo,
 golem e dragão têm corpo desenhado do zero em `SHAPES` — não são gosmas com adereço.
-Slime, Rápido, Gordo, Curandeiro, Casco e os chefes-slime seguem com o corpo de gosma,
-que é o que eles são.
+Slime, Rápido, Gordo e os chefes-slime (Príncipe Slime, Rei Slime, Slime Bruxo) seguem
+redondos — é literalmente o que são. Casco (Blindado) e Curandeiro, os dois últimos que
+não tinham "Slime" no nome mas ainda eram bolha, ganharam corpo próprio também: casco de
+tartaruga com cabeça esticada, e um clérigo de túnica com cajado.
+
+## Sobre o bug do dinheiro quase infinito
+
+Um jogador teve o save corrompido: `coins: 48.689.953`, `runs: 1.741`, `kills: 184.488`.
+`runs` só incrementa quando uma partida termina de verdade — 1.741 é a prova de que o
+fim de onda disparou em rajada, somando o bônus de moedas repetidas vezes antes do
+estado do jogo mudar.
+
+Duas correções estruturais:
+- **Trava de disparo único** (`G.waveAwarded`): o bônus de fim de onda só pode ser dado
+  uma vez por onda, reforçado por uma flag explícita e não só pela fila estar vazia.
+  Testado chamando `update()` 50 vezes seguidas no mesmo estado "travado" — o bônus
+  saiu uma vez só, não cinquenta.
+- **Teto de moedas** (`COIN_CAP = 999.999`): nenhuma partida legítima chega perto disso.
+  Toda soma passa por `addCoins()`, que arredonda e trava no teto; `profile.coins`
+  também é limitado em todo ponto de escrita (fim de fase, fim de run, venda de item,
+  save local e nuvem).
 
 ### Heróis
 
