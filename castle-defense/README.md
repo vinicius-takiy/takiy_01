@@ -159,6 +159,58 @@ voltou em 15,0 s e o Cavaleiro em 9,9 s na mesma partida.
 tira a Fera do time salvo, corta o time para caber em 3 muralha / 2 campo e prende
 `slots` entre 1 e 5.
 
+## Skills: ganho visível e marco no nível 3
+
+O cartão de subir de nível só mostrava o texto da skill, então não dava para saber
+**o quanto** se ganhava ao repetir a mesma skill. Agora cada skill tem `fmt(n)` — quanto
+ela vale no nível `n` — e o cartão mostra **agora → fica**:
+
+```
+🔥 Chamas          nível 1 → 2
+   Acertos queimam por 3 s. Acumula.
+   4 de dano/s  →  8 de dano/s
+   ★ nível 3: quem morre queimando explode e incendeia os vizinhos
+```
+
+E repetir a mesma skill deixou de ser só número: **no nível 3 cada skill ganha um marco**,
+um efeito que muda a skill de qualidade (nas três skills que só vão até o nível 2 — Gelo,
+Precisão e Rodopio — o marco entra no nível 2). O cartão mostra o marco como prévia
+enquanto ele não foi alcançado, e destacado quando aquela escolha já o atinge. A tela de
+pausa lista as skills da run com o valor atual e um ★ nas que já passaram do marco.
+
+| Skill | Marco |
+|---|---|
+| Tiro duplo | os projéteis extras miram inimigos diferentes |
+| Perfurante | cada inimigo atravessado deixa o tiro 25% mais forte |
+| Chamas | quem morre queimando explode e incendeia os vizinhos |
+| Gelo | inimigo lento leva +25% de dano |
+| **Raio em cadeia** | cada salto tem 20% de paralisar o alvo por 1 s |
+| Crítico | o crítico espalha 40% do dano em quem está perto |
+| Cadência | matar um inimigo recarrega o disparo na hora |
+| Força | +50% de dano contra chefes |
+| Reforço | abaixo de 30%, a muralha se conserta sozinha uma vez por onda |
+| **Meteoro** | o meteoro se parte em três e cai em outros pontos do mapa |
+| Espinhos | os espinhos passam a alcançar quem voa |
+| Ímã de XP | cada novo nível ainda repara 20% da muralha |
+| Veneno | quem morre envenenado passa o veneno para os vizinhos |
+| Congelar | inimigo congelado leva +50% de dano |
+| Estouro | a explosão empurra os inimigos para trás |
+| Precisão | o crítico ignora a couraça do Casco |
+| Mira | quando o marcado morre, a marca pula para o próximo |
+| Fúria | abaixo da metade, também +30% de cadência |
+| Argamassa | a argamassa também cura os heróis em 2/s |
+| Pilhagem | chefe sempre deixa item |
+| Vampirismo | a cura que sobra vai para a muralha |
+| Rodopio | o rodopio também deixa todos lentos |
+| Guarda | heróis ficam imunes a teia e apodrecimento |
+| Volta rápida | ao voltar, o herói explode e afasta os inimigos |
+
+Os marcos são checados por `M('id')` (nível atual ≥ `at`, onde `at = min(3, max)`), não por
+texto. Verificados em jogo, um a um, com testes automatizados: meteoro gerando exatamente
+3 fragmentos, raio paralisando em ~20% dos saltos, espinhos ferindo morcego (antes imune),
+congelado levando 150 em vez de 100, chefe levando 150 em vez de 100, e o vizinho de um
+inimigo em chamas pegando fogo.
+
 ## Como o progresso fica salvo
 
 Três camadas, em ordem de confiabilidade crescente:

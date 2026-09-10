@@ -62,6 +62,13 @@
   .skill{display:grid;grid-template-columns:44px 1fr;gap:10px;align-items:center;text-align:left}
   .skill .ico{width:44px;height:44px;border:2px solid var(--ink);border-radius:50%;display:grid;place-items:center;font-size:22px;background:var(--paper)}
   .skill .nm{font-family:var(--font-title);font-size:15px} .skill .ds{font-size:14px;color:var(--ink-soft);line-height:1.25}
+  /* ganho concreto do nivel e o marco do nivel 3 */
+  .skill .gain{margin-top:3px;font-size:14px;color:var(--ink)}
+  .skill .gain b{font-family:var(--font-title);color:var(--ok)}
+  .skill .gain s{color:var(--ink-soft);text-decoration:none;opacity:.75}
+  .skill .mile{margin-top:3px;font-size:13px;line-height:1.25;color:var(--ink-soft);
+    border-left:3px solid var(--grid);padding-left:7px}
+  .skill .mile.now{color:var(--ink);border-left-color:var(--gold);font-weight:600}
   .hero{display:grid;grid-template-columns:52px 1fr auto;gap:10px;align-items:center;border:2px solid var(--ink);border-radius:14px;padding:8px 10px;background:var(--paper)}
   .hero canvas{position:static;width:52px;height:52px}
   .hero .nm{font-family:var(--font-title);font-size:15px} .hero .ds{font-size:13px;color:var(--ink-soft);line-height:1.25}
@@ -307,32 +314,62 @@ const UPGRADES=[
   {id:'gold',name:'Cofre',       ico:'🪙', per:'+10% de moedas',         base:60}
 ];
 const upCost=(u,lvl)=>Math.round(u.base*Math.pow(1.55,lvl));
+// Cada skill traz fmt(n) — quanto ela vale no nivel n, pro cartao mostrar "agora -> fica"
+// em vez de so um texto solto — e bonus: o MARCO, um ganho que muda a skill de qualidade e
+// nao so de numero. O marco entra no nivel 3 (ou no maximo, pras skills que so vao ate 2).
 const SKILLS=[
-  {id:'multi',  ico:'✨', name:'Tiro duplo',      desc:'+1 projétil por disparo.',                       max:3},
-  {id:'pierce', ico:'➶',  name:'Perfurante',      desc:'Projéteis atravessam +1 inimigo.',                max:3},
-  {id:'fire',   ico:'🔥', name:'Chamas',          desc:'Acertos queimam: 4 de dano/s por 3 s. Acumula.',  max:3},
-  {id:'ice',    ico:'❄️', name:'Gelo',            desc:'Acertos deixam o inimigo 30% mais lento.',        max:2},
-  {id:'chain',  ico:'⚡', name:'Raio em cadeia',  desc:'Acertos saltam para +1 inimigo próximo (60%).',   max:3},
-  {id:'crit',   ico:'💥', name:'Crítico',         desc:'+15% de chance de dano dobrado.',                 max:4},
-  {id:'haste',  ico:'💨', name:'Cadência',        desc:'+20% de velocidade de tiro.',                     max:4},
-  {id:'power',  ico:'💪', name:'Força',           desc:'+25% de dano.',                                   max:5},
-  {id:'repair', ico:'🔨', name:'Reforço',         desc:'Repara 40% da muralha e +20% de vida máxima.',    max:4},
-  {id:'meteor', ico:'☄️', name:'Meteoro',         desc:'A cada 8 s cai um meteoro no grupo mais denso.',  max:3},
-  {id:'thorns', ico:'🌵', name:'Espinhos',        desc:'Quem bate na muralha leva 6 de dano/s.',           max:3},
-  {id:'magnet', ico:'🧲', name:'Ímã de XP',       desc:'+30% de XP.',                                     max:3},
-  {id:'venom',    ico:'🧪', name:'Veneno',        desc:'Acertos envenenam: 6 de dano/s por 4 s.',            max:3},
-  {id:'freeze',   ico:'🧊', name:'Congelar',      desc:'12% de chance de congelar o inimigo por 1,5 s.',     max:3},
-  {id:'blast',    ico:'💣', name:'Estouro',       desc:'Cada acerto explode: 40% do dano em raio de 34.',    max:3},
-  {id:'precision',ico:'🎪', name:'Precisão',      desc:'Crítico causa 3× em vez de 2×.',                     max:2},
-  {id:'focus',    ico:'🎯', name:'Mira',          desc:'+35% de dano no inimigo que você marcou.',           max:3},
-  {id:'rage',     ico:'😤', name:'Fúria',         desc:'+40% de dano com a muralha abaixo de metade.',       max:3},
-  {id:'mend',     ico:'🧽', name:'Argamassa',     desc:'A muralha se recupera 1,5/s.',                       max:4},
-  {id:'bounty',   ico:'💰', name:'Pilhagem',      desc:'+25% de moedas.',                                    max:3},
-  {id:'vamp',     ico:'🩸', name:'Vampirismo',    desc:'Heróis de campo curam 15% do dano que causam.',      max:3},
-  {id:'whirl',    ico:'🌀', name:'Rodopio',       desc:'Golpe corpo a corpo atinge todos num raio de 55.',   max:2},
-  {id:'guard',    ico:'🛡️', name:'Guarda',        desc:'Todos os heróis: +10% de armadura e +20 de vida.',   max:3},
-  {id:'swift',    ico:'💨', name:'Volta rápida',  desc:'Heróis que caem voltam 2 s mais cedo.',              max:3}
+  {id:'multi',  ico:'✨', name:'Tiro duplo',      max:3, desc:'Mais projéteis por disparo.',
+    fmt:n=>`+${n} projétil${n>1?'is':''}`,            bonus:'os projéteis extras miram inimigos diferentes'},
+  {id:'pierce', ico:'➶',  name:'Perfurante',      max:3, desc:'Projéteis atravessam inimigos.',
+    fmt:n=>`atravessa +${n}`,                          bonus:'cada inimigo atravessado deixa o tiro 25% mais forte'},
+  {id:'fire',   ico:'🔥', name:'Chamas',          max:3, desc:'Acertos queimam por 3 s. Acumula.',
+    fmt:n=>`${4*n} de dano/s`,                         bonus:'quem morre queimando explode e incendeia os vizinhos'},
+  {id:'ice',    ico:'❄️', name:'Gelo',            max:2, desc:'Acertos deixam o inimigo lento.',
+    fmt:n=>`${n>=2?40:30}% mais lento`,                bonus:'inimigo lento leva +25% de dano'},
+  {id:'chain',  ico:'⚡', name:'Raio em cadeia',  max:3, desc:'Acertos saltam para inimigos próximos (60% do dano).',
+    fmt:n=>`salta para +${n}`,                         bonus:'cada salto tem 20% de paralisar o alvo por 1 s'},
+  {id:'crit',   ico:'💥', name:'Crítico',         max:4, desc:'Chance de dano dobrado.',
+    fmt:n=>`+${15*n}% de chance`,                      bonus:'o crítico espalha 40% do dano em quem está perto'},
+  {id:'haste',  ico:'💨', name:'Cadência',        max:4, desc:'Velocidade de tiro.',
+    fmt:n=>`+${20*n}%`,                                bonus:'matar um inimigo recarrega o disparo na hora'},
+  {id:'power',  ico:'💪', name:'Força',           max:5, desc:'Dano de todos os heróis.',
+    fmt:n=>`+${25*n}%`,                                bonus:'+50% de dano contra chefes'},
+  {id:'repair', ico:'🔨', name:'Reforço',         max:4, desc:'Repara 40% da muralha na hora e aumenta a vida máxima.',
+    fmt:n=>`+${20*n}% de vida máx.`,                   bonus:'abaixo de 30%, a muralha se conserta sozinha uma vez por onda'},
+  {id:'meteor', ico:'☄️', name:'Meteoro',         max:3, desc:'De tempos em tempos cai um meteoro no grupo mais denso.',
+    fmt:n=>`a cada ${(8/Math.sqrt(n)).toFixed(1).replace('.',',')} s · ${40*n} de dano`, bonus:'o meteoro se parte em três e cai em outros pontos do mapa'},
+  {id:'thorns', ico:'🌵', name:'Espinhos',        max:3, desc:'Quem bate na muralha se machuca.',
+    fmt:n=>`${6*n} de dano/s`,                         bonus:'os espinhos passam a alcançar quem voa'},
+  {id:'magnet', ico:'🧲', name:'Ímã de XP',       max:3, desc:'Mais XP por inimigo morto.',
+    fmt:n=>`+${30*n}%`,                                bonus:'cada novo nível ainda repara 20% da muralha'},
+  {id:'venom',  ico:'🧪', name:'Veneno',          max:3, desc:'Acertos envenenam por 4 s.',
+    fmt:n=>`${6*n} de dano/s`,                         bonus:'quem morre envenenado passa o veneno para os vizinhos'},
+  {id:'freeze', ico:'🧊', name:'Congelar',        max:3, desc:'Chance de congelar o inimigo por 1,5 s.',
+    fmt:n=>`${12*n}% de chance`,                       bonus:'inimigo congelado leva +50% de dano'},
+  {id:'blast',  ico:'💣', name:'Estouro',         max:3, desc:'Cada acerto explode num raio de 34.',
+    fmt:n=>`${40*n}% do dano`,                         bonus:'a explosão empurra os inimigos para trás'},
+  {id:'precision',ico:'🎪', name:'Precisão',      max:2, desc:'Aumenta o multiplicador do crítico.',
+    fmt:n=>`crítico ${2+n}×`,                          bonus:'o crítico ignora a couraça do Casco'},
+  {id:'focus',  ico:'🎯', name:'Mira',            max:3, desc:'Dano extra no inimigo que você marcou.',
+    fmt:n=>`+${35*n}%`,                                bonus:'quando o marcado morre, a marca pula para o próximo'},
+  {id:'rage',   ico:'😤', name:'Fúria',           max:3, desc:'Dano extra com a muralha abaixo da metade.',
+    fmt:n=>`+${40*n}%`,                                bonus:'abaixo da metade, também +30% de cadência'},
+  {id:'mend',   ico:'🧽', name:'Argamassa',       max:4, desc:'A muralha se recupera sozinha.',
+    fmt:n=>`${(1.5*n).toFixed(1).replace('.',',')}/s`,                  bonus:'a argamassa também cura os heróis em 2/s'},
+  {id:'bounty', ico:'💰', name:'Pilhagem',        max:3, desc:'Mais moedas de tudo.',
+    fmt:n=>`+${25*n}%`,                                bonus:'chefe sempre deixa item'},
+  {id:'vamp',   ico:'🩸', name:'Vampirismo',      max:3, desc:'Heróis de campo curam parte do dano que causam.',
+    fmt:n=>`cura ${15*n}% do dano`,                    bonus:'a cura que sobra vai para a muralha'},
+  {id:'whirl',  ico:'🌀', name:'Rodopio',         max:2, desc:'Golpe corpo a corpo atinge todos num raio de 55.',
+    fmt:n=>`${60}% do dano em volta`,                  bonus:'o rodopio também deixa todos lentos'},
+  {id:'guard',  ico:'🛡️', name:'Guarda',          max:3, desc:'Todos os heróis ficam mais duros.',
+    fmt:n=>`+${10*n}% de armadura e +${20*n} de vida`, bonus:'heróis ficam imunes a teia e apodrecimento'},
+  {id:'swift',  ico:'💨', name:'Volta rápida',    max:3, desc:'Heróis que caem voltam mais cedo.',
+    fmt:n=>`${2*n} s mais cedo`,                       bonus:'ao voltar, o herói explode e afasta os inimigos'}
 ];
+// marco no nivel 3, ou no maximo quando a skill so vai ate 2
+const SKILL_BY_ID={}; for(const sk of SKILLS){ sk.at=Math.min(3,sk.max); SKILL_BY_ID[sk.id]=sk; }
+const M=id=>{ const sk=SKILL_BY_ID[id]; return !!sk&&S(id)>=sk.at; };
 // Fases: dificuldade sobe devagar. hp e spd multiplicam os inimigos; mix e a chance de cada tipo.
 const LEVELS=[
   // Alocacao pensada por dificuldade real de derrotar, nao so pelo multiplicador de vida:
@@ -497,7 +534,9 @@ function buildTeam(ids){ const list=(ids||[]).filter(id=>HEROES[id]); const hs=l
 function heroDmg(h){ let d=h.def.dmg*metaMul('dmg',.10)*(1+S('power')*.25)*(1+(h.bonus?h.bonus.dmg:0)/100);
   if(S('rage')&&G.wallHp/G.wallMax<.5) d*=1+S('rage')*.4;   // Fúria: acorda quando a muralha aperta
   return d; }
-function heroRate(h){ return h.def.rate*metaMul('rate',.08)*(1+S('haste')*.20)*(1+(h.bonus?h.bonus.rate:0)/100); }
+function heroRate(h){ let r=h.def.rate*metaMul('rate',.08)*(1+S('haste')*.20)*(1+(h.bonus?h.bonus.rate:0)/100);
+  if(M('rage')&&G.wallHp/G.wallMax<.5) r*=1.3;   // marco da Fúria: aperto acelera o gatilho
+  return r; }
 function critChance(h){ return S('crit')*.15+(h.def.crit||0)+(h.bonus?h.bonus.crit:0)/100; }
 function teamXpBonus(){ return G.heroes.reduce((a,h)=>a+(h.bonus?h.bonus.xp:0),0)/100; }
 
@@ -543,7 +582,7 @@ function startWave(){
     const n=Math.round((3.8+w*.6+L.id*.95)*(surge?1.9:1)); for(let i=0;i<n;i++) q.push(pickType(L.mix));
     if(L.boss&&w===L.waves) for(const b of L.boss) q.push(b);
   }
-  G.surge=surge; G.queue=q; G.spawnT=surge?.3:.6; G.inter=0; hud();
+  G.surge=surge; G.queue=q; G.spawnT=surge?.3:.6; G.inter=0; G.emergencyUsed=false; hud();
   if(surge) tip(`HORDA! Onda ${w}${L.endless?'':' de '+L.waves} com o dobro de inimigos`);
   else if(w>1) tip(L.endless?`Onda ${w}`:`Onda ${w} de ${L.waves}`);
 }
@@ -608,19 +647,25 @@ function update(dt){
       // metade do estrago vai pro heroi, metade pra muralha.
       const wh=wallHeroNear(e.x);
       if(wh){ wallDmg+=e.dps*.5*dt; heroDot(wh,e.dps*.5*dt,e); } else wallDmg+=e.dps*dt;
-      if(S('thorns')&&!e.def.fly) hurt(e,6*S('thorns')*dt,false);
+      if(S('thorns')&&(!e.def.fly||M('thorns'))) hurt(e,6*S('thorns')*dt,false);   // marco: alcança voador
       if(e.def.steal&&G.coins>0){ e.stole=(e.stole||0)+e.def.steal*dt;
         if(e.stole>=1){ const n=Math.floor(e.stole); e.stole-=n; G.coins=Math.max(0,G.coins-n);
           G.texts.push({x:e.x,y:e.y-e.r-6,v:'-'+n+' 🪙',t:.7}); } } }
   }
   if(wallDmg>0){ G.wallHp-=wallDmg; if(G.wallHp<=0){ G.wallHp=0; return gameOver(); } }
-  if(S('mend')&&G.wallHp>0) G.wallHp=Math.min(G.wallMax,G.wallHp+1.5*S('mend')*dt);
+  if(S('mend')&&G.wallHp>0){ G.wallHp=Math.min(G.wallMax,G.wallHp+1.5*S('mend')*dt);
+    // marco da Argamassa: a mesma massa remenda os heróis
+    if(M('mend')) for(const h of G.heroes) if(!h.dead&&h.hp<h.hpMax) h.hp=Math.min(h.hpMax,h.hp+2*dt); }
+  // marco do Reforço: com a muralha em pedaços, uma emenda de emergência por onda
+  if(M('repair')&&!G.emergencyUsed&&G.wallHp>0&&G.wallHp/G.wallMax<.30){
+    G.emergencyUsed=true; G.wallHp=Math.min(G.wallMax,G.wallHp+G.wallMax*.15);
+    tip('Reforço de emergência segurou a muralha!'); }
   // heróis
   if(G.focus&&(!G.enemies.includes(G.focus)||G.focus.hp<=0||(G.focusT-=dt)<=0)) G.focus=null;
   for(const h of G.heroes){
     if(h.def.role==='ranged'){
       if(h.dead){ h.respawn-=dt; if(h.respawn<=0){ h.dead=false; h.hp=h.hpMax; h.noHitT=9;
-          for(let i=0;i<12;i++) puff(h.x,h.y,h.def.color,4,.5,80); tip(`${h.def.name} voltou para a muralha`); } continue; }
+          for(let i=0;i<12;i++) puff(h.x,h.y,h.def.color,4,.5,80); heroReturnBlast(h); tip(`${h.def.name} voltou para a muralha`); } continue; }
       if(h.poisonT>0){ h.poisonT-=dt; h.hp-=h.poisonDmg*dt; h.noHitT=0;
         if(Math.random()<dt*6) puff(h.x+rnd(-8,8),h.y-14,'#87a06b',2.5,.4);
         if(h.hp<=0){ heroDown(h); continue; } }
@@ -634,7 +679,7 @@ function update(dt){
         G.effects.push({kind:'slam',x:h.x,y:h.y,r:L.r,t:0,dur:.45}); for(let i=0;i<18;i++) puff(h.x,h.y,'#c9a06d',rnd(3,6),rnd(.3,.6),rnd(70,180)); }
       continue; }
     // ---- herói de campo ----
-    if(h.dead){ h.respawn-=dt; if(h.respawn<=0){ h.dead=false; h.hp=h.hpMax; h.x=h.homeX; h.y=h.homeY; for(let i=0;i<14;i++) puff(h.x,h.y,h.def.color,4,.5,90); tip(`${h.def.name} voltou ao campo`); } continue; }
+    if(h.dead){ h.respawn-=dt; if(h.respawn<=0){ h.dead=false; h.hp=h.hpMax; h.x=h.homeX; h.y=h.homeY; for(let i=0;i<14;i++) puff(h.x,h.y,h.def.color,4,.5,90); heroReturnBlast(h); tip(`${h.def.name} voltou ao campo`); } continue; }
     // fora de combate cura rápido; sob ataque quase não cura
     if(h.poisonT>0){ h.poisonT-=dt; h.hp-=h.poisonDmg*dt; h.noHitT=0;
       if(Math.random()<dt*6) puff(h.x+rnd(-8,8),h.y-14,'#87a06b',2.5,.4);
@@ -658,10 +703,18 @@ function update(dt){
   if(S('meteor')){ G.meteorT+=dt; if(G.meteorT>=8/Math.sqrt(S('meteor'))&&G.enemies.length){ G.meteorT=0; const c=densest(); G.effects.push({kind:'meteor',x:c.x,y:c.y,t:0,dur:.9}); } }
   // projéteis
   for(const s of G.shots){ s.x+=s.vx*dt; s.y+=s.vy*dt; s.life-=dt; if(Math.random()<.5) puff(s.x,s.y,s.color,2,.25);
-    for(const e of G.enemies){ if(e.hp<=0||s.hit.has(e)||e.intangT>0) continue; const d=Math.hypot(e.x-s.x,e.y-s.y); if(d<e.r+4){ onHit(s,e); s.hit.add(e); if(s.pierce-->0) continue; s.life=0; break; } } }
+    for(const e of G.enemies){ if(e.hp<=0||s.hit.has(e)||e.intangT>0) continue; const d=Math.hypot(e.x-s.x,e.y-s.y); if(d<e.r+4){ onHit(s,e); s.hit.add(e);
+      if(s.pierce-->0){ if(M('pierce')) s.dmg*=1.25; continue; }   // marco do Perfurante
+      s.life=0; break; } } }
   G.shots=G.shots.filter(s=>s.life>0&&s.y>-40&&s.x>-40&&s.x<W+40);
   // efeitos
-  for(const f of G.effects){ f.t+=dt; if(f.kind==='meteor'&&!f.done&&f.t>=f.dur){ f.done=true; boom(f.x,f.y,70,40*S('meteor')); } }
+  for(const f of G.effects){ f.t+=dt;
+    if(f.kind==='meteor'&&!f.done&&f.t>=f.dur){ f.done=true;
+      boom(f.x,f.y,f.frag?46:70,(f.frag?18:40)*S('meteor'));
+      // marco do Meteoro: o principal se parte em tres cacos que caem espalhados pelo mapa
+      if(M('meteor')&&!f.frag) for(let i=0;i<3;i++)
+        G.effects.push({kind:'meteor',frag:true,x:clamp(f.x+rnd(-150,150),24,W-24),y:clamp(f.y+rnd(-140,140),40,wallY()-20),t:0,dur:.55});
+    } }
   G.effects=G.effects.filter(f=>f.t<f.dur+.4);
   // mortes
   for(const e of G.enemies) if(e.hp<=0) kill(e);
@@ -707,9 +760,18 @@ function update(dt){
 function nearestEnemy(h){ let best=null,bd=-1; for(const e of G.enemies){ if(e.hp<=0||e.y<-10) continue; const score=e.y+(e.attacking?400:0); if(score>bd){ bd=score; best=e; } } return best; }
 function densest(){ let best=G.enemies[0],bn=-1; for(const a of G.enemies){ let n=0; for(const b of G.enemies) if(Math.hypot(a.x-b.x,a.y-b.y)<70) n++; if(n>bn){ bn=n; best=a; } } return best; }
 function fire(h,t){
-  const n=1+S('multi'), lead=.25, tx=t.x, ty=t.y+t.spd*lead*(t.attacking?0:1);
-  const base=Math.atan2(ty-h.y,tx-h.x);
-  for(let i=0;i<n;i++){ const a=base+(i-(n-1)/2)*.14; G.shots.push({x:h.x,y:h.y-14,vx:Math.cos(a)*h.def.spd,vy:Math.sin(a)*h.def.spd,dmg:heroDmg(h),hero:h,pierce:(h.def.pierce||0)+S('pierce'),hit:new Set(),life:2.2,color:h.def.color}); }
+  const n=1+S('multi'), lead=.25;
+  // marco do Tiro duplo: em vez de um leque no mesmo alvo, cada tiro extra procura outro inimigo
+  let alvos=[t];
+  if(M('multi')&&n>1){ const outros=G.enemies.filter(e=>e!==t&&e.hp>0&&e.y>-20&&e.intangT<=0)
+      .sort((a,b)=>Math.hypot(a.x-h.x,a.y-h.y)-Math.hypot(b.x-h.x,b.y-h.y)).slice(0,n-1);
+    alvos=alvos.concat(outros); }
+  for(let i=0;i<n;i++){
+    const alvo=alvos[Math.min(i,alvos.length-1)];
+    const tx=alvo.x, ty=alvo.y+alvo.spd*lead*(alvo.attacking?0:1);
+    const base=Math.atan2(ty-h.y,tx-h.x);
+    const a=alvos.length>1?base:base+(i-(n-1)/2)*.14;
+    G.shots.push({x:h.x,y:h.y-14,vx:Math.cos(a)*h.def.spd,vy:Math.sin(a)*h.def.spd,dmg:heroDmg(h),hero:h,pierce:(h.def.pierce||0)+S('pierce'),hit:new Set(),life:2.2,color:h.def.color}); }
   puff(h.x,h.y-16,h.def.color,4,.2);
 }
 function onHit(s,e){ applyHit(s.hero,e,s.dmg,false); }
@@ -717,11 +779,23 @@ function meleeStrike(h,t){
   const d=heroDmg(h)*(1+S('multi')*.35); applyHit(h,t,d,true);
   if(!t.tauntT){ t.target=h; t.aggroT=3; }
   if(S('pierce')) for(const o of G.enemies){ if(o!==t&&o.hp>0&&Math.hypot(o.x-t.x,o.y-t.y)<40) hurt(o,d*.5,false); }
-  if(S('whirl')) for(const o of G.enemies){ if(o!==t&&o.hp>0&&Math.hypot(o.x-h.x,o.y-h.y)<55) hurt(o,d*.6,false); }
+  if(S('whirl')) for(const o of G.enemies){ if(o!==t&&o.hp>0&&Math.hypot(o.x-h.x,o.y-h.y)<55){ hurt(o,d*.6,false);
+    if(M('whirl')) o.slowT=Math.max(o.slowT,1.5); } }   // marco do Rodopio: sai todo mundo tonto
   // Barbaro: o machado pega todo mundo em volta do alvo
   if(h.def.cleaveHit) for(const o of G.enemies){ if(o!==t&&o.hp>0&&Math.hypot(o.x-t.x,o.y-t.y)<h.def.cleaveHit) hurt(o,d*.7,true); }
-  if(S('vamp')&&!h.dead){ h.hp=Math.min(h.hpMax,h.hp+d*.15*S('vamp')); }
+  if(S('vamp')&&!h.dead){ const cura=d*.15*S('vamp'), falta=h.hpMax-h.hp;
+    h.hp=Math.min(h.hpMax,h.hp+cura);
+    // marco do Vampirismo: o que passa da vida cheia escorre para a muralha
+    if(M('vamp')&&cura>falta) G.wallHp=Math.min(G.wallMax,G.wallHp+(cura-falta)*.5); }
   G.effects.push({kind:'slash',x:t.x,y:t.y,t:0,dur:.18,seed:Math.random()*100}); for(let i=0;i<4;i++) puff(t.x,t.y,h.def.color,3,.25,70);
+}
+// marco da Volta rapida: o heroi nao volta pedindo licenca -- volta empurrando
+function heroReturnBlast(h){
+  if(!M('swift')) return;
+  G.effects.push({kind:'slam',x:h.x,y:h.y,r:90,t:0,dur:.45});
+  for(const e of G.enemies){ if(e.hp<=0) continue; const dd=Math.hypot(e.x-h.x,e.y-h.y); if(dd>=90) continue;
+    hurt(e,18,true); if(!e.def.boss){ const k=dd||1; e.x=clamp(e.x+(e.x-h.x)/k*26,12,W-12); e.y=Math.max(-60,e.y-34); e.target=null; } }
+  G.texts.push({x:h.x,y:h.y-46,v:'de volta!',t:.9,crit:true});
 }
 function heroDown(h){ h.hp=0; h.dead=true; h.deaths++; h.leapT=0; h.leapZ=0; h.poisonT=0;
   h.respawn=Math.max(3,(h.def.respawnTime||10)-2*S('swift'));
@@ -734,7 +808,7 @@ function heroDot(h,dmg,e){
   if(h.dead) return;
   h.noHitT=0; h.hp-=dmg*(1-h.armor);
   if(Math.random()<dmg*.5) G.texts.push({x:h.x+rnd(-6,6),y:h.y-30,v:'!',t:.4});
-  if(e&&e.def.rot&&Math.random()<dmg*.4){ h.poisonT=4; h.poisonDmg=e.def.rot; }
+  if(e&&e.def.rot&&!M('guard')&&Math.random()<dmg*.4){ h.poisonT=4; h.poisonDmg=e.def.rot; }
   if(h.hp<=0) heroDown(h);
 }
 // heroi da muralha mais proximo do inimigo que chegou na ameia
@@ -743,26 +817,41 @@ function wallHeroNear(x){ let best=null,bd=58;
   return best; }
 function heroHit(h,dmg,e){
   if(h.dead||h.leapT>0) return;
-  if(e&&e.def.web&&Math.random()<.5){ h.webT=3; G.texts.push({x:h.x,y:h.y-42,v:'teia!',t:.7}); }
-  if(e&&e.def.rot){ h.poisonT=4; h.poisonDmg=e.def.rot; }
+  // marco da Guarda: nada de teia nem de apodrecimento
+  if(e&&e.def.web&&!M('guard')&&Math.random()<.5){ h.webT=3; G.texts.push({x:h.x,y:h.y-42,v:'teia!',t:.7}); }
+  if(e&&e.def.rot&&!M('guard')){ h.poisonT=4; h.poisonDmg=e.def.rot; }
   if(Math.random()<h.dodge){ G.texts.push({x:h.x+rnd(-6,6),y:h.y-30,v:'esquiva',t:.6}); return; }
   h.noHitT=0; let d=dmg*(1-h.armor); if(h.tauntT>0) d*=.85; h.hp-=d; G.texts.push({x:h.x+rnd(-6,6),y:h.y-30,v:'-'+Math.round(d),t:.6});
   if(h.hp<=0) heroDown(h);
 }
 function applyHit(h,e,d0,melee){
   let d=d0, crit=false; if(Math.random()<critChance(h)){ d*=2+S('precision'); crit=true; }
-  if(!melee&&e.def.rangedRes) d*=1-e.def.rangedRes;   // Casco: couraça só freia projétil
+  // marco de Precisao: o critico acha a fresta da couraça do Casco
+  if(!melee&&e.def.rangedRes&&!(crit&&M('precision'))) d*=1-e.def.rangedRes;
   if(S('focus')&&e===G.focus) d*=1+S('focus')*.35;
+  if(M('ice')&&e.slowT>0) d*=1.25;              // marco do Gelo: lento fica quebradiço
+  if(M('freeze')&&e.frozenT>0) d*=1.5;          // marco de Congelar: gelo estilhaça
+  if(M('power')&&e.def.boss) d*=1.5;            // marco de Força: caçador de chefe
   hurt(e,d,true,crit);
+  // marco do Crítico: o estouro do golpe pega quem está em volta
+  if(crit&&M('crit')) for(const o of G.enemies){ if(o!==e&&o.hp>0&&Math.hypot(o.x-e.x,o.y-e.y)<60) hurt(o,d*.4,false); }
+  // marco de Cadência: matou, atira de novo na hora
+  if(M('haste')&&e.hp<=0&&h&&h.cool>0) h.cool=0;
   if(h.def.splash) for(const o of G.enemies){ if(o!==e&&o.hp>0&&Math.hypot(o.x-e.x,o.y-e.y)<h.def.splash) hurt(o,d*.5,false); }
   if(h.def.poison){ e.burn=Math.max(e.burn,h.def.poison); e.burnT=Math.max(e.burnT,3); }
   if(S('fire')){ e.burn=Math.max(e.burn,4*S('fire')); e.burnT=3; }
   if(S('venom')){ e.burn=Math.max(e.burn,6*S('venom')); e.burnT=Math.max(e.burnT,4); }
   if(S('ice')) e.slowT=1.5;
   if(S('freeze')&&Math.random()<S('freeze')*.12){ e.frozenT=1.5; G.texts.push({x:e.x,y:e.y-e.r-14,v:'congelado',t:.8}); }
-  if(S('blast')){ for(const o of G.enemies) if(o!==e&&o.hp>0&&Math.hypot(o.x-e.x,o.y-e.y)<34) hurt(o,d*.4*S('blast'),false);
+  if(S('blast')){ for(const o of G.enemies){ if(o===e||o.hp<=0) continue; const dd=Math.hypot(o.x-e.x,o.y-e.y); if(dd>=34) continue;
+      hurt(o,d*.4*S('blast'),false);
+      // marco do Estouro: a onda joga os inimigos para tras
+      if(M('blast')&&!o.def.boss){ const k=dd||1; o.x=clamp(o.x+(o.x-e.x)/k*16,12,W-12); o.y=Math.max(-60,o.y-22); } }
     for(let i=0;i<5;i++) puff(e.x,e.y,'#e8613c',3,.25,90); }
-  if(S('chain')){ let left=S('chain'), from=e, used=new Set([e]); while(left-->0){ let nb=null,bd=95; for(const o of G.enemies){ if(used.has(o)||o.hp<=0) continue; const dd=Math.hypot(o.x-from.x,o.y-from.y); if(dd<bd){ bd=dd; nb=o; } } if(!nb) break; used.add(nb); hurt(nb,d*.6,false); G.effects.push({kind:'zap',x:from.x,y:from.y,x2:nb.x,y2:nb.y,t:0,dur:.15}); from=nb; } }
+  if(S('chain')){ let left=S('chain'), from=e, used=new Set([e]); while(left-->0){ let nb=null,bd=95; for(const o of G.enemies){ if(used.has(o)||o.hp<=0) continue; const dd=Math.hypot(o.x-from.x,o.y-from.y); if(dd<bd){ bd=dd; nb=o; } } if(!nb) break; used.add(nb); hurt(nb,d*.6,false);
+    // marco do Raio: cada salto pode paralisar quem acertou
+    if(M('chain')&&Math.random()<.20){ nb.frozenT=Math.max(nb.frozenT,1); G.texts.push({x:nb.x,y:nb.y-nb.r-14,v:'paralisado',t:.8}); }
+    G.effects.push({kind:'zap',x:from.x,y:from.y,x2:nb.x,y2:nb.y,t:0,dur:.15}); from=nb; } }
 }
 function hurt(e,d,show,crit){ e.hp-=d; if(show) G.texts.push({x:e.x+rnd(-6,6),y:e.y-e.r-4,v:Math.round(d),t:.7,crit}); }
 function boom(x,y,r,d){ for(const e of G.enemies) if(Math.hypot(e.x-x,e.y-y)<r+e.r) hurt(e,d,true); for(let i=0;i<22;i++) puff(x,y,'#e8613c',rnd(3,7),rnd(.3,.7),rnd(60,200)); }
@@ -775,14 +864,26 @@ function kill(e){
     for(const h of G.heroes) if(h.def.role==='melee'&&!h.dead&&Math.hypot(h.x-e.x,h.y-e.y)<e.def.boom) heroHit(h,26*(e.dpsMul||1),null);
     if(e.y>wallY()-e.def.boom) G.wallHp=Math.max(0,G.wallHp-14*(e.dpsMul||1));
     for(let i=0;i<22;i++) puff(e.x,e.y,'#d4736b',rnd(3,6),rnd(.3,.7),rnd(80,220)); }
+  // marcos de Chamas e Veneno: quem morre pegando fogo (ou envenenado) contamina a vizinhança
+  if(e.burnT>0&&(M('fire')||M('venom'))){
+    for(const o of G.enemies){ if(o===e||o.hp<=0||Math.hypot(o.x-e.x,o.y-e.y)>=70) continue;
+      o.burn=Math.max(o.burn,e.burn); o.burnT=Math.max(o.burnT,2.5); }
+    if(M('fire')){ boom(e.x,e.y,70,e.burn*2); G.texts.push({x:e.x,y:e.y-e.r-12,v:'explodiu!',t:.7,crit:true}); }
+    else G.texts.push({x:e.x,y:e.y-e.r-12,v:'contágio',t:.7}); }
+  // marco da Mira: a marca não morre com o alvo, pula para o próximo
+  if(M('focus')&&G.focus===e){ let nb=null,bd=1e9;
+    for(const o of G.enemies){ if(o===e||o.hp<=0) continue; const dd=Math.hypot(o.x-e.x,o.y-e.y); if(dd<bd){ bd=dd; nb=o; } }
+    if(nb){ G.focus=nb; G.focusT=6; } }
   G.kills++; const xp=e.def.xp*metaMul('xp',.10)*(1+S('magnet')*.30)*(1+teamXpBonus()); G.xp+=xp; addCoins(e.def.coin*metaMul('gold',.10)*(1+S('bounty')*.25));
   for(let i=0;i<10;i++) puff(e.x,e.y,e.def.color,rnd(2,5),rnd(.3,.6),rnd(40,120));
   if(e.def.splits){ for(let i=0;i<e.def.splits;i++){ const s=spawn('slime'); s.x=clamp(e.x+rnd(-60,60),20,W-20); s.y=e.y+rnd(-20,20); } tip(`${e.def.name} se partiu!`); }
   if(e.def.boss){
-    if(Math.random()<(e.def.drop||.5)){ const it=rollItem(G.level.id); profile.items=profile.items||[]; profile.items.push(it); G.drops.push(it); Save.save();
+    if(M('bounty')||Math.random()<(e.def.drop||.5)){ const it=rollItem(G.level.id);   // marco da Pilhagem: item garantido profile.items=profile.items||[]; profile.items.push(it); G.drops.push(it); Save.save();
       for(let i=0;i<30;i++) puff(e.x,e.y,RARITY[it.rar].c,rnd(3,6),rnd(.5,1),rnd(60,180)); G.texts.push({x:e.x,y:e.y-e.r-20,v:'ITEM!',t:1.4,crit:true}); }
     else { const c=Math.round(45*metaMul('gold',.10)*(1+S('bounty')*.25)); addCoins(c); G.texts.push({x:e.x,y:e.y-e.r-20,v:'+'+c+' 🪙',t:1.4}); tip('Sem item desta vez. Levou moedas no lugar.'); } }
-  while(G.xp>=xpNeed(G.lvl)){ G.xp-=xpNeed(G.lvl); G.lvl++; G.lvQueue++; }
+  while(G.xp>=xpNeed(G.lvl)){ G.xp-=xpNeed(G.lvl); G.lvl++; G.lvQueue++;
+    // marco do Ímã de XP: subir de nível ainda remenda a muralha
+    if(M('magnet')&&G.wallHp>0) G.wallHp=Math.min(G.wallMax,G.wallHp+G.wallMax*.20); }
   if(G.lvQueue>0&&G.state==='play') openLevelUp();
 }
 function puff(x,y,color,r,t,v){ G.parts.push({x,y,vx:rnd(-1,1)*(v||30),vy:rnd(-1,1)*(v||30)-20,r:r||3,t:t||.4,color}); }
@@ -1219,7 +1320,21 @@ function openLevelUp(){ G.lvQueue--; setState('levelup'); $('lvNum').textContent
   const opts=[]; while(opts.length<3&&pool.length){ const s=pick(pool); pool.splice(pool.indexOf(s),1); opts.push(s); }
   // Sem nenhuma skill disponivel o cartao ficaria vazio e sem saida: volta direto pro jogo.
   if(!opts.length){ G.lvQueue=0; setState('play'); return; }
-  $('lvList').innerHTML=opts.map(s=>`<button class="btn skill" data-s="${s.id}"><span class="ico">${s.ico}</span><span><div class="nm">${s.name} <span class="lvl">${S(s.id)?`nível ${S(s.id)+1}`:'novo'}</span></div><div class="ds">${s.desc}</div></span></button>`).join('');
+  renderLevelCard(opts);
+}
+function renderLevelCard(opts){
+  setState('levelup');
+  $('lvList').innerHTML=opts.map(s=>{
+    const cur=S(s.id), nx=cur+1;
+    // ganho concreto: o que a skill vale hoje e o que passa a valer
+    const gain=cur?`<s>${s.fmt(cur)}</s> → <b>${s.fmt(nx)}</b>`:`<b>${s.fmt(nx)}</b>`;
+    // marco: destacado quando esta escolha ja o alcanca, senao fica como previa
+    const hit=nx>=s.at, done=cur>=s.at;
+    const mile=done?'':`<div class="mile${hit?' now':''}">${hit?'★ marco: ':`★ nível ${s.at}: `}${s.bonus}</div>`;
+    return `<button class="btn skill" data-s="${s.id}"><span class="ico">${s.ico}</span><span>`+
+      `<div class="nm">${s.name} <span class="lvl">${cur?`nível ${cur} → ${nx}`:'novo'}${nx>=s.max?' · máximo':''}</span></div>`+
+      `<div class="ds">${s.desc}</div><div class="gain">${gain}</div>${mile}</span></button>`;
+  }).join('');
 }
 $('lvList').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; const id=b.dataset.s; G.skills[id]=S(id)+1;
   if(id==='repair'){ G.wallMax=Math.round(G.wallMax*1.2); G.wallHp=Math.min(G.wallMax,G.wallHp+G.wallMax*.4); }
@@ -1304,7 +1419,7 @@ $('bLbBack').addEventListener('click',()=>{ $('lvBrief').hidden=true; });
 // Menu
 $('bMap').addEventListener('click',openMap);
 $('bContinue').addEventListener('click',continueRun);
-$('bPause').addEventListener('click',()=>{ if(G.state==='play'){ setState('pause'); $('pauseSkills').innerHTML=Object.keys(G.skills).length?'<p>Skills desta run: '+Object.entries(G.skills).map(([k,v])=>`${SKILLS.find(s=>s.id===k).ico} ${SKILLS.find(s=>s.id===k).name} ×${v}`).join(' · ')+'</p>':'<p>Nenhuma skill ainda.</p>'; } });
+$('bPause').addEventListener('click',()=>{ if(G.state==='play'){ setState('pause'); $('pauseSkills').innerHTML=Object.keys(G.skills).length?'<p>Skills desta run:<br>'+Object.entries(G.skills).map(([k,v])=>{ const sk=SKILL_BY_ID[k]; if(!sk) return ''; return `${sk.ico} <b>${sk.name}</b> ${sk.fmt(v)}${v>=sk.at?' <span title="marco">★</span>':''}`; }).filter(Boolean).join('<br>')+'</p>':'<p>Nenhuma skill ainda.</p>'; } });
 $('bResume').addEventListener('click',()=>setState('play'));
 $('bQuit').addEventListener('click',()=>{ setState('over'); endRun(false); });
 $('bOverMap').addEventListener('click',openMap);
@@ -1388,7 +1503,9 @@ $('bExport').addEventListener('click',async()=>{ const code=IO.encode(profile); 
 $('bImport').addEventListener('click',()=>{ try{ const p=IO.decode($('importBox').value); const keep=confirm(`Importar progresso: onda ${p.best.wave||0}, 🪙 ${p.coins}. Isso substitui o perfil "${Save.slot}" neste aparelho.`); if(!keep) return; profile=p; Save.save(); renderMenu(); $('ioMsg').textContent='Progresso importado.'; }catch(e){ $('ioMsg').textContent=e.message; } });
 
 /* ================= Início ================= */
-window.__G=G; window.__ENEMIES=ENEMIES; window.__addCoins=addCoins; window.__update=update; window.__COIN_CAP=COIN_CAP;   // usados pelos testes automatizados
+window.__G=G; window.__ENEMIES=ENEMIES; window.__addCoins=addCoins; window.__update=update; window.__COIN_CAP=COIN_CAP;
+window.__applyHitTest=(e,d)=>applyHit(G.heroes[0]||{def:HEROES.mago,bonus:null},e,d,false);
+window.__SKILLS=SKILLS; window.__openLevelUpTest=ids=>renderLevelCard(ids.map(i=>SKILL_BY_ID[i]));   // usados pelos testes automatizados
 resize(); setState('menu'); Save.init(); requestAnimationFrame(frame);
 })();
 </script>
