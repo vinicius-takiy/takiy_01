@@ -268,12 +268,12 @@ const HEROES={
   arqueira: {name:'Arqueira',  role:'ranged', desc:'Flechas rápidas que atravessam um inimigo.',      dmg:7,  rate:2.3, spd:620, pierce:1,  hp:80,  regen:5, armor:.28, color:'#4c9b6e', cost:300},
   cavaleiro:{name:'Cavaleiro', role:'melee',  desc:'Tanque de campo. A cada 7 s salta sobre o grupo e bate no chão; a cada 12 s grita e puxa os inimigos. Só regenera bem fora de combate, então cerco longo derruba ele.', dmg:13, rate:1.0, hp:150, regen:6, armor:.18, dodge:.05, speed:78, reach:34, taunt:{cd:12,dur:5,r:150}, leap:{cd:7,min:80,range:250,dmg:1.7,r:62}, color:'#5b7fb5', cost:500},
   bruxa:    {name:'Bruxa',     role:'ranged', desc:'Frasco venenoso: dano ao longo do tempo.',         dmg:5,  rate:1.0, spd:380, poison:5,  hp:75,  regen:5, armor:.26, color:'#c05aa6', cost:800},
-  domador:  {name:'Domador',   role:'ranged', desc:'Atira da muralha e mantém a sua Fera lutando no campo. Se a Fera cai, ela volta sozinha — e não ocupa vaga no time.', dmg:8, rate:1.3, spd:400, hp:100, regen:6, armor:.32, color:'#c98a3c', cost:1200, pet:'fera'},
+  domador:  {name:'Domador',   role:'ranged', desc:'Atira da muralha e mantém a sua Fera lutando no campo. Se a Fera cai, ela volta sozinha em 15 s — e não ocupa vaga no time.', dmg:8, rate:1.3, spd:400, hp:100, regen:6, armor:.32, color:'#c98a3c', cost:1200, pet:'fera'},
   ladina:   {name:'Ladina',    role:'melee',  desc:'Assassina de campo. Pouca vida, mas esquiva 35% dos golpes e crita com frequência.', dmg:20, rate:1.7, hp:95, regen:3, armor:0, dodge:.35, crit:.20, speed:150, reach:28, color:'#3d3d4a', cost:900},
   lanceiro: {name:'Lanceiro',  role:'melee',  desc:'Segura a linha de frente: lança de alcance longo e muita armadura, mas bate devagar. A cada 14 s grita e puxa os inimigos para ele.', dmg:16, rate:.9, hp:175, regen:6, armor:.32, dodge:.05, speed:74, reach:54, taunt:{cd:14,dur:4,r:135}, color:'#7d6b4f', cost:1400},
   barbaro:  {name:'Bárbaro',   role:'melee',  desc:'Machado pesado: cada golpe acerta todo mundo em volta, mas ele quase não tem defesa.', dmg:24, rate:1.2, hp:125, regen:4, armor:.06, dodge:.08, speed:118, reach:32, cleaveHit:48, color:'#8c3f3f', cost:1600},
   // Fera: nasce junto com o Domador, nao aparece na loja e nao ocupa vaga.
-  fera:     {name:'Fera',      role:'melee',  hidden:true, desc:'Companheira do Domador.', dmg:11, rate:1.6, hp:115, regen:6, armor:.12, dodge:.12, speed:134, reach:26, color:'#a2673a', cost:0}
+  fera:     {name:'Fera',      role:'melee',  hidden:true, desc:'Companheira do Domador.', dmg:11, rate:1.6, hp:115, regen:6, armor:.12, dodge:.12, speed:134, reach:26, respawnTime:15, color:'#a2673a', cost:0}
 };
 // Itens: 5 slots, raridade e afixos sorteados por slot. Caem de chefes.
 const SLOTS={weapon:'Arma',head:'Cabeça',chest:'Peitoral',hands:'Mãos',feet:'Pés'};
@@ -724,7 +724,7 @@ function meleeStrike(h,t){
   G.effects.push({kind:'slash',x:t.x,y:t.y,t:0,dur:.18,seed:Math.random()*100}); for(let i=0;i<4;i++) puff(t.x,t.y,h.def.color,3,.25,70);
 }
 function heroDown(h){ h.hp=0; h.dead=true; h.deaths++; h.leapT=0; h.leapZ=0; h.poisonT=0;
-  h.respawn=Math.max(3,10-2*S('swift'));
+  h.respawn=Math.max(3,(h.def.respawnTime||10)-2*S('swift'));
   for(let i=0;i<16;i++) puff(h.x,h.y,'#6b6a72',4,.6,110); for(const en of G.enemies) if(en.target===h) en.target=null;
   tip(`${h.def.name} caiu. Volta em ${Math.round(h.respawn)} s`); }
 

@@ -129,7 +129,7 @@ Três camadas de proteção, todas verificadas com falha injetada de propósito 
 | Mago | Muralha | inicial | Bola de fogo com explosão pequena |
 | Arqueira | Muralha | 300 | Flechas rápidas que atravessam um inimigo |
 | Bruxa | Muralha | 800 | Veneno ao longo do tempo |
-| **Domador** | Muralha | 1.200 | Atira da muralha e mantém a **Fera** lutando no campo. A Fera volta sozinha se cair e **não ocupa vaga** |
+| **Domador** | Muralha | 1.200 | Atira da muralha e mantém a **Fera** lutando no campo. A Fera volta sozinha em **15 s** se cair e **não ocupa vaga** |
 | Cavaleiro | Campo, tanque | 500 | 150 de vida, salta sobre o grupo a cada 7 s e provoca a cada 12 s |
 | Ladina | Campo, assassina | 900 | 95 de vida, esquiva 35%, 20% de crítico base |
 | **Lanceiro** | Campo, linha de frente | 1.400 | 175 de vida, 32% de armadura, alcance de 54 px, bate devagar e provoca a cada 14 s |
@@ -149,6 +149,11 @@ quando o time não tem ninguém no campo, para não oferecer skill inútil.
 **A Fera** é um herói de campo escondido (`hidden: true`): não aparece na loja, não conta
 vaga, e nasce junto com o Domador em `buildTeam()`. Com isso ela reaproveita toda a IA,
 o desenho, a morte e o respawn dos heróis de campo, sem código novo de companheiro.
+
+O tempo de volta virou propriedade do herói (`respawnTime`, padrão 10 s): a Fera leva
+**15 s**, o preço de ela ser um lutador a mais que não ocupa vaga. A skill **Volta rápida**
+continua descontando 2 s por nível dela também, com piso de 3 s. Medido em teste: a Fera
+voltou em 15,0 s e o Cavaleiro em 9,9 s na mesma partida.
 
 `Save.sanitize()` conserta saves antigos na abertura: tira herói que não existe mais,
 tira a Fera do time salvo, corta o time para caber em 3 muralha / 2 campo e prende
