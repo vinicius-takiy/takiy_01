@@ -324,16 +324,35 @@ const SKILLS=[
 ];
 // Fases: dificuldade sobe devagar. hp e spd multiplicam os inimigos; mix e a chance de cada tipo.
 const LEVELS=[
-  {id:1, name:'Portão da Vila',     waves:10, hp:.70, spd:.92, mix:{slime:1},                                                          reward:70,  boss:['reizinho'], desc:'Só slimes comuns. Aprenda o ritmo. Nas ondas 4 e 8 vem uma horda.', x:50, y:90},
-  {id:2, name:'Estrada do Moinho',  waves:10, hp:.82, spd:.96, mix:{slime:.7,rapido:.3},                                               reward:90,  boss:['reizinho'], desc:'Slimes rápidos entram na conta. Gelo e Cadência ajudam.', x:24, y:81},
-  {id:3, name:'Ponte Velha',        waves:10, hp:.95, spd:1,   mix:{slime:.45,rapido:.25,morcego:.2,goblin:.1},                                    reward:110, boss:['bruxo'],    desc:'Morcegos voam em zigue-zague. Goblins roubam moedas. O Bruxo invoca reforços.', x:38, y:71},
-  {id:4, name:'Pântano Verde',      waves:10, hp:1.05,spd:1,   mix:{slime:.3,rapido:.15,gordo:.2,aranha:.2,lobo:.15},                          reward:140, boss:['golem'],    desc:'Aranhas prendem seus heróis em teia. Lobos correm mais rápido em matilha.', x:66, y:65},
-  {id:5, name:'Covil do Rei',       waves:11, hp:1.12,spd:1.02,mix:{slime:.2,rapido:.15,gordo:.15,esqueleto:.25,zumbi:.25},                         reward:240, boss:['rei'],      desc:'Zumbis apodrecem quem eles batem. Esqueletos levantam uma vez. O Rei se parte em seis.', x:74, y:54},
-  {id:6, name:'Floresta Torta',     waves:11, hp:1.25,spd:1.04,mix:{slime:.2,morcego:.2,cogumelo:.2,lobo:.2,goblin:.2},             reward:180, boss:['gigante'],  desc:'Cogumelos explodem ao morrer. Goblins roubam suas moedas na muralha.', x:46, y:48},
-  {id:7, name:'Ruínas',             waves:11, hp:1.4, spd:1.06,mix:{rapido:.25,morcego:.2,aranha:.2,espectro:.2,goblin:.15},                  reward:210, boss:['bruxo'],   desc:'Espectros ficam intangíveis por 1 s a cada 3 s. E um Dragão fecha a fase. Tiro duplo e Raio em cadeia brilham aqui.', x:22, y:40},
-  {id:8, name:'Desfiladeiro',       waves:11, hp:1.35,spd:1.06,mix:{slime:.2,gordo:.2,blindado:.2,orc:.15,cogumelo:.15,zumbi:.1},                        reward:250, boss:['golem'],    desc:'Cascos resistem a projétil e Orcs batem em todos os heróis de campo de uma vez. Leve alguém para o corpo a corpo.', x:40, y:31},
-  {id:9, name:'Vale da Névoa',      waves:11, hp:1.7, spd:1.1, mix:{blindado:.15,curandeiro:.15,zumbi:.15,espectro:.2,orc:.2,morcego:.15},    reward:300, boss:['dragao'], desc:'Curandeiros, Espectros e Orcs. No fim vem o Dragão: voa, ignora espinhos e cospe fogo na muralha.', x:68, y:25},
-  {id:10,name:'Trono do Rei Slime', waves:12, hp:1.9, spd:1.12,mix:{rapido:.12,gordo:.12,blindado:.12,esqueleto:.12,orc:.12,zumbi:.12,espectro:.12,curandeiro:.08,cogumelo:.08,lobo:.1}, reward:450, boss:['rei','dragao'], desc:'Tudo que existe, o Rei e o Dragão no fim. Concluir abre o Infinito.', x:52, y:15},
+  // Alocacao pensada por dificuldade real de derrotar, nao so pelo multiplicador de vida:
+  // dps de cada monstro e FIXO (nao escala por fase), entao quem entra em qual fase importa
+  // tanto quanto o multiplicador. Ordem: slime/rapido/gordo (base, sem truque) -> goblin/lobo
+  // (truque simples) -> morcego/aranha/cogumelo (exige ajuste tatico) -> esqueleto/zumbi/espectro
+  // (exige estrategia) -> blindado/orc/curandeiro (exige time montado, o mais dificil de driblar).
+  // Chefes na mesma logica, por dps fixo e complexidade do truque: reizinho (14 dps, so se parte)
+  // -> bruxo (16 dps, invoca) -> gigante (32 dps, acelera perdendo vida) -> golem (45 dps, o mais
+  // forte de todos, mas lento) -> dragao (30 dps + fogo a distancia, ignora contramedidas) ->
+  // rei (30 dps, se parte em 6) so aparece no trono, no fim, nunca antes.
+  {id:1, name:'Portão da Vila',      waves:10, hp:.70, spd:.92, mix:{slime:1},
+    reward:70,  boss:['reizinho'], desc:'Só slimes comuns. Aprenda o ritmo. Nas ondas 4 e 8 vem uma horda.', x:50, y:90},
+  {id:2, name:'Estrada do Moinho',   waves:10, hp:.82, spd:.96, mix:{slime:.7,rapido:.3},
+    reward:90,  boss:['reizinho'], desc:'Slimes rápidos entram na conta. Gelo e Cadência ajudam.', x:24, y:81},
+  {id:3, name:'Ponte Velha',         waves:10, hp:.95, spd:1,   mix:{slime:.4,rapido:.25,gordo:.2,goblin:.15},
+    reward:110, boss:['bruxo'],    desc:'Slimes gordos aguentam mais golpes, e Goblins fogem com suas moedas. O Slime Bruxo invoca reforços — mate-o rápido.', x:38, y:71},
+  {id:4, name:'Pântano Verde',       waves:10, hp:1.05,spd:1,   mix:{slime:.25,rapido:.15,gordo:.15,goblin:.1,lobo:.2,morcego:.15},
+    reward:140, boss:['bruxo'],    desc:'Lobos aceleram em matilha e Morcegos voam ignorando os espinhos da muralha.', x:66, y:65},
+  {id:5, name:'Colina Amaldiçoada',  waves:11, hp:1.12,spd:1.02,mix:{rapido:.15,gordo:.15,goblin:.1,lobo:.15,morcego:.15,aranha:.15,cogumelo:.15},
+    reward:190, boss:['gigante'],  desc:'Aranhas prendem seus heróis em teia. Cogumelos explodem ao morrer — cuidado ao chegar perto. O Slime Gigante acelera conforme perde vida.', x:74, y:54},
+  {id:6, name:'Floresta Torta',      waves:11, hp:1.25,spd:1.04,mix:{gordo:.15,lobo:.15,morcego:.1,aranha:.15,cogumelo:.15,esqueleto:.3},
+    reward:180, boss:['golem'],    desc:'Esqueletos levantam uma vez com metade da vida. O Golem de Lama é lento mas devastador — não deixe ele chegar.', x:46, y:48},
+  {id:7, name:'Ruínas',              waves:11, hp:1.4, spd:1.06,mix:{morcego:.1,aranha:.15,cogumelo:.1,esqueleto:.2,zumbi:.2,espectro:.25},
+    reward:210, boss:['gigante'],  desc:'Zumbis apodrecem quem eles batem. Espectros ficam intangíveis por 1 s a cada 3 s — só corpo a corpo os alcança nesse instante.', x:22, y:40},
+  {id:8, name:'Desfiladeiro',        waves:11, hp:1.35,spd:1.06,mix:{gordo:.1,esqueleto:.15,zumbi:.15,espectro:.15,blindado:.2,orc:.25},
+    reward:250, boss:['golem'],    desc:'Cascos resistem a projétil e Orcs batem em todos os heróis de campo de uma vez. Leve alguém para o corpo a corpo.', x:40, y:31},
+  {id:9, name:'Vale da Névoa',       waves:11, hp:1.7, spd:1.1, mix:{zumbi:.15,espectro:.2,blindado:.15,orc:.2,curandeiro:.15,esqueleto:.15},
+    reward:300, boss:['dragao'],   desc:'Curandeiros regeneram os vizinhos sem parar — mate-os primeiro. No fim vem o Dragão: voa, ignora espinhos e cospe fogo na muralha.', x:68, y:25},
+  {id:10,name:'Trono do Rei Slime',  waves:12, hp:1.9, spd:1.12,mix:{rapido:.1,gordo:.1,goblin:.08,lobo:.08,aranha:.08,cogumelo:.08,blindado:.1,esqueleto:.1,orc:.1,zumbi:.1,espectro:.1,curandeiro:.08},
+    reward:450, boss:['rei','dragao'], desc:'Tudo que existe, e o próprio Rei Slime no trono — pela primeira vez — ao lado do Dragão. Concluir abre o Infinito.', x:52, y:15},
   {id:'inf', name:'Infinito', endless:true, reward:0, desc:'Sem fim: novos monstros vão entrando, horda a cada 4 ondas e chefe a cada 5.', x:76, y:7, needs:10}
 ];
 const levelById=id=>LEVELS.find(l=>String(l.id)===String(id));
@@ -447,10 +466,17 @@ function snapshotRun(){ profile.run={levelId:G.level.id,wave:G.wave,xp:G.xp,lvl:
 // Aceita pesos que nao somam 1: normaliza pelo total.
 function pickType(mix){ const ks=Object.keys(mix); let tot=0; for(const k of ks) tot+=mix[k]; let r=Math.random()*tot; for(const k of ks){ r-=mix[k]; if(r<=0) return k; } return ks[0]; }
 // No Infinito os tipos vao entrando conforme as ondas passam.
+// Mesma ordem de introdução das fases: base -> truque simples -> tático -> estratégico -> exige time montado.
 function endlessMix(w){ const m={slime:1};
-  if(w>=2) m.rapido=.6; if(w>=3) m.morcego=.4; if(w>=4) m.gordo=.4; if(w>=6) m.aranha=.4;
-  if(w>=7) m.goblin=.4; if(w>=8) m.esqueleto=.5; if(w>=9) m.lobo=.45; if(w>=10) m.cogumelo=.4;
-  if(w>=11) m.zumbi=.4; if(w>=12) m.blindado=.5; if(w>=14) m.orc=.4; if(w>=16) m.espectro=.4; if(w>=18) m.curandeiro=.25; return m; }
+  if(w>=2) m.rapido=.6;
+  if(w>=3){ m.gordo=.5; m.goblin=.3; }
+  if(w>=4){ m.lobo=.4; m.morcego=.35; }
+  if(w>=6){ m.aranha=.4; m.cogumelo=.35; }
+  if(w>=8) m.esqueleto=.5;
+  if(w>=10){ m.zumbi=.4; m.espectro=.4; }
+  if(w>=12){ m.blindado=.5; m.orc=.4; }
+  if(w>=15) m.curandeiro=.25;
+  return m; }
 function startWave(){
   const L=G.level, w=G.wave, q=[];
   // Horda: a cada 4 ondas vem quase o dobro de inimigos, e mais rapido.
@@ -1075,6 +1101,8 @@ resize(); setState('menu'); Save.init(); requestAnimationFrame(frame);
   render(); card.appendChild(box);
 })();
 </script>
+</body>
+</html>
 </body>
 </html>
 </body>

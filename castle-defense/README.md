@@ -41,6 +41,31 @@ Rodopio, Guarda e Volta rápida.
 
 Cada fase tem de 10 a 12 ondas, com mistura própria que introduz os tipos aos poucos.
 
+### Alocação por dificuldade
+
+O dano de cada monstro é **fixo** — não escala pela fase, só a vida escala (pelo
+multiplicador da fase e pela onda). Então quem aparece em qual fase importa tanto
+quanto o multiplicador de vida. A ordem segue dano fixo + complexidade do truque:
+
+| Fase | Novo na mistura | Chefe |
+|---|---|---|
+| 1–2 | Slime, Rápido | Príncipe Slime (14 dano) |
+| 3–4 | Gordo, Goblin, Lobo, Morcego — truque simples | Slime Bruxo (16 dano, invoca) |
+| 5 | Aranha, Cogumelo — exige ajuste tático | Slime Gigante (32 dano, acelera perdendo vida) |
+| 6–7 | Esqueleto, Zumbi, Espectro — exige estratégia | Golem de Lama (6) → Gigante de novo (7) |
+| 8–9 | Casco, Orc, Curandeiro — exige time montado | Golem (45 dano, o mais forte) → Dragão (9, estreia sozinho) |
+| 10 | Tudo junto | **Rei Slime** (se parte em 6) — só aparece aqui, pela primeira vez — + Dragão |
+
+O Rei Slime estava na fase 5 antes, cedo demais para um chefe de 1000 de vida com
+divisão em seis. Agora só é enfrentado no trono, no fim — o nome da fase 10 já
+prometia isso e agora entrega. A fase 5 mudou de nome (era "Covil do Rei") para
+não anunciar um chefe que não está mais lá.
+
+Verificado em partidas automatizadas: fase 1 trivial (100% de muralha), fase 3
+com a estreia do Bruxo fechada em 58%, fase 5 com a estreia do Gigante em 100%
+(bem mais fácil que o Rei que estava lá antes), fase 8 em 55%, fase 10 **perdida**
+por pouco na penúltima onda — apropriado para o desafio final do jogo.
+
 **Silhuetas:** morcego, esqueleto, aranha, goblin, lobo, orc, zumbi, espectro, cogumelo,
 golem e dragão têm corpo desenhado do zero em `SHAPES` — não são gosmas com adereço.
 Slime, Rápido, Gordo e os chefes-slime (Príncipe Slime, Rei Slime, Slime Bruxo) seguem
