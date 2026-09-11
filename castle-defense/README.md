@@ -211,6 +211,30 @@ texto. Verificados em jogo, um a um, com testes automatizados: meteoro gerando e
 congelado levando 150 em vez de 100, chefe levando 150 em vez de 100, e o vizinho de um
 inimigo em chamas pegando fogo.
 
+## Itens: o baú e o drop que não acontecia
+
+Os chefes soltam itens (5 slots, três raridades, afixos sorteados), mas duas coisas
+atrapalhavam:
+
+**O drop não era guardado.** Um comentário de fim de linha engoliu o resto da instrução:
+
+```js
+// errado — tudo depois do // virou comentário
+if(M('bounty')||Math.random()<(e.def.drop||.5)){ const it=rollItem(G.level.id);   // marco ... profile.items.push(it); G.drops.push(it); Save.save();
+```
+
+O item era sorteado e o `ITEM!` aparecia na tela, mas `profile.items` e `G.drops` nunca
+recebiam nada — o jogador via o anúncio do prêmio e ficava sem o prêmio. O comentário
+passou para a linha de cima. Fica a lição: comentário no fim de uma linha densa é um
+jeito fácil de apagar código sem perceber, e só um teste que **verifica o efeito**
+(o item entrou no baú?) pega isso — a sintaxe continua válida.
+
+**Não dava para ver o que se tinha.** O único caminho até um item era Heróis → herói →
+Itens → escolher um slot, que mostra só o que serve naquele slot. Agora existe o
+**Baú de itens** no menu, com contador de quantos itens você tem, listando tudo num
+lugar só: o que cada item dá, quem está usando, botão para equipar em qualquer herói
+(o item entra na vaga certa sozinho) e botão para vender.
+
 ## Como o progresso fica salvo
 
 Três camadas, em ordem de confiabilidade crescente:

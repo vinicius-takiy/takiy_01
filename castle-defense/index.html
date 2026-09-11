@@ -107,6 +107,7 @@
   .heroHead canvas{position:static;width:60px;height:60px}
   .bonus{font-size:13px;color:var(--ink-soft);line-height:1.4}
   .hero .acts{display:grid;gap:6px}
+  #bagList{display:grid;gap:8px} #bagList .eqRow{display:flex;flex-wrap:wrap;gap:6px;margin-top:5px} #bagList .eqRow .btn{min-height:34px;padding:3px 10px;font-size:14px;flex:1}
   .drops{display:grid;gap:8px} .drops .eqRow{display:flex;flex-wrap:wrap;gap:6px} .drops .eqRow .btn{min-height:34px;padding:3px 10px;font-size:14px;flex:1}
   @media (prefers-reduced-motion:reduce){.bar i{transition:none}.node.cur{animation:none}}
 </style>
@@ -140,6 +141,9 @@
         <div class="row">
           <button class="btn" id="bHeroes"><span>Heróis</span></button>
           <button class="btn" id="bUpgrades"><span>Melhorias</span><span class="cost" id="upCoins">🪙 0</span></button>
+        </div>
+        <div class="row">
+          <button class="btn" id="bBag"><span>Baú de itens</span><span class="cost" id="bagCount">0</span></button>
         </div>
       </div>
       <div class="stats">
@@ -187,6 +191,16 @@
       <div id="eqSlots" class="stack"></div>
       <div id="eqPick" class="stack" hidden></div>
       <button class="btn" id="bEqBack"><span>Voltar</span></button>
+    </div>
+  </div>
+
+  <!-- Baú: tudo que caiu dos chefes, num lugar só -->
+  <div class="ov" id="bagOv" hidden>
+    <div class="card">
+      <h2>Baú de itens</h2>
+      <p id="bagInfo"></p>
+      <div id="bagList" class="stack"></div>
+      <button class="btn" id="bBagBack"><span>Voltar</span></button>
     </div>
   </div>
 
@@ -878,7 +892,9 @@ function kill(e){
   for(let i=0;i<10;i++) puff(e.x,e.y,e.def.color,rnd(2,5),rnd(.3,.6),rnd(40,120));
   if(e.def.splits){ for(let i=0;i<e.def.splits;i++){ const s=spawn('slime'); s.x=clamp(e.x+rnd(-60,60),20,W-20); s.y=e.y+rnd(-20,20); } tip(`${e.def.name} se partiu!`); }
   if(e.def.boss){
-    if(M('bounty')||Math.random()<(e.def.drop||.5)){ const it=rollItem(G.level.id);   // marco da Pilhagem: item garantido profile.items=profile.items||[]; profile.items.push(it); G.drops.push(it); Save.save();
+    // marco da Pilhagem: chefe sempre deixa item
+    if(M('bounty')||Math.random()<(e.def.drop||.5)){ const it=rollItem(G.level.id);
+      profile.items=profile.items||[]; profile.items.push(it); G.drops.push(it); Save.save();
       for(let i=0;i<30;i++) puff(e.x,e.y,RARITY[it.rar].c,rnd(3,6),rnd(.5,1),rnd(60,180)); G.texts.push({x:e.x,y:e.y-e.r-20,v:'ITEM!',t:1.4,crit:true}); }
     else { const c=Math.round(45*metaMul('gold',.10)*(1+S('bounty')*.25)); addCoins(c); G.texts.push({x:e.x,y:e.y-e.r-20,v:'+'+c+' 🪙',t:1.4}); tip('Sem item desta vez. Levou moedas no lugar.'); } }
   while(G.xp>=xpNeed(G.lvl)){ G.xp-=xpNeed(G.lvl); G.lvl++; G.lvQueue++;
@@ -1302,7 +1318,7 @@ cv.addEventListener('pointerdown',e=>{ if(G.state!=='play') return; const r=cv.g
 function hud(){ $('hWave').textContent=(G.surge?'🔥 ':'')+(G.level.endless?G.wave:`${G.wave}/${G.level.waves}`); $('hCoins').textContent=Math.round(G.coins); $('hWall').style.transform=`scaleX(${clamp(G.wallHp/G.wallMax,0,1)})`; $('hWallT').textContent=`Muralha ${Math.ceil(G.wallHp)} / ${G.wallMax}`;
   $('hXp').style.transform=`scaleX(${clamp(G.xp/xpNeed(G.lvl),0,1)})`; $('hXpT').textContent=`Nível ${G.lvl}`; }
 function tip(t){ $('tip').textContent=t; $('tip').classList.add('show'); G.tipT=2.6; }
-const OVS=['menu','slotOv','heroesOv','upOv','lvOv','pauseOv','overOv','mapOv','lvBrief','equipOv'];
+const OVS=['menu','slotOv','heroesOv','upOv','lvOv','pauseOv','overOv','mapOv','lvBrief','equipOv','bagOv'];
 function setState(s){ G.state=s; OVS.forEach(id=>$(id).hidden=true); $('hud').hidden=!(s==='play'||s==='levelup'||s==='pause');
   if(s==='menu') $('menu').hidden=false; if(s==='map') $('mapOv').hidden=false; if(s==='levelup') $('lvOv').hidden=false; if(s==='pause') $('pauseOv').hidden=false; if(s==='over') $('overOv').hidden=false; }
 
@@ -1310,6 +1326,7 @@ function renderMenu(){
   $('bContinue').hidden=!profile.run; if(profile.run){ const L=levelById(profile.run.levelId)||LEVELS[0]; $('contInfo').textContent=`${L.name} · onda ${profile.run.wave}${L.endless?'':'/'+L.waves}`; }
   const done=LEVELS.filter(l=>!l.endless&&levelStars(l.id)>0).length; $('sBest').textContent=`${done} / 10`+(profile.best.wave?` · infinito ${profile.best.wave}`:''); $('sRuns').textContent=profile.runs; $('sKills').textContent=profile.kills; $('sCoins').textContent=profile.coins;
   $('upCoins').textContent=`🪙 ${profile.coins}`; $('slotName').textContent=Save.slot;
+  $('bagCount').textContent=(profile.items||[]).length;
 }
 // So funcionam com heroi de campo (dependem do golpe corpo a corpo). Guarda e Volta rapida
 // sairam da lista: agora que todo heroi tem vida, elas valem tambem para quem fica na muralha.
@@ -1391,6 +1408,27 @@ function renderDrops(){
     const row=profile.heroes.map(h=>`<button class="btn ${owner&&owner[0]===h?'primary':''}" data-eq="${it.id}" data-h="${h}">${owner&&owner[0]===h?'✓ ':''}${HEROES[h].name}</button>`).join('');
     return itemHtml(it,`<div class="bonus">${owner?`Equipado em ${HEROES[owner[0]].name}.`:'Guardado no baú. Equipar em:'}</div><div class="eqRow">${row}</div>`); }).join('');
 }
+// Baú: lista tudo que já caiu, equipado ou não, e deixa equipar em qualquer herói do time
+function renderBag(){
+  const itens=(profile.items||[]);
+  $('bagCount').textContent=itens.length;
+  $('bagInfo').textContent=itens.length
+    ? `${itens.length} ${itens.length===1?'item':'itens'}. Toque no nome de um herói para equipar — o item entra na vaga certa sozinho.`
+    : 'Vazio por enquanto. Cada chefe derrotado pode deixar um item cair.';
+  $('bagList').innerHTML=itens.map(it=>{ const dono=equippedBy(it.id);
+    const linha=profile.heroes.filter(h=>HEROES[h]&&!HEROES[h].hidden).map(h=>
+      `<button class="btn ${dono&&dono[0]===h?'primary':''}" data-eq="${it.id}" data-h="${h}">${dono&&dono[0]===h?'✓ ':''}${HEROES[h].name}</button>`).join('');
+    return itemHtml(it,`<div class="bonus">${dono?`Equipado em ${HEROES[dono[0]].name}.`:'Guardado, sem dono.'}</div>`+
+      `<div class="eqRow">${linha}<button class="btn gold" data-sell="${it.id}">Vender 🪙${RARITY[it.rar].sell}</button></div>`); }).join('');
+}
+$('bagList').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return;
+  if(b.dataset.sell){ const it=itemById(b.dataset.sell); if(!it) return;
+    const dono=equippedBy(it.id); if(dono) delete profile.equip[dono[0]][it.slot];
+    profile.coins=clampCoins(profile.coins+RARITY[it.rar].sell); profile.items=profile.items.filter(x=>x.id!==it.id);
+    Save.save(); renderBag(); renderMenu(); return; }
+  const it=itemById(b.dataset.eq); if(it){ equipItem(b.dataset.h,it); renderBag(); } });
+$('bBag').addEventListener('click',()=>{ renderBag(); $('bagOv').hidden=false; });
+$('bBagBack').addEventListener('click',()=>{ $('bagOv').hidden=true; });
 $('oDrops').addEventListener('click',e=>{ const b=e.target.closest('button[data-eq]'); if(!b) return; const it=itemById(b.dataset.eq); if(it){ equipItem(b.dataset.h,it); renderDrops(); } });
 
 /* ================= Mapa de fases ================= */
