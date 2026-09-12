@@ -333,18 +333,84 @@ resultante e já pegou, entre outros:
 - colapso predador-presa de manual: feras dobrando a cada dois abates, limpando
   o mundo em dezenove anos e morrendo junto.
 
+## Clima, semente e fogo
+
+O mapa deixou de ser um desenho parado. Por baixo dele agora corre um campo de
+**umidade**, e é ele que manda em quase tudo.
+
+A umidade de base de um tile é a soma de três coisas: o clima do lugar (o mesmo
+ruído que desenhou os biomas na geração), a água por perto (uma varredura em
+largura a partir de todo tile de água) e o desconto do alto — montanha é seca
+mesmo com água ao pé, porque o que escorre não fica. Por cima disso corre um
+ciclo lento de décadas secas e décadas chuvosas, e passam **nuvens**, que entram
+por uma borda e atravessam o mapa molhando o que encontram. Você também tem um
+pincel de **chuva**, mais forte e mais curto que a chuva do mundo.
+
+### Semente, não floresta pronta
+
+O pincel de floresta virou pincel de **semente**. O broto cresce na razão do que
+bebe: em terra molhada vira mata em uns oito anos, em terra seca definha e morre.
+Plantar num descampado árido não dá nada — que é o ponto.
+
+### O verde anda sozinho
+
+| O que acontece | Quando |
+|---|---|
+| Terra nua vira campo | Umidade acima de 0,42, verde encostado, e é muito mais rápido onde há esterco |
+| Campo vira terra nua | Umidade abaixo de 0,22 |
+| Campo vira terra fértil | Muito molhado **e** muito adubado — é o rebanho melhorando a terra em vez de só comê-la |
+| Mata semeia o vizinho | Umidade acima de 0,55, devagar: uma frente que avança em décadas |
+| Campo molhado brota sozinho | Raro, e tanto mais provável quanto menos mata resta no mundo |
+
+Esse último é rede de segurança, não semeadura. Sem ele a semente 5 terminava
+trezentos anos com quatrocentas pessoas vivas e **zero** tiles de mata, sem volta
+possível — a rebrota exige mata vizinha, e não havia mais nenhuma. A 0,0045 por
+ano, porém, ele plantava nove brotos por ano no mapa inteiro, cobria a ilha,
+dobrava a população e apagava o fogo do jogo. Ficou em 0,0006, subindo conforme
+a mata some.
+
+**Esterco e cinza** são a mesma variável. Rebanho parado aduba o chão; bicho que
+morre aduba onde caiu; incêndio deixa cinza. É o que puxa o verde para onde a
+vida esteve.
+
+### Raio e incêndio
+
+Cai um raio a cada poucos anos, em qualquer lugar. Se acertar coisa que queime e
+estiver seco, pega. O fogo anda de tile em tile na razão do quanto o vizinho está
+seco — mata molhada quase não pega, mata de estiagem pega rápido — e **só a chuva
+apaga**. O que sobra é terra nua com cinza.
+
+Quem estiver dentro do fogo morre ou foge em pânico; oca dentro do fogo desaba; e
+o raio mata o que acertar. É a primeira coisa neste jogo que destrói o que a
+tribo construiu sem ser outra tribo.
+
+## Três herbívoros
+
+Um bicho grande só não sustenta cadeia nenhuma: come muito, cria devagar e, quando
+a fera o encontra, some. Foi por isso que "o predador não se extingue" era falha
+fixa do relatório em quase toda semente.
+
+| Bicho | Come | Cria | Vive | Domesticável |
+|---|---|---|---|---|
+| **Gado** | muito | devagar | ~15 anos | sim — é o do curral |
+| **Capivara** | pouco | rápido | ~9 anos | não, e não sai da margem |
+| **Lebre** | quase nada | muito rápido | ~5 anos | não |
+
+Os miúdos são o colchão: comem pouco, criam rápido e morrem cedo, que é o que
+mantém o predador vivo entre uma boiada e outra. Cada espécie tem teto próprio —
+com um número compartilhado, o gado (que a tribo protege dentro da cerca) enchia
+sozinho os lugares e as outras duas se extinguiam nas cinco sementes.
+
 ## Na fila
 
 Coisas pedidas que ainda não estão aqui, para não empilhar sistema sobre uma
 simulação que já tem seus buracos:
 
-- **Chuva e trovão.** Raio caindo, floresta pegando fogo, o fogo se alastrando
-  se não chover, e alcançando tribo que morar dentro da mata.
 - **Aprendizado.** A tribo lembrar do que a queimou e mudar de comportamento,
   com o líder conduzindo — inteligência como atributo, não só diplomacia.
-- **Solo que soma.** Pintar floresta em terra fértil dando mata rica e rápida, e
-  em terra nua dando vegetação pobre; e ter que apagar antes de trocar, em vez
-  de o pincel sobrescrever.
+- **Apagar antes de trocar.** Hoje o pincel de terreno sobrescreve o que havia.
+  A ideia é ter que limpar primeiro, e o que se planta somar com o substrato em
+  vez de substituí-lo.
 
 ## Limites conhecidos
 

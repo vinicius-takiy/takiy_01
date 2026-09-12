@@ -9,6 +9,7 @@
 import * as THREE from 'three';
 import { N, T, TERRENOS, NIVEL_MAR } from './mundo.js';
 import { CHAVES_VOCACAO } from './tribos.js';
+import { ESPECIES } from './agentes.js';
 import { montarFigura, QUADRIS } from './figuras.js';
 
 const CAIXA = new THREE.BoxGeometry(1, 1, 1);
@@ -22,6 +23,8 @@ const TETOS = {
   arvore: 2600, moita: 1100, pedra: 800, espiga: 1400, oca: 200, cerca: 900,
   rebanho: 240, predador: 70, humano: 260,
   'rebanho:pata': 240 * 4, 'predador:pata': 70 * 4, peixe: 600, jacare: 40,
+  capivara: 220, 'capivara:pata': 220 * 4, lebre: 260, 'lebre:pata': 260 * 4,
+  chama: 700,
 };
 
 export class Render {
@@ -106,8 +109,9 @@ export class Render {
 
     // ---------- figuras ----------
     for (const k of CHAVES_VOCACAO) this.criarFigura(`humano:${k}`, TETOS.humano);
-    for (const k of ['rebanho', 'rebanho:pata', 'predador', 'predador:pata',
-                     'peixe', 'jacare', 'oca', 'cerca', 'arvore', 'moita', 'pedra', 'espiga']) {
+    for (const k of ['rebanho', 'rebanho:pata', 'capivara', 'capivara:pata',
+                     'lebre', 'lebre:pata', 'predador', 'predador:pata',
+                     'peixe', 'jacare', 'chama', 'oca', 'cerca', 'arvore', 'moita', 'pedra', 'espiga']) {
       this.criarFigura(k, TETOS[k]);
     }
     this.refazerCenario();
@@ -217,7 +221,11 @@ export class Render {
     if (tipo === T.AGUA) return this.cor.set(COR_MAR);
     this.cor.set(TERRENOS[tipo].cor);
     if (tipo === T.PLANTACAO) this.cor.lerp(this._tinta.set(0xe0c257), mundo.crescer[i] * 0.6);
-    return this.cor.multiplyScalar(0.78 + Math.min(0.45, mundo.altura[i] * 0.22));
+    if (tipo === T.BROTO) this.cor.lerp(this._tinta.set(0x3f6135), Math.max(0, mundo.crescer[i]) * 0.7);
+    this.cor.multiplyScalar(0.78 + Math.min(0.45, mundo.altura[i] * 0.22));
+    // chão queimando puxa para a brasa, e o que já queimou fica escuro
+    if (mundo.fogo[i] > 0) this.cor.lerp(this._tinta.set(0x8f2f12), 0.35 + mundo.fogo[i] * 0.4);
+    return this.cor;
   }
 
   escreverTile(i) {
@@ -248,6 +256,8 @@ export class Render {
 
   aplicarSujos() {
     const { mundo } = this;
+    // tile ardendo muda de cor a cada quadro: entra sempre na lista de sujos
+    for (const i of mundo.queimando) mundo.sujo.add(i);
     if (!mundo.sujo.size) return false;
     for (const i of mundo.sujo) this.escreverTile(i);
     mundo.sujo.clear();
@@ -315,7 +325,8 @@ export class Render {
   atualizarSeres(sim, dt = 0) {
     this.tempo += dt;
     const nomes = [...CHAVES_VOCACAO.map((k) => `humano:${k}`), 'oca',
-                   'rebanho', 'rebanho:pata', 'predador', 'predador:pata', 'peixe', 'jacare'];
+                   'rebanho', 'rebanho:pata', 'capivara', 'capivara:pata',
+                   'lebre', 'lebre:pata', 'predador', 'predador:pata', 'peixe', 'jacare', 'chama'];
     this.abrirLote(nomes);
 
     for (const h of sim.humanos) {
@@ -346,7 +357,9 @@ export class Render {
       // Bicho um pouco menor que o tile. Em tamanho cheio, um curral lotado —
       // e lotado é o normal, três cabeças por pessoa — vira um tapete branco
       // sem chão à vista; com 0,84 lê-se rebanho apertado, que é o que é.
-      const base = (r.domesticado ? 0.84 : 0.78) * this.escalaEntrada(r);
+      const fig = FIG_BICHO[r.especie] || 'rebanho';
+      const e = ESPECIES[r.especie] || ESPECIES.gado;
+      const base = (r.domesticado ? 0.84 : 0.78) * e.escalaDesenho * this.escalaEntrada(r);
       const giro = anda ? Math.atan2(r.alvo.x - r.x, r.alvo.y - r.y) : giroParado(r);
       const passo = this.tempo * (anda ? 8.4 : 1.5) + r.x * 2.1 + r.y * 1.7;
       const balanco = Math.sin(passo);
@@ -358,8 +371,8 @@ export class Render {
       this.aux.position.set(r.x, chao + Math.abs(balanco) * (anda ? 0.045 : 0.006), r.y);
       this.aux.rotation.set(focinho, giro, balanco * (anda ? 0.05 : 0.015));
       this.aux.scale.setScalar(base);
-      this.por('rebanho');
-      this.porPatas('rebanho:pata', r.x, chao, r.y, giro, base, passo, amplitude);
+      this.por(fig);
+      this.porPatas(`${fig}:pata`, r.x, chao, r.y, giro, base, passo, amplitude);
     }
 
     // A fera anda em três marchas: parada, rondando e em cima da presa. A
@@ -407,6 +420,20 @@ export class Render {
       this.aux.rotation.set(0, mira ? Math.atan2(mira.x - j.x, mira.y - j.y) : giroParado(j), rasteja * 0.05);
       this.aux.scale.setScalar(this.escalaEntrada(j));
       this.por('jacare');
+    }
+
+    // Fogo. Desenhado por quadro porque tremula, e o tile embaixo é repintado
+    // junto: incêndio que não se vê não assusta ninguém.
+    if (this.mundo.queimando.size) {
+      for (const i of this.mundo.queimando) {
+        const x = i % N, y = (i / N) | 0;
+        const tremor = Math.sin(this.tempo * 13 + i) * 0.5 + Math.sin(this.tempo * 7.3 + i * 2) * 0.5;
+        const força = 0.5 + Math.min(1, this.mundo.fogo[i] * 2.2) * 0.7;
+        this.aux.position.set(x, this.alturaColuna(i), y);
+        this.aux.rotation.set(0, i * 1.7, 0);
+        this.aux.scale.set(força * (1 + tremor * 0.09), força * (1.15 + tremor * 0.22), força * (1 + tremor * 0.09));
+        this.por('chama');
+      }
     }
 
     for (const t of sim.tribos) {
@@ -552,3 +579,5 @@ const FIG_HUMANO = Object.fromEntries(CHAVES_VOCACAO.map((k) => [k, true]));
 
 /** Ângulo estável para quem está parado: sem isto o boneco pula para o norte. */
 const giroParado = (a) => (a.x * 37 + a.y * 17) % 6.28;
+/** Cada herbívoro tem boneco próprio; o gado usa a figura histórica 'rebanho'. */
+const FIG_BICHO = { gado: 'rebanho', capivara: 'capivara', lebre: 'lebre' };

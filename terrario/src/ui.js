@@ -18,16 +18,21 @@ export const PINCEIS = [
   // não deixar peixe encalhado no campo.
   { id: 'peixe',    nome: 'Peixe',   tipo: 'ser', ser: 'peixe', quantos: 6, cor: 0x7fb6c4, aquatico: true },
   { id: 'jacare',   nome: 'Jacaré',  tipo: 'ser', ser: 'jacare', quantos: 1, cor: 0x4f6b45, aquatico: true },
+  { id: 'capivara', nome: 'Capivara',tipo: 'ser', ser: 'capivara', quantos: 4, cor: 0x9c7648 },
+  { id: 'lebre',    nome: 'Lebre',   tipo: 'ser', ser: 'lebre', quantos: 5, cor: 0xc9b48c },
   { divisor: true },
   { id: 'fertil',   nome: 'Terra fértil', tipo: 'terreno', terreno: T.FERTIL },
   { id: 'campo',    nome: 'Campo',        tipo: 'terreno', terreno: T.GRAMA },
   { id: 'terra',    nome: 'Terra nua',    tipo: 'terreno', terreno: T.TERRA },
-  { id: 'floresta', nome: 'Floresta',     tipo: 'terreno', terreno: T.FLORESTA },
+  // Semente, não floresta pronta: o broto vira mata se a umidade deixar, e
+  // morre de sede se não deixar. Plantar num descampado seco não dá nada.
+  { id: 'semente',  nome: 'Semente',      tipo: 'terreno', terreno: T.BROTO },
   { id: 'agua',     nome: 'Água',         tipo: 'terreno', terreno: T.AGUA },
   { id: 'areia',    nome: 'Areia',        tipo: 'terreno', terreno: T.AREIA },
   { id: 'rocha',    nome: 'Rocha',        tipo: 'terreno', terreno: T.ROCHA },
   { id: 'montanha', nome: 'Montanha',     tipo: 'terreno', terreno: T.MONTANHA },
   { divisor: true },
+  { id: 'chuva',    nome: 'Chuva',   tipo: 'chuva', cor: 0x6ea8c9 },
   { id: 'apagar',   nome: 'Remover', tipo: 'apagar', cor: 0x6b6b66 },
 ];
 
@@ -260,11 +265,14 @@ function icone(id) {
     fertil: '<path d="M4 18c5-1 11-1 16 0M6 14c4-1 8-1 12 0M9 10c2-.5 4-.5 6 0"/><path d="M12 10V5m0 0-3 2m3-2 3 2"/>',
     campo: '<path d="M5 19c1-5 2-8 4-12m2 12c0-6 1-10 3-14m1 14c1-4 2-7 4-10"/>',
     terra: '<path d="M4 18c4-2 12-2 16 0M5 13c3 1 5 1 7 0s5-1 7 0M8 8h.01M15 7h.01"/>',
-    floresta: '<path d="m12 3-6 8h3l-4 6h14l-4-6h3Z"/><path d="M12 17v4"/>',
+    semente: '<path d="M12 21c0-5 1-8 4-10M12 21c0-4-1-6-3-8"/><path d="M16 5c2 3 1 6-2 6-2 0-3-2-2-4s3-2 4-2Z"/>',
     agua: '<path d="M12 3S6 10 6 14a6 6 0 0 0 12 0c0-4-6-11-6-11Z"/><path d="M9 15c1 2 3 3 5 2"/>',
     areia: '<circle cx="8" cy="9" r="1"/><circle cx="16" cy="7" r="1"/><circle cx="14" cy="15" r="1"/><path d="M4 19c5-2 11-2 16 0"/>',
     rocha: '<path d="m5 17 2-8 5-4 6 5 1 7-5 2-6-1Z"/><path d="m7 9 5 3 6-2"/>',
     montanha: '<path d="m3 19 7-13 3 5 2-3 6 11Z"/><path d="m8 10 2 2 2-2 1 1"/>',
+    capivara: '<path d="M5 15h9a4 4 0 0 0 4-4v-1h1M5 15v3m4-3v3m5-3v3"/><path d="M4 15v-3a3 3 0 0 1 3-3h7"/>',
+    lebre: '<path d="M7 18h7a3 3 0 0 0 3-3 3 3 0 0 0-3-3H9a2 2 0 0 0-2 2Z"/><path d="M14 12V7m3 5V8"/><path d="M7 18v2m7-2v2"/>',
+    chuva: '<path d="M7 15a4 4 0 0 1 .6-8 5 5 0 0 1 9.5 1.3A3.4 3.4 0 0 1 17 15Z"/><path d="M9 18l-1 3m4-3-1 3m4-3-1 3"/>',
     peixe: '<path d="M4 12c3-4 8-5 12-3l4-3-1 6 1 6-4-3c-4 2-9 1-12-3Z"/><circle cx="9" cy="11" r=".9"/>',
     jacare: '<path d="M3 14h10l4-3 4 1-3 3 3 1-4 1-4-1H4Z"/><path d="M8 12v-1m3 1v-1"/>',
     apagar: '<path d="m6 7 11 11m1-11L7 18"/><circle cx="12" cy="12" r="9"/>',

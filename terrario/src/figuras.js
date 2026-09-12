@@ -140,6 +140,30 @@ function rebanho() {
   ];
 }
 
+/** Capivara: baixa e roliça, focinho quadrado, sem rabo. Vive na margem. */
+function capivara() {
+  const pelo = 0x9c7648, escuro = 0x6f5231;
+  return [
+    P(0, 0.24, 0, 0.24, 0.22, 0.40, pelo, 'natural'),
+    P(0, 0.27, 0.26, 0.19, 0.17, 0.16, pelo, 'natural'),
+    P(0, 0.245, 0.35, 0.13, 0.10, 0.05, escuro, 'natural'),      // focinho chato
+    P(-0.07, 0.36, 0.28, 0.045, 0.04, 0.045, escuro, 'natural'), // orelhinhas
+    P(0.07, 0.36, 0.28, 0.045, 0.04, 0.045, escuro, 'natural'),
+  ];
+}
+
+/** Lebre: pequena, orelhas compridas, garupa alta. */
+function lebre() {
+  const pelo = 0xc9b48c, escuro = 0x8d7a58;
+  return [
+    P(0, 0.145, -0.02, 0.13, 0.13, 0.24, pelo, 'natural'),
+    P(0, 0.175, 0.15, 0.11, 0.10, 0.10, pelo, 'natural'),
+    P(-0.035, 0.30, 0.14, 0.035, 0.16, 0.05, pelo, 'natural', 0, 0, -0.14),   // orelhas
+    P(0.035, 0.30, 0.14, 0.035, 0.16, 0.05, pelo, 'natural', 0, 0, 0.14),
+    P(0, 0.15, -0.16, 0.06, 0.06, 0.05, escuro, 'natural'),      // rabinho
+  ];
+}
+
 /** Fera: mais baixa, mais comprida, focinho à frente e rabo esticado. */
 function predador() {
   const pelo = 0x6e4436, escuro = 0x4a2c22;
@@ -212,6 +236,15 @@ function jacare() {
   ];
 }
 
+/** Chama: três línguas de fogo empilhadas. Só aparece em tile que está ardendo. */
+function chama() {
+  return [
+    CONE(0, 0.22, 0, 0.30, 0.46, 5, 0xd95b23, 'natural'),
+    CONE(0.10, 0.30, 0.06, 0.16, 0.40, 5, 0xef8b2c, 'natural'),
+    CONE(-0.08, 0.34, -0.05, 0.12, 0.34, 5, 0xf6c344, 'natural'),
+  ];
+}
+
 /** Mourão de cerca: dois postes e duas travessas. O topo de um deles leva a cor
  *  da tribo — é o que faz dois currais vizinhos não virarem a mesma cerca. */
 function cerca() {
@@ -235,7 +268,9 @@ function espiga() {
 export const FIGURAS = {
   ...Object.fromEntries(Object.entries(HUMANOS).map(([k, f]) => [`humano:${k}`, f])),
   rebanho, predador, arvore, oca, moita, pedra, espiga, cerca, peixe, jacare,
+  capivara, lebre, chama,
   'rebanho:pata': pata(0x584a38), 'predador:pata': pata(0x4a2c22),
+  'capivara:pata': pata(0x6f5231), 'lebre:pata': pata(0x8d7a58),
 };
 
 /**

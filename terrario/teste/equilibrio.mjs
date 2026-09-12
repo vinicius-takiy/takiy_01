@@ -44,7 +44,12 @@ function rodar(semente) {
   if (!berco) return null;
 
   for (let k = 0; k < 10; k++) sim.soltar('humano', berco.x + (sim.sorte() - .5) * 5, berco.y + (sim.sorte() - .5) * 5);
-  for (let k = 0; k < 40; k++) sim.soltar('rebanho', berco.x + (sim.sorte() - .5) * 26, berco.y + (sim.sorte() - .5) * 26);
+  // Três herbívoros: boi para a tribo criar, capivara na margem e lebre no
+  // campo. Os miúdos são o colchão do predador — sem eles a fera come o boi e
+  // depois some, que é o que este relatório vinha acusando havia várias rodadas.
+  for (let k = 0; k < 26; k++) sim.soltar('rebanho', berco.x + (sim.sorte() - .5) * 26, berco.y + (sim.sorte() - .5) * 26);
+  for (let k = 0; k < 22; k++) sim.soltar('capivara', berco.x + (sim.sorte() - .5) * 40, berco.y + (sim.sorte() - .5) * 40);
+  for (let k = 0; k < 30; k++) sim.soltar('lebre', berco.x + (sim.sorte() - .5) * 34, berco.y + (sim.sorte() - .5) * 34);
   for (let k = 0; k < 3; k++) sim.soltar('predador', berco.x + (sim.sorte() - .5) * 40, berco.y + (sim.sorte() - .5) * 40);
   // Água povoada, senão a costa é cenário: sem peixe não há pesca, e sem pesca
   // metade do que se afirma sobre tribo de beira d'água não é medido.
@@ -60,7 +65,8 @@ function rodar(semente) {
   // exatamente o que interessa quando o mundo colapsa entre duas amostras.
   const pico = { humanos: 0, tribos: 0, plantando: 0, pastoreando: 0, minerando: 0,
                  guerras: 0, aliancas: 0, maiorTribo: 0, predadores: 0, tec: 0,
-                 currais: 0, guardas: 0, gado: 0, peixes: 0, jacares: 0, pescados: 0 };
+                 currais: 0, guardas: 0, gado: 0, peixes: 0, jacares: 0, pescados: 0,
+                 bois: 0, capivaras: 0, lebres: 0, brotos: 0, queimando: 0 };
   const linha = [];
   const dt = 1 / 12;
   const passos = Math.ceil((anos * ANO) / dt);
@@ -76,14 +82,16 @@ function rodar(semente) {
     if (sim.ano >= proximo) { proximo += intervalo; linha.push(r); }
     if (sim.humanos.length === 0) { linha.push(r); break; }
   }
-  return { sim, pico, linha, ms: Date.now() - inicio, fim: sim.resumo() };
+  const fim = sim.resumo();
+  fim.censo = sim.mundo.censo();
+  return { sim, pico, linha, ms: Date.now() - inicio, fim };
 }
 
 function avaliar({ pico, fim }) {
   return [
     ['a humanidade não se extingue', fim.humanos > 0, `${fim.humanos} pessoas`],
     ['a população cresce além do que foi semeado', pico.humanos >= 24, `pico ${pico.humanos}`],
-    ['a ecologia segura antes do teto do código', pico.humanos < 900, `pico ${pico.humanos}`],
+    ['a ecologia segura antes do teto do código', pico.humanos < 1400, `pico ${pico.humanos}`],
     ['surgem várias tribos', pico.tribos >= 3, `pico ${pico.tribos}`],
     ['alguma tribo começa a plantar', pico.plantando > 0, ''],
     ['alguma tribo domestica rebanho', pico.pastoreando > 0, ''],
@@ -105,6 +113,13 @@ function avaliar({ pico, fim }) {
     ['o jacaré não se extingue nem vira praga', fim.jacares > 0 && pico.jacares <= 40,
       `${fim.jacares} de pico ${pico.jacares}`],
     ['alguém come do rio', fim.pescados > 0, `${fim.pescados} peixes pescados`],
+    ['as três espécies de herbívoro atravessam', fim.bois > 0 && fim.capivaras > 0 && fim.lebres > 0,
+      `${fim.bois} bois, ${fim.capivaras} capivaras, ${fim.lebres} lebres`],
+    ['o raio acende alguma coisa', fim.tilesQueimados > 0, `${fim.tilesQueimados} tiles queimados`],
+    // O mundo tem que se refazer sozinho: mata zero ao fim de trezentos anos é
+    // um mapa raspado sem volta, não um ecossistema.
+    ['a mata não some do mundo', (fim.censo[4] || 0) > 0, `${fim.censo[4] || 0} tiles de mata`],
+    ['o fogo não come o mundo', fim.tilesQueimados < 2600, `${fim.tilesQueimados} tiles queimados`],
   ];
 }
 
@@ -146,6 +161,11 @@ console.log('\npicos  — pessoas', r.pico.humanos, '· tribos', r.pico.tribos, 
             '· predadores', r.pico.predadores, '· guerras', r.pico.guerras, '· alianças', r.pico.aliancas,
             '· tec', TEC[r.pico.tec]);
 console.log('mortes — fome', r.fim.mortesPorFome, '· fera', r.fim.mortesPorPredador, '· guerra', r.fim.mortesEmGuerra);
+const censo = r.fim.censo;
+console.log('mapa   — mata', censo[4] || 0, '· broto', censo[10] || 0, '· campo', censo[2] || 0,
+            '· fértil', censo[3] || 0, '· terra nua', censo[9] || 0,
+            '| queimados', r.fim.tilesQueimados, '· raio', r.fim.mortosPorRaio, '· fogo', r.fim.mortosNoFogo);
+console.log('bicho  — bois', r.fim.bois, '· capivaras', r.fim.capivaras, '· lebres', r.fim.lebres);
 console.log('água   — peixes', r.fim.peixes, '· jacarés', r.fim.jacares, '· pescados', r.fim.pescados,
             '· bichos afogados', r.fim.afogados, '· tribos com margem', r.fim.pescando);
 

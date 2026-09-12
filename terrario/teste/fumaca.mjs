@@ -100,9 +100,10 @@ const fertil = await pagina.evaluate(() => {
 checar('o pincel de terreno pinta o mundo', fertil > 60, `${fertil} tiles férteis`);
 await foto('terra-pintada');
 
-// mundo pelado não tem mata: sem pintar floresta não existe madeira, e sem
-// madeira a tribo nunca levanta abrigo
-await pagina.locator('.pincel[data-id=floresta]').click();
+// Mundo pelado não tem mata, e mata não se pinta pronta: planta-se semente e
+// espera-se ela beber. Sem madeira a tribo nunca levanta abrigo, então este
+// punhado de brotos é o que decide se a partida sai do lugar.
+await pagina.locator('.pincel[data-id=semente]').click();
 await pagina.locator('#raio').fill('5');
 await pagina.mouse.move(meio.x - 90, meio.y - 30);
 await pagina.mouse.down();
@@ -146,6 +147,14 @@ const depois = await estado();
 // mesmo commit passava e falhava conforme o que mais estivesse rodando. Cinco
 // ainda pega relógio parado, que é o defeito que esta linha existe para pegar.
 checar('o tempo corre', depois.ano > semeado.ano + 5, `ano ${depois.ano}`);
+const mata = await pagina.evaluate(() => {
+  const m = window.__terrario.sim.mundo;
+  let broto = 0, floresta = 0;
+  for (const t of m.terreno) { if (t === 10) broto++; else if (t === 4) floresta++; }
+  return { broto, floresta };
+});
+checar('o broto plantado vira mata com o tempo', mata.floresta > 0,
+       `${mata.floresta} de mata, ${mata.broto} ainda broto`);
 checar('surge tribo', depois.tribos >= 1, `${depois.tribos}`);
 checar('a crônica registra a história', await pagina.locator('#linhas p').count() > 0,
        `${await pagina.locator('#linhas p').count()} linhas`);
@@ -339,12 +348,17 @@ const agua = await pagina.evaluate(() => {
   for (let y = cy - 8; y <= cy + 8 && pares < 60; y++) {
     for (let x = cx - 8; x <= cx + 8 && pares < 60; x++) {
       if (!m.ehAgua(x, y)) continue;
+      // Menor degrau entre os vizinhos de terra, não o primeiro que aparecer:
+      // água empoça no ponto baixo, e se um dos lados for barranco de rocha o
+      // degrau grande é o certo. O que se afirma é que ela encosta em ALGUM
+      // lado — foi medindo o primeiro vizinho que isto acusou 0,52 num lago
+      // que, na foto, está rente à margem.
+      let menor = Infinity;
       for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
         if (!m.andavel(x + dx, y + dy)) continue;
-        soma += Math.abs(render.alturaDaLamina(m.idx(x, y)) - render.alturaColuna(m.idx(x + dx, y + dy)));
-        pares++;
-        break;
+        menor = Math.min(menor, Math.abs(render.alturaDaLamina(m.idx(x, y)) - render.alturaColuna(m.idx(x + dx, y + dy))));
       }
+      if (menor < Infinity) { soma += menor; pares++; }
     }
   }
   const antesPeixe = sim.peixes.length;
@@ -373,6 +387,68 @@ checar('peixe e jacaré aparecem em cena',
        agua.peixesEmCena > 0 && agua.jacaresEmCena > 0,
        `${agua.peixesEmCena} peixes, ${agua.jacaresEmCena} jacarés`);
 await foto('agua');
+
+// --- clima, semente e fogo ---
+const clima = await pagina.evaluate(() => {
+  const { sim, render } = window.__terrario;
+  const m = sim.mundo;
+  const t0 = sim.tribos[0];
+  const cx = t0 ? Math.max(8, Math.min(m.n - 9, Math.round(t0.cx) - 20)) : 20;
+  const cy = t0 ? Math.max(8, Math.min(m.n - 9, Math.round(t0.cy) - 20)) : 20;
+
+  // semente vira broto, não floresta pronta
+  sim.pintar(cx, cy, 3, { tipo: 'terreno', terreno: 10 });   // T.BROTO
+  let brotos = 0;
+  for (const tipo of m.terreno) if (tipo === 10) brotos++;
+
+  // chuva molha o chão e enche a nuvem
+  const antesUmido = m.umidade[m.idx(cx, cy)];
+  sim.pintar(cx, cy, 4, { tipo: 'chuva' });
+  for (let k = 0; k < 40; k++) sim.tique(1 / 12);
+  const depoisUmido = m.umidade[m.idx(cx, cy)];
+
+  // Fogo aceso à mão, para conferir o desenho. Precisa de coisa que queime: num
+  // mundo pelado o chão é terra nua, e terra nua não pega — o teste dizia "não
+  // acendeu" quando o certo era "não havia o que acender".
+  const seco = m.idx(cx + 6, cy + 6);
+  m.definir(seco, 4);                        // T.FLORESTA
+  m.umidade[seco] = 0.02;
+  const acendeu = m.atear(seco) || m.queimando.size > 0;
+  render.atualizarSeres(sim, 0.016);
+  return {
+    brotos, acendeu, ardendo: m.queimando.size,
+    chuva: depoisUmido - antesUmido,
+    chamas: render.figuras.get('chama').natural.count,
+    bichos: {
+      capivara: render.figuras.get('capivara').natural.count,
+      lebre: render.figuras.get('lebre').natural.count,
+    },
+  };
+});
+checar('o pincel de semente planta broto, não floresta pronta',
+       clima.brotos > 10, `${clima.brotos} brotos`);
+checar('chuva molha o chão', clima.chuva > 0.05, `umidade subiu ${clima.chuva.toFixed(2)}`);
+checar('fogo acende e aparece em cena', clima.acendeu && clima.chamas > 0,
+       `${clima.ardendo} tiles ardendo, ${clima.chamas} chamas`);
+
+// os três herbívoros, cada um com o próprio boneco
+const fauna = await pagina.evaluate(() => {
+  const { sim, render, cam } = window.__terrario;
+  for (let k = 0; k < 6; k++) {
+    sim.soltar('capivara', cam.alvo.x + k - 3, cam.alvo.z + 1);
+    sim.soltar('lebre', cam.alvo.x + k - 3, cam.alvo.z - 1);
+  }
+  render.atualizarSeres(sim, 0.016);
+  const n = (k) => render.figuras.get(k).natural.count;
+  return { boi: n('rebanho'), capivara: n('capivara'), lebre: n('lebre'),
+           patas: n('capivara:pata') + n('lebre:pata') };
+});
+checar('os três herbívoros têm bonecos diferentes',
+       fauna.boi > 0 && fauna.capivara > 0 && fauna.lebre > 0,
+       `${fauna.boi} bois, ${fauna.capivara} capivaras, ${fauna.lebre} lebres`);
+checar('os miúdos também andam com pata', fauna.patas === (fauna.capivara + fauna.lebre) * 4,
+       `${fauna.patas} patas`);
+await foto('clima-e-fauna');
 
 // --- painéis que encolhem: a tela é o jogo ---
 const naTela = (sel) => pagina.locator(sel).isVisible();

@@ -15,9 +15,31 @@ const VEL = 2.4;                 // tiles por segundo de simulação
 // A fera precisa ser mais rápida que a presa E que o humano. Com 1,9 ela era
 // mais lenta que os dois e morria de fome perseguindo o almoço a pé.
 const VEL_FERA = 3.4;
-// O herbívoro existe para ser caçado e domesticado. Apetite alto o transforma
-// em concorrente do forrageio humano, e aí ele mata os bandos de fome.
-const PASTAGEM = 0.12;
+/**
+ * Herbívoros. Um bicho grande só não sustenta cadeia nenhuma: ele come muito,
+ * cria devagar e, quando a fera o encontra, some. Os miúdos são o colchão —
+ * comem pouco, criam rápido e morrem cedo, que é o que mantém o predador vivo
+ * entre uma boiada e outra.
+ *
+ * `apetite` é forragem por ano; alto demais transforma o bicho em concorrente
+ * do forrageio humano e ele mata os bandos de fome.
+ */
+export const ESPECIES = {
+  gado: {
+    nome: 'Gado', escala: 1, escalaDesenho: 1, vel: 1.1, apetite: 0.12, carne: 2.6,
+    cria: 3.5, vida: 12, varVida: 6, domesticavel: true, beiraDagua: false,
+  },
+  capivara: {
+    // `escala` pesa esterco e carne; `escalaDesenho` é só o tamanho na tela, e
+    // é separado porque a geometria da capivara já nasce menor que a do boi.
+    nome: 'Capivara', escala: 0.62, escalaDesenho: 0.92, vel: 1.3, apetite: 0.055, carne: 1.5,
+    cria: 1.8, vida: 7, varVida: 4, domesticavel: false, beiraDagua: true,
+  },
+  lebre: {
+    nome: 'Lebre', escala: 0.4, escalaDesenho: 0.85, vel: 1.55, apetite: 0.03, carne: 0.9,
+    cria: 1.0, vida: 4, varVida: 3, domesticavel: false, beiraDagua: false,
+  },
+};
 const MAIORIDADE = 18;
 const FOME_POR_ANO = 0.52;
 const FOME_CRITICA = 0.55;       // acima disto largar tudo e comer
@@ -450,21 +472,26 @@ export class Humano {
 
 // ---------------------------------------------------------------- rebanhos
 export class Rebanho {
-  constructor(x, y, sorte = Math.random) {
+  constructor(x, y, sorte = Math.random, especie = 'gado') {
+    this.especie = ESPECIES[especie] ? especie : 'gado';
+    const e = ESPECIES[this.especie];
     this.x = x; this.y = y;
-    this.idade = sorte() * 4;
-    this.expectativa = 12 + sorte() * 6;
+    this.idade = sorte() * e.vida * 0.4;
+    this.expectativa = e.vida + sorte() * e.varVida;
     this.domesticado = false;
     this.conduzido = null;         // humano que está tocando este bicho
     this.panico = 0;               // anos de susto; em pânico o bicho entra na água
     this.afogando = 0;
     this.tribo = null;
     this.alvo = null;
-    this.descanso = 2 + sorte() * 3;
+    this.descanso = e.cria * (0.6 + sorte());
     this.viva = true;
   }
 
+  get tipo() { return ESPECIES[this.especie]; }
+
   atualizar(dt, sim) {
+    const e = ESPECIES[this.especie];
     const anos = dt / ANO;
     this.idade += anos;
     this.descanso = Math.max(0, this.descanso - anos);
@@ -509,9 +536,12 @@ export class Rebanho {
     // Pasta o que tem debaixo do pé. `saciado` é a fração do apetite atendida,
     // com memória de pouco mais de um ano — antes era uma soma sem escala clara,
     // e o rebanho oscilava entre bater no teto e sumir do mundo inteiro.
-    const apetite = anos * PASTAGEM;
+    const apetite = anos * e.apetite;
     const pasto = Math.min(mundo.comida[i], apetite);
     mundo.comida[i] -= pasto;
+    // esterco: onde o rebanho fica, a terra melhora. É o que faz o campo
+    // avançar em volta da manada em vez de o mapa ser um desenho parado.
+    mundo.nutriente[i] = Math.min(1, mundo.nutriente[i] + anos * 0.30 * e.escala);
     const fracao = apetite > 0 ? pasto / apetite : 1;
     const memoria = Math.min(1, anos * 0.8);
     this.saciado = (this.saciado ?? 0.7) * (1 - memoria) + fracao * memoria;
@@ -539,8 +569,8 @@ export class Rebanho {
     // num raio de cinco. É o que faz o rebanho crescer onde está junto (dentro
     // do curral, por exemplo) e minguar onde ficou espalhado.
     if (this.descanso <= 0 && this.saciado > 0.5 && !cabeExcesso
-        && sim.rebanhos.length < sim.tetoRebanho && sim.manadaAoRedor(this) >= 2) {
-      this.descanso = 3.5 + sim.sorte() * 4;
+        && sim.manadaAoRedor(this) >= 2) {
+      this.descanso = e.cria * (0.85 + sim.sorte() * 0.9);
       sim.nascerRebanho(this);
     }
 
@@ -600,16 +630,24 @@ export class Rebanho {
         }
         if (n) { cx = (sx / n + this.x) / 2; cy = (sy / n + this.y) / 2; raio = 5; }
       }
-      for (let k = 0; k < 6; k++) {
+      // Capivara não se afasta da água. É o que dá à margem uma fauna própria,
+      // e é o que põe presa ao alcance do jacaré sem eu ter que empurrar bicho
+      // para dentro do rio.
+      const querMargem = e.beiraDagua && !curral;
+      let escolha = null;
+      for (let k = 0; k < 7; k++) {
         const a = sim.sorte() * Math.PI * 2, d = sim.sorte() * raio;
         const x = Math.round(cx + Math.cos(a) * d), y = Math.round(cy + Math.sin(a) * d);
-        if (mundo.andavel(x, y)) { this.alvo = { x, y }; break; }
+        if (!mundo.andavel(x, y)) continue;
+        if (!escolha) escolha = { x, y };
+        if (!querMargem || mundo.naMargem(x, y)) { escolha = { x, y }; break; }
       }
+      if (escolha) this.alvo = escolha;
     }
     // em pânico a água deixa de ser parede: é assim que o bicho fugindo acaba
     // no rio, e é de propósito
     const passavel = this.panico > 0 ? (x, y) => mundo.andavel(x, y) || mundo.ehAgua(x, y) : null;
-    if (this.alvo) mover(this, this.alvo, 1.1 * dt, mundo, passavel);
+    if (this.alvo) mover(this, this.alvo, e.vel * dt, mundo, passavel);
   }
 }
 
@@ -752,12 +790,15 @@ export class Peixe {
 
     if (!this.alvo || Math.hypot(this.alvo.x - this.x, this.alvo.y - this.y) < 0.5) {
       // nada junto do cardume, e só onde há água
+      // Média de TODOS os vizinhos, não dos oito primeiros. O índice espacial
+      // devolve célula por célula, então "os oito primeiros" são os de um canto
+      // só: o centro puxava sempre para o mesmo lado e o cardume ia embora do
+      // mapa. Com a lista linear o viés não aparecia; com o índice, sim.
       let n = 0, sx = 0, sy = 0;
-      for (const o of sim.peixes) {
+      for (const o of sim.perto(this.x, this.y, 7, 'peixes')) {
         if (o === this || !o.viva) continue;
         if (Math.hypot(o.x - this.x, o.y - this.y) > 7) continue;
         sx += o.x; sy += o.y; n++;
-        if (n > 8) break;
       }
       const cx = n ? (sx / n + this.x) / 2 : this.x;
       const cy = n ? (sy / n + this.y) / 2 : this.y;
@@ -786,7 +827,10 @@ export class Jacare {
   constructor(x, y, sorte = Math.random) {
     this.x = x; this.y = y;
     this.idade = sorte() * 3;
-    this.expectativa = 16 + sorte() * 8;
+    // Jacaré é bicho de vida longa, e aqui isso é o que segura a espécie: com
+    // 16 a 24 anos ele mal chegava a duas ninhadas e sumia por azar em quatro
+    // das cinco sementes.
+    this.expectativa = 26 + sorte() * 14;
     // metabolismo lento de propósito: jacaré que precisa comer toda hora limpa
     // o cardume e morre junto, o mesmo colapso que a fera de terra já deu
     this.fome = sorte() * 0.4;
@@ -824,7 +868,7 @@ export class Jacare {
         // Três refeições, não cinco. Uma delas sustenta o jacaré por três anos,
         // então cinco eram dezesseis anos — quase a vida inteira dele — e a
         // espécie vivia de dois ou três indivíduos, morrendo por azar.
-        if (this.fartas >= 3 && this.idade > 3) { this.fartas = 0; sim.nascerJacare(this); }
+        if (this.fartas >= 2 && this.idade > 3) { this.fartas = 0; sim.nascerJacare(this); }
         this.presa = null;
       } else {
         const antes = this.x + this.y;
