@@ -51,7 +51,7 @@ function rodar(semente) {
   // exatamente o que interessa quando o mundo colapsa entre duas amostras.
   const pico = { humanos: 0, tribos: 0, plantando: 0, pastoreando: 0, minerando: 0,
                  guerras: 0, aliancas: 0, maiorTribo: 0, predadores: 0, tec: 0,
-                 currais: 0, guardas: 0 };
+                 currais: 0, guardas: 0, gado: 0 };
   const linha = [];
   const dt = 1 / 12;
   const passos = Math.ceil((anos * ANO) / dt);
@@ -79,6 +79,9 @@ function avaliar({ pico, fim }) {
     ['alguma tribo começa a plantar', pico.plantando > 0, ''],
     ['alguma tribo domestica rebanho', pico.pastoreando > 0, ''],
     ['alguma tribo ergue curral', pico.currais > 0, `pico ${pico.currais}`],
+    // Bicho não entra em curral sozinho: gado no rebanho da tribo prova a
+    // corrente inteira — cerca de pé, alguém foi buscar e trouxe tocando.
+    ['alguém conduz bicho para dentro da cerca', pico.gado > 0, `pico ${pico.gado}`],
     // guarda é o segundo degrau: só aparece quando já há cerca para rondar ou
     // fronteira em guerra. Zero aqui quer dizer que a tribo nunca amadureceu.
     ['a cerca ganha quem a ronde', pico.guardas > 0, `pico ${pico.guardas}`],

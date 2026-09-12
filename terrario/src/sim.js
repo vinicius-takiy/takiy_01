@@ -100,6 +100,31 @@ export class Simulacao {
   }
 
   presaPerto(x, y, raio) { return this.maisPerto(x, y, raio, 'rebanhos', (r) => r.viva); }
+  /** Quantos outros bichos vivos há à volta. É o que autoriza reprodução: bicho
+   *  solto no mapa não faz manada, e manada é o que se multiplica. */
+  manadaAoRedor(r, raio = 5) {
+    let n = 0;
+    for (const o of this.perto(r.x, r.y, raio, 'rebanhos')) {
+      if (o !== r && o.viva && Math.hypot(o.x - r.x, o.y - r.y) <= raio) n++;
+    }
+    return n;
+  }
+
+  /** Bicho selvagem que vale a pena ir buscar: perto do condutor e perto o
+   *  bastante do curral para a viagem terminar antes de dar fome nele. */
+  bichoSoltoPerto(h, t) {
+    const c = t.curral;
+    if (!c) return null;
+    let melhor = null, md = 13;
+    for (const r of this.rebanhos) {
+      if (!r.viva || r.domesticado || r.conduzido) continue;
+      if (Math.hypot(r.x - c.x, r.y - c.y) > c.raio + 18) continue;
+      const d = Math.hypot(r.x - h.x, r.y - h.y);
+      if (d < md) { md = d; melhor = r; }
+    }
+    return melhor;
+  }
+
   /** Fera rondando a cerca. Um pouco além dela: o guarda sai ao encontro. */
   feraNoCurral(t) {
     const c = t.curral;
@@ -391,6 +416,39 @@ export class Simulacao {
         else this.cronica(`${t.nome} amplia o curral`, t, 'curral', true);
         break;
       }
+      case 'arrebanhar': {
+        // pega o bicho e passa a tocá-lo até o curral; quem entrega é 'recolher'
+        if (!t || !t.curral || h.conduzindo) break;
+        let bicho = null, md = 2.4;
+        for (const r of this.rebanhos) {
+          if (!r.viva || r.domesticado || r.conduzido) continue;
+          const d = Math.hypot(r.x - h.x, r.y - h.y);
+          if (d < md) { md = d; bicho = r; }
+        }
+        if (!bicho) break;
+        // bicho selvagem se assusta: nem toda tentativa pega
+        if (this.sorte() > 0.55 + rende(h, 'arrebanhar') * 0.2) {
+          const a = Math.atan2(bicho.y - h.y, bicho.x - h.x);
+          bicho.alvo = { x: Math.round(bicho.x + Math.cos(a) * 7), y: Math.round(bicho.y + Math.sin(a) * 7) };
+          break;
+        }
+        bicho.conduzido = h;
+        h.conduzindo = bicho;
+        h.alvo = { x: Math.round(t.curral.x), y: Math.round(t.curral.y), obra: 'recolher' };
+        break;
+      }
+      case 'recolher': {
+        const bicho = h.conduzindo;
+        h.conduzindo = null;
+        if (!bicho) break;
+        bicho.conduzido = null;
+        if (!bicho.viva || !t || !t.dentroDoCurral(bicho.x, bicho.y)) break;
+        bicho.domesticado = true;
+        bicho.tribo = t;
+        t.cabecas++;
+        this.cronica(`${t.nome} recolhe o primeiro rebanho ao curral`, t, 'pecuaria', true);
+        break;
+      }
       case 'vigiar': {
         // O plantão em si não produz nada: o efeito do guarda está em estar ali
         // quando a fera chega, e em pesar na força da tribo contra vizinho.
@@ -600,7 +658,7 @@ export class Simulacao {
       // guarda não vem do balde do jogador: ele nasce da tribo que já tem cerca
       // ou fronteira quente. Soltar guarda num bando de cinco é pôr uma boca a
       // mais sem nada para vigiar.
-      const balde = CHAVES_VOCACAO.filter((k) => k !== 'guarda');
+      const balde = CHAVES_VOCACAO.filter((k) => k !== 'guarda' && k !== 'pastor');
       h.dom = balde[(this.sorte() * balde.length) | 0];
       this.humanos.push(h);
     } else if (especie === 'rebanho') {
@@ -624,6 +682,7 @@ export class Simulacao {
       plantando: this.tribos.filter((t) => t.temPlantacao).length,
       pastoreando: this.tribos.filter((t) => t.temPasto).length,
       currais: this.tribos.filter((t) => t.curral).length,
+      gado: this.tribos.reduce((n, t) => n + t.cabecas, 0),
       guardas: this.tribos.reduce((n, t) => n + t.guardas, 0),
       ferasAbatidasNaCerca: this.ferasAbatidasNaCerca,
       guardasMortos: this.guardasMortos,

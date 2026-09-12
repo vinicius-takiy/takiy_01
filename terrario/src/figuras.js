@@ -68,6 +68,14 @@ const HUMANOS = {
     P(-0.232, 0.40, 0.09, 0.028, 0.56, 0.028, MADEIRA, 'natural', 0, 0, -0.22),
     P(-0.30, 0.66, 0.09, 0.30, 0.045, 0.045, 0x6f7480, 'natural', 0, 0, 0.42),
   ],
+  pastor: () => [
+    ...esqueletoHumano(),
+    P(0, 0.745, 0, 0.20, 0.06, 0.20, 0xb6a077, 'natural'),         // touca de lã
+    P(0, 0.775, 0, 0.13, 0.04, 0.13, 0xb6a077, 'natural'),
+    P(0.238, 0.50, 0.03, 0.026, 1.06, 0.026, MADEIRA, 'natural'),  // cajado
+    P(0.238, 1.00, 0.03, 0.026, 0.10, 0.09, MADEIRA, 'natural', 0.9),  // gancho
+    P(-0.14, 0.34, -0.10, 0.16, 0.15, 0.09, COURO, 'natural', 0, 0, 0.2),  // bornal
+  ],
   guarda: () => [
     ...esqueletoHumano(),
     P(0, 0.758, 0, 0.225, 0.09, 0.225, METAL, 'natural'),          // elmo

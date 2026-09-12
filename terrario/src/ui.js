@@ -224,7 +224,7 @@ export class Interface {
     // abreviado de propósito: por extenso isto virava três linhas e o painel
     // crescia até cobrir a fita de tribos
     const CURTO = { lavrador: 'lav', cacador: 'caç', construtor: 'con', minerador: 'min',
-                    lider: 'líd', guarda: 'gua' };
+                    lider: 'líd', guarda: 'gua', pastor: 'pas' };
     const gente = CHAVES_VOCACAO.filter((k) => conta[k])
       .map((k) => `${conta[k]} ${CURTO[k]}`).join(' · ');
     dl.innerHTML = linhas([

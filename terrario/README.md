@@ -45,11 +45,12 @@ cheio de lavrador atravessa a seca com o celeiro cheio.
 | **Minerador** | Rende o dobro na mina | Carrega picareta |
 | **Líder** | Não faz nada melhor com as mãos. Muda a tribo: técnica 22% mais barata, aliança bem mais provável, guerra menos, e a tribo demora mais para rachar | Usa adorno de cabeça |
 | **Guarda** | Quase o dobro em combate, e é o único que enfrenta a fera na cerca. Planta e colhe mal | Lança e escudo na cor da tribo |
+| **Pastor** | Vai buscar bicho solto e traz tocando; tira quase o dobro do rebanho. Caça e minera mal | Cajado de gancho e bornal |
 
-O guarda é o único dom que **não** sai do balde do jogador: soltar um guarda num
-bando de cinco é pôr uma boca a mais sem nada para vigiar. Ele nasce quando a
-tribo já tem cerca para rondar ou fronteira em guerra — 10% da gente, 16% se as
-duas coisas ao mesmo tempo, e praticamente nenhum numa tribo em paz e sem gado.
+Guarda e pastor são os dois dons que **não** saem do balde do jogador: o pastor
+só existe onde há cerca (13% da gente), e o guarda, onde há cerca para rondar ou fronteira em
+guerra — 10% da gente, 16% com as duas coisas. Soltar um guarda num bando de
+cinco é pôr uma boca a mais sem nada para vigiar.
 
 Quem nasce puxa a vocação de um dos pais em cerca de um terço das vezes; no
 resto, a tribo preenche a lacuna que tem. Herdar sempre engessaria a tribo numa
@@ -108,6 +109,68 @@ trava de abrigo, a maioria passou a morrer de velhice, perto dos setenta.
 A **crônica**, no canto direito, é onde tudo isso vira história. Ela não é
 enfeite: você não vê um humano decidir plantar, você lê "Ocre começa a plantar".
 
+## A ordem do assentamento
+
+Não é uma lista de tarefas escrita em lugar nenhum: é a ordem em que as opções
+ficam mais baratas que as outras. Mas ela tem uma forma, e é esta:
+
+**lavoura → casa → clareira → cerca e mina.**
+
+1. **Lavoura primeiro.** É a única saída da subsistência. Quem passa o dia
+   catando raiz não corta lenha, e sem lenha não há casa.
+2. **Casa em seguida**, antes de encher o celeiro — é o abrigo que trava o
+   crescimento, não a comida. Mas nunca antes de comer: com menos de 2,4 de
+   celeiro por cabeça, a lenha espera.
+3. **Clareira.** Com duas ocas de pé, a lenha passa a sair de perto de casa em
+   vez de onde estiver mais à mão. A floresta recua num anel em volta da aldeia
+   — e clareira é campo de visão: o guarda vê a fera chegando em vez de ela sair
+   de trás de uma árvore colada na cerca.
+4. **Cerca e mina por último**, as duas depois do telhado. A cerca sai da mesma
+   lenha da oca.
+
+Duas coisas que a tribo aprendeu a não fazer, e as duas custaram um mundo no
+teste:
+
+- **Cercar antes de se abrigar** (semente 1234, extinta no ano 25 com a cerca de
+  pé e nenhuma oca).
+- **Ir toda para a guerra.** Guerra na fronteira interrompe o trabalho, mas só
+  do guarda e de um em cada três dos outros — e de ninguém com fome. Com a tribo
+  inteira em armas ninguém colhe: o celeiro de cento e cinquenta virava catorze
+  em dez anos e a semente 7 se extinguia no ano 192 **sem perder uma batalha**.
+  Pelo mesmo motivo, falta de teto não põe a aldeia inteira para construir ao
+  mesmo tempo: trinta e três das cinquenta e uma pessoas de uma vez, e nenhuma
+  na roça.
+
+## Bicho não entra em curral sozinho
+
+Antes bastava um bicho selvagem passar por território com pasto e ele virava
+criação. Rebanho entrando por conta própria no curral e se cadastrando como
+gado — que é exatamente o que nenhum animal faz.
+
+Agora alguém tem que **ir buscar**. Um adulto (o pastor, quase o dobro das
+vezes) escolhe um bicho solto perto da cerca, vai até ele e tenta laçar — nem
+toda tentativa pega, e o que escapa dispara para longe. Pegou, o bicho passa a
+seguir quem o conduz, um pouco mais rápido que a pessoa para não ficar para
+trás, e só vira criação quando os dois chegam **dentro** da cerca. Quem larga
+tudo para comer larga o bicho também.
+
+Isso ficou junto das obras opcionais e com dado, não na frente da roça. Na
+frente, virou vício: dezessete das vinte e quatro pessoas passavam o dia atrás
+de boi, as roças caíam de vinte e três para zero e a tribo morria de velha com o
+celeiro cheio.
+
+## Bicho sozinho não se multiplica
+
+A reprodução só olhava a barriga. Três animais largados em três cantos do mapa
+viravam trinta em uma década, cada um multiplicando sozinho. Agora precisa de
+**manada**: dois vizinhos num raio de cinco tiles. É o que faz o rebanho crescer
+onde está junto — dentro do curral, por exemplo — e minguar onde ficou espalhado.
+
+E bicho selvagem passou a **andar junto do bando**: ao escolher para onde ir, ele
+puxa para o meio dos vizinhos em vez de sortear no vazio. Sem isso o punhado que
+você solta se dispersa em uma década e, como manada é o que se reproduz, o
+rebanho sumia do mundo sem ninguém caçar.
+
 ## Curral e guarda
 
 Pasto não é mais um tile pintado: é uma **volta de cerca** com mourões desenhados
@@ -132,7 +195,10 @@ uma tribo que não conseguiu aliança ainda assim segurar a fronteira.
 ## Controles
 
 - **Um dedo** pinta, quando há pincel escolhido na paleta; arrasta o mapa quando
-  não há. Tocar o mesmo pincel de novo o desliga.
+  não há. Tocar o mesmo pincel de novo o desliga. O arraste estava girado
+  noventa graus — o dedo na horizontal subia e descia o mapa, porque a conta
+  usava o azimute cru em vez da base da câmera. Agora o mundo anda para onde o
+  dedo vai.
 - **Dois dedos** giram, inclinam e aproximam.
 - **Tocar sem pincel** abre o inspetor: quem é a tribo dali, o que ela tem no
   celeiro, com quem está em guerra.

@@ -176,6 +176,38 @@ const depoisCam = await pagina.evaluate(() => {
   const c = window.__terrario.cam; return { d: c.distancia, x: c.alvo.x, z: c.alvo.z };
 });
 checar('a roda aproxima a câmera', depoisCam.d < antesCam.d, `${antesCam.d.toFixed(0)} → ${depoisCam.d.toFixed(0)}`);
+// O eixo do arraste, conferido contra a câmera de verdade e não contra a minha
+// própria conta: a direita da tela é (-fz, fx) do vetor para onde a câmera olha.
+// Estava girado noventa graus — o dedo na horizontal subia e descia o mapa.
+const arraste = await pagina.evaluate(() => {
+  const { cam } = window.__terrario;
+  const alvo = () => ({ x: cam.alvo.x, z: cam.alvo.z });
+  // frente da câmera no chão, tirada da própria posição dela
+  const fx = cam.alvo.x - cam.cam.position.x, fz = cam.alvo.z - cam.cam.position.z;
+  const nf = Math.hypot(fx, fz) || 1;
+  const frente = { x: fx / nf, z: fz / nf };
+  const direita = { x: -frente.z, z: frente.x };
+  const medir = (dx, dy) => {
+    const a = alvo();
+    cam.arrastar(dx, dy);
+    const m = { x: cam.alvo.x - a.x, z: cam.alvo.z - a.z };
+    const n = Math.hypot(m.x, m.z) || 1;
+    return { aoLado: (m.x * direita.x + m.z * direita.z) / n,
+             aFrente: (m.x * frente.x + m.z * frente.z) / n };
+  };
+  cam.alvo.set(40, 0, 40); cam.aplicar();
+  const horizontal = medir(90, 0);
+  cam.alvo.set(40, 0, 40); cam.aplicar();
+  const vertical = medir(0, 90);
+  return { horizontal, vertical };
+});
+checar('dedo na horizontal corre o mapa de lado, não para cima',
+       arraste.horizontal.aoLado < -0.98,
+       `de lado ${arraste.horizontal.aoLado.toFixed(2)}, para a frente ${arraste.horizontal.aFrente.toFixed(2)}`);
+checar('dedo na vertical corre o mapa para frente, não de lado',
+       arraste.vertical.aFrente > 0.98,
+       `para a frente ${arraste.vertical.aFrente.toFixed(2)}, de lado ${arraste.vertical.aoLado.toFixed(2)}`);
+
 checar('arrastar sem pincel move o mapa',
        Math.hypot(depoisCam.x - antesCam.x, depoisCam.z - antesCam.z) > 1,
        `andou ${Math.hypot(depoisCam.x - antesCam.x, depoisCam.z - antesCam.z).toFixed(1)}`);
@@ -264,8 +296,15 @@ checar('a mata pintada vira madeira na tribo', madeira.lenha > 0 || madeira.ocas
        `${madeira.lenha.toFixed(0)} de lenha, ${madeira.ocas} ocas`);
 
 // --- bichos com pata: quatro por bicho, em trote, e olhando para onde andam ---
+// Solta bicho na hora: o que se mede aqui é o desenho, e a esta altura da
+// partida o rebanho da rodada pode já ter virado jantar. Sem isto a checagem
+// passava com zero patas para zero bichos, que é passar sem olhar nada.
 const patas1 = await pagina.evaluate(() => {
-  const { sim, render } = window.__terrario;
+  const { sim, render, cam } = window.__terrario;
+  for (let k = 0; k < 8; k++) {
+    sim.soltar('rebanho', cam.alvo.x + (k % 4) * 1.5 - 2, cam.alvo.z + Math.floor(k / 4) * 1.5 - 1);
+  }
+  render.atualizarSeres(sim, 0.016);
   const f = render.figuras.get('rebanho:pata').natural;
   return { vivos: sim.rebanhos.filter((r) => r.viva).length, patas: f.count,
            matriz: Array.from(f.instanceMatrix.array.slice(0, 48)) };
@@ -275,7 +314,8 @@ const patas2 = await pagina.evaluate(() => {
   const f = window.__terrario.render.figuras.get('rebanho:pata').natural;
   return Array.from(f.instanceMatrix.array.slice(0, 48));
 });
-checar('cada bicho anda com quatro patas', patas1.patas === patas1.vivos * 4,
+checar('há bicho em cena para conferir', patas1.vivos > 0, `${patas1.vivos} bichos`);
+checar('cada bicho anda com quatro patas', patas1.vivos > 0 && patas1.patas === patas1.vivos * 4,
        `${patas1.patas} patas para ${patas1.vivos} bichos`);
 checar('a pata se mexe entre um quadro e outro',
        patas1.matriz.some((v, i) => Math.abs(v - patas2[i]) > 0.0005));

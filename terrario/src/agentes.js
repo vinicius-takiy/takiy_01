@@ -35,6 +35,8 @@ const OBRA = {
   cacar:     { dur: 0.45 },
   arar:      { dur: 0.45 },
   cercar:    { dur: 0.5 },
+  arrebanhar:{ dur: 0.3 },
+  recolher:  { dur: 0.2 },
   vigiar:    { dur: 0.4 },
   enfrentar: { dur: 0.22 },
   minerar:   { dur: 0.4, minerio: 2.2 },
@@ -59,13 +61,22 @@ export class Humano {
     this.progresso = 0;
     this.travado = 0;
     this.descanso = 0;             // anos até poder gerar outro filho
+    this.conduzindo = null;        // bicho que está sendo tocado para o curral
     this.viva = true;
     this.causa = null;
   }
 
   get adulto() { return this.idade >= MAIORIDADE; }
 
-  morrer(causa) { this.viva = false; this.causa = causa; }
+  morrer(causa) { this.viva = false; this.causa = causa; this.largarBicho(); }
+
+  /** Solta o bicho que estava conduzindo. Sem isto, condutor morto ou distraído
+   *  deixa o animal seguindo um fantasma pelo resto da vida. */
+  largarBicho() {
+    if (!this.conduzindo) return;
+    this.conduzindo.conduzido = null;
+    this.conduzindo = null;
+  }
 
   atualizar(dt, sim) {
     const anos = dt / ANO;
@@ -83,6 +94,9 @@ export class Humano {
     if (this.fome > 0.8 && (this.alvo || this.obra) && this.tribo && this.tribo.celeiro >= 1) {
       this.alvo = null;
       this.obra = null;
+      // quem larga tudo para comer larga o bicho também, senão ele fica preso a
+      // um condutor que nunca mais vai para o curral
+      this.largarBicho();
     }
 
     if (this.obra) return this.trabalhar(anos, sim);
@@ -115,8 +129,14 @@ export class Humano {
       return this.vagar(sim);
     }
 
-    // 2. guerra na fronteira tem precedência sobre obra
-    if (this.adulto && this.inimigoPerto(sim)) {
+    // 2. Guerra na fronteira tem precedência sobre obra — mas não para todo
+    //    mundo. Com a tribo inteira em armas ninguém colhe, e o celeiro de
+    //    cento e cinquenta vira catorze em dez anos: a fome mata muito mais que
+    //    o inimigo, e foi assim que a semente 7 se extinguiu no ano 192 sem
+    //    perder uma batalha. Guarda vai sempre, é o ofício; o resto vai um em
+    //    cada três, e ninguém vai de barriga vazia.
+    if (this.adulto && !t.faminta && this.inimigoPerto(sim)
+        && (this.dom === 'guarda' || sim.sorte() < 0.3)) {
       this.alvo = { x: this.x, y: this.y, obra: 'lutar' };
       return;
     }
@@ -130,11 +150,34 @@ export class Humano {
     }
 
     if (this.adulto) {
-      // 3. as três viradas de chave, mesmo com a tribo pobre
+      // 3. Lavoura antes de tudo: é a única saída da subsistência, e sem ela
+      //    nem casa se levanta — quem passa o dia catando raiz não corta lenha.
       if (!t.temPlantacao && t.pop >= 2 && this.acharFertil(sim)) { this.alvo.obra = 'arar'; return; }
-      // cerca depois do telhado: a mesma lenha levanta as duas coisas, e uma
-      // tribo que cercou o pasto antes de se abrigar fica sem oca, para de ter
-      // filho e morre de velha — foi o que a semente 1234 fez na primeira vez
+    }
+
+    // 3b. Casa. A ordem do assentamento é essa e nesta ordem: lavoura de pé,
+    //     depois telhado, e só então cerca e mina. Abrigo vem antes de encher o
+    //     celeiro porque é ele que trava o crescimento — mas nunca antes de
+    //     comer: com menos de 2,4 por cabeça, lenha espera.
+    //     Falta de teto é condição da tribo inteira, então sem dado a tribo
+    //     inteira vai construir junto: trinta e três das cinquenta e uma pessoas
+    //     de uma vez, e ninguém na roça. Construtor vai quase sempre; os outros,
+    //     metade das vezes.
+    if (this.adulto && !t.temVagaEmCasa && t.porHabitante > 2.4
+        && sim.sorte() < 0.5 * rende(this, 'construir')) {
+      if (t.madeira >= t.custoDaOca(MADEIRA_OCA)) {
+        const s = sim.sitioDeOca(t);
+        if (s) { this.alvo = { x: s.x, y: s.y, obra: 'construir' }; return; }
+      } else if (this.acharMata(sim)) {
+        this.alvo.obra = 'lenhar';
+        return;
+      }
+    }
+
+    if (this.adulto) {
+      // 3c. Cerca e mina, as duas depois do telhado. A cerca sai da mesma lenha
+      //     da oca: cercada antes de abrigada, a tribo fica sem casa, para de
+      //     ter filho e morre de velha — foi o que a semente 1234 fez.
       if (!t.temPasto && t.rebanhosProximos >= 3 && t.temVagaEmCasa
           && t.madeira >= MADEIRA_CERCA * 0.5 + t.custoDaOca(MADEIRA_OCA)
           && this.acharPastagem(sim)) { this.alvo.obra = 'cercar'; return; }
@@ -151,21 +194,7 @@ export class Humano {
       if (posto) { this.alvo = { x: posto.x, y: posto.y, obra: 'vigiar' }; return; }
     }
 
-    // 5. Abrigo antes de tudo o que é opcional. Sem oca a tribo não procria, e
-    //    oca custa madeira — que sai de derrubar árvore. É a corrente inteira:
-    //    mata em pé -> lenha -> abrigo -> filho.
-    // com o celeiro raspando, lenha espera: comer vem primeiro
-    if (this.adulto && !t.temVagaEmCasa && t.porHabitante > 2.4) {
-      if (t.madeira >= t.custoDaOca(MADEIRA_OCA)) {
-        const s = sim.sitioDeOca(t);
-        if (s) { this.alvo = { x: s.x, y: s.y, obra: 'construir' }; return; }
-      } else if (this.acharMata(sim)) {
-        this.alvo.obra = 'lenhar';
-        return;
-      }
-    }
-
-    // 5b. Curral apertado. Ampliar sai da mesma lenha do telhado, então só
+    // 5. Curral apertado. Ampliar sai da mesma lenha do telhado, então só
     //     acontece com a tribo coberta e com sobra — é essa disputa que decide
     //     se a aldeia cria gado ou abriga gente.
     if (this.adulto && t.curral && t.cabecas >= t.capacidadeCurral && t.temVagaEmCasa
@@ -181,6 +210,17 @@ export class Humano {
         && this.acharFertil(sim)) { this.alvo.obra = 'arar'; return; }
 
     if (this.adulto && !t.faminta) {
+      // Conduzir bicho solto para dentro da cerca. Bicho não entra em curral
+      // sozinho: alguém vai buscar e traz tocando. Fica aqui, junto das obras
+      // opcionais e com dado, porque na frente da roça e do telhado virou vício:
+      // dezessete das vinte e quatro pessoas passavam o dia atrás de boi, as
+      // roças caíam de vinte e três para zero e a tribo morria de velha com o
+      // celeiro cheio. Pastor faz quase o dobro das vezes — é o ofício dele.
+      if (t.curral && !this.conduzindo && t.cabecas < t.capacidadeCurral
+          && t.temVagaEmCasa && sim.sorte() < 0.22 * rende(this, 'arrebanhar')) {
+        const bicho = sim.bichoSoltoPerto(this, t);
+        if (bicho) { this.alvo = { x: bicho.x, y: bicho.y, obra: 'arrebanhar' }; return; }
+      }
       if (t.temMina && sim.sorte() < 0.35 * rende(this, 'minerar') && this.acharVeio(sim)) { this.alvo.obra = 'minerar'; return; }
       if (t.madeira >= MADEIRA_OCA && t.ocas.length < Math.ceil(t.pop / 1.7)
           && sim.sorte() < 0.3 * rende(this, 'construir')) {
@@ -206,10 +246,21 @@ export class Humano {
   acharFertil(sim) { return this.acharTile(sim, (i) => sim.mundo.terreno[i] === T.FERTIL, true); }
   acharPastagem(sim) { return this.acharTile(sim, (i) => sim.mundo.terreno[i] === T.GRAMA, true); }
   acharVeio(sim) { return this.acharTile(sim, (i) => sim.mundo.minerio[i] > 0, true); }
-  /** Lenha vale procurar fora de casa: mata costuma ficar na borda do domínio. */
+  /**
+   * Lenha vale procurar fora de casa: mata costuma ficar na borda do domínio.
+   *
+   * Com duas ocas de pé a escolha passa a puxar para perto do centro da aldeia.
+   * Não é enfeite: é o que abre a clareira em volta das casas, e clareira é
+   * campo de visão — o guarda vê a fera chegando em vez de ela sair de trás de
+   * uma árvore colada na cerca. Também é o que faz a floresta recuar de dentro
+   * para fora conforme a tribo cresce, em vez de virar buraco de traça.
+   */
   acharMata(sim) {
-    return this.acharTile(sim, (i) => sim.mundo.terreno[i] === T.FLORESTA && sim.mundo.madeira[i] > 0.3, true)
-        || this.acharTile(sim, (i) => sim.mundo.terreno[i] === T.FLORESTA && sim.mundo.madeira[i] > 0.3, false);
+    const t = this.tribo;
+    const mata = (i) => sim.mundo.terreno[i] === T.FLORESTA && sim.mundo.madeira[i] > 0.3;
+    const aldeia = t && t.ocas.length >= 2 ? { x: t.cx, y: t.cy } : null;
+    return this.acharTile(sim, mata, true, RAIO_BUSCA, aldeia)
+        || this.acharTile(sim, mata, false);
   }
 
   /** Comida na ordem do que rende mais por viagem. */
@@ -256,7 +307,7 @@ export class Humano {
    * tarefa. `raio` maior é o modo exploração: quando não há nada por perto,
    * vale andar longe em vez de ficar dando voltas no mesmo pedaço gasto.
    */
-  acharTile(sim, aceita, dentroDoTerritorio, raio = RAIO_BUSCA) {
+  acharTile(sim, aceita, dentroDoTerritorio, raio = RAIO_BUSCA, centro = null) {
     const { mundo } = sim;
     const t = this.tribo;
     const cx = Math.round(this.x), cy = Math.round(this.y);
@@ -269,7 +320,11 @@ export class Humano {
         if (!TERRENOS[mundo.terreno[i]].andavel) continue;
         if (dentroDoTerritorio && t && mundo.dono[i] !== t.id) continue;
         if (!aceita(i)) continue;
-        const custo = dx * dx + dy * dy;
+        // `centro` puxa a escolha para perto de um ponto que não é o do
+        // trabalhador — é o que abre clareira em volta da aldeia em vez de cada
+        // um derrubar a árvore que estiver debaixo do próprio nariz
+        let custo = dx * dx + dy * dy;
+        if (centro) custo += 1.8 * ((x - centro.x) ** 2 + (y - centro.y) ** 2);
         if (custo < melhorCusto) { melhorCusto = custo; melhor = { x, y }; }
       }
     }
@@ -344,6 +399,7 @@ export class Rebanho {
     this.idade = sorte() * 4;
     this.expectativa = 12 + sorte() * 6;
     this.domesticado = false;
+    this.conduzido = null;         // humano que está tocando este bicho
     this.tribo = null;
     this.alvo = null;
     this.descanso = 2 + sorte() * 3;
@@ -359,15 +415,13 @@ export class Rebanho {
     const { mundo } = sim;
     const i = mundo.idx(Math.round(this.x), Math.round(this.y));
 
-    // dentro de território com pasto, o bicho vira criação
-    if (!this.domesticado && mundo.dono[i] !== -1) {
-      const t = sim.tribo(mundo.dono[i]);
-      if (t && t.temPasto) {
-        this.domesticado = true;
-        this.tribo = t;
-        t.cabecas++;
-        sim.cronica(`${t.nome} domestica o primeiro rebanho`, t, 'pecuaria', true);
-      }
+    // Bicho não se domestica sozinho. Antes bastava passar por território com
+    // pasto e ele virava criação — rebanho selvagem entrando no curral por
+    // conta própria, que é justamente o que ninguém faz. Agora alguém tem que
+    // ir buscar: a conversão está em `recolher`, quando o condutor chega com
+    // ele dentro da cerca.
+    if (this.conduzido && (!this.conduzido.viva || this.conduzido.conduzindo !== this)) {
+      this.conduzido = null;
     }
 
     // Pasta o que tem debaixo do pé. `saciado` é a fração do apetite atendida,
@@ -397,10 +451,23 @@ export class Rebanho {
     const t = this.domesticado ? this.tribo : null;
     const cabeExcesso = !!t && (t.cabecas > t.pop * 3
       || (t.curral && t.cabecas >= t.capacidadeCurral));
+    // Bicho sozinho não se reproduz. A conta antiga só olhava a barriga, e por
+    // isso três animais largados em três cantos do mapa viravam trinta em uma
+    // década — cada um multiplicando sozinho. Precisa de manada: dois vizinhos
+    // num raio de cinco. É o que faz o rebanho crescer onde está junto (dentro
+    // do curral, por exemplo) e minguar onde ficou espalhado.
     if (this.descanso <= 0 && this.saciado > 0.5 && !cabeExcesso
-        && sim.rebanhos.length < sim.tetoRebanho) {
-      this.descanso = 2.5 + sim.sorte() * 3;
+        && sim.rebanhos.length < sim.tetoRebanho && sim.manadaAoRedor(this) >= 2) {
+      this.descanso = 3.5 + sim.sorte() * 4;
       sim.nascerRebanho(this);
+    }
+
+    // Sendo tocado: anda atrás de quem conduz e não decide nada. Um pouco mais
+    // rápido que o humano, senão fica para trás e a condução nunca termina.
+    if (this.conduzido) {
+      this.alvo = { x: this.conduzido.x, y: this.conduzido.y };
+      mover(this, this.alvo, 1.35 * dt, mundo);
+      return;
     }
 
     // Curral: quem é da tribo e tem cerca de pé anda dentro dela. É o que dá
@@ -435,11 +502,22 @@ export class Rebanho {
     if (!this.alvo || Math.hypot(this.alvo.x - this.x, this.alvo.y - this.y) < 0.5) {
       // sem cerca o raio acompanha o tamanho do rebanho: preso em cinco tiles,
       // cento e vinte cabeças viram uma parede branca em cima da aldeia
-      const raio = curral ? curral.raio - 0.6
+      let raio = curral ? curral.raio - 0.6
         : this.domesticado && this.tribo ? Math.min(16, 3 + Math.sqrt(this.tribo.cabecas) * 1.1)
         : 9;
-      const cx = curral ? curral.x : this.domesticado && this.tribo ? this.tribo.cx : this.x;
-      const cy = curral ? curral.y : this.domesticado && this.tribo ? this.tribo.cy : this.y;
+      let cx = curral ? curral.x : this.domesticado && this.tribo ? this.tribo.cx : this.x;
+      let cy = curral ? curral.y : this.domesticado && this.tribo ? this.tribo.cy : this.y;
+      // Bicho selvagem anda junto do bando. Sem isto o punhado que o jogador
+      // solta se dispersa em uma década, e como manada é o que se reproduz, o
+      // rebanho some do mundo sem ninguém caçar. Rebanho é rebanho: fica perto.
+      if (!curral && !this.domesticado) {
+        let n = 0, sx = 0, sy = 0;
+        for (const o of sim.perto(this.x, this.y, 9, 'rebanhos')) {
+          if (o === this || !o.viva || o.domesticado) continue;
+          sx += o.x; sy += o.y; n++;
+        }
+        if (n) { cx = (sx / n + this.x) / 2; cy = (sy / n + this.y) / 2; raio = 5; }
+      }
       for (let k = 0; k < 6; k++) {
         const a = sim.sorte() * Math.PI * 2, d = sim.sorte() * raio;
         const x = Math.round(cx + Math.cos(a) * d), y = Math.round(cy + Math.sin(a) * d);

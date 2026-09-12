@@ -145,13 +145,21 @@ export class Camera {
     this.pintando = false;
   }
 
-  /** Arrastar move o mundo debaixo do dedo, não a câmera: é o gesto esperado. */
+  /**
+   * Arrastar move o mundo debaixo do dedo, não a câmera: é o gesto esperado.
+   *
+   * A base tem que sair da câmera, não do azimute cru. Com a câmera em
+   * `azimute`, a direita da tela projetada no chão é (sen, -cos) e o "para
+   * cima" da tela é (-cos, -sen). A conta antiga usava (cos, sen) como direita,
+   * que é a mesma base girada noventa graus — o dedo andando na horizontal
+   * empurrava o mapa para cima e para baixo, e vice-versa.
+   */
   arrastar(dx, dy) {
     this.seguindo = null;   // mexeu na câmera, parou de seguir
     const escala = this.distancia * 0.0016;
     const cos = Math.cos(this.azimute), sen = Math.sin(this.azimute);
-    this.alvo.x -= (dx * cos - dy * sen) * escala;
-    this.alvo.z -= (dx * sen + dy * cos) * escala;
+    this.alvo.x -= (dx * sen + dy * cos) * escala;
+    this.alvo.z -= (dy * sen - dx * cos) * escala;
     this.alvo.x = clamp(this.alvo.x, -10, N + 10);
     this.alvo.z = clamp(this.alvo.z, -10, N + 10);
     this.aplicar();

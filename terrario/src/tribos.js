@@ -310,6 +310,7 @@ export const VOCACOES = {
   minerador:  { nome: 'Minerador',  cor: 0x9aa8c0, minerar: 2.0, cercar: 0.9, arar: 0.85, cacar: 0.85 },
   lider:      { nome: 'Líder',      cor: 0xe0b344, arar: 0.8, colher: 0.85, minerar: 0.8, cacar: 0.8, lutar: 1.15 },
   guarda:     { nome: 'Guarda',     cor: 0xb8574a, lutar: 1.9, enfrentar: 1.9, cercar: 1.2, arar: 0.7, colher: 0.8, minerar: 0.7 },
+  pastor:     { nome: 'Pastor',     cor: 0x8fb0a0, arrebanhar: 1.9, pastorear: 1.8, recolher: 1.5, cacar: 0.7, minerar: 0.7, lutar: 0.85 },
 };
 
 export const CHAVES_VOCACAO = Object.keys(VOCACOES);
@@ -331,6 +332,12 @@ function fatiaDeGuarda(tribo) {
   return 0.01;
 }
 
+/** Pastor só faz sentido com cerca de pé: é quem vai buscar bicho solto e quem
+ *  tira mais do rebanho. Sem curral é uma boca a mais no forrageio. */
+function fatiaDePastor(tribo) {
+  return tribo.curral ? 0.13 : 0.01;
+}
+
 export function rende(h, obra) {
   const v = VOCACOES[h.dom];
   return (v && v[obra]) || 1;
@@ -350,7 +357,7 @@ export function sortearVocacao(sorte, tribo, pai, mae) {
   for (const k of CHAVES_VOCACAO) tem[k] = 0;
   for (const m of tribo.membros) if (m.dom) tem[m.dom]++;
 
-  const alvo = { ...MISTURA_ALVO, guarda: fatiaDeGuarda(tribo) };
+  const alvo = { ...MISTURA_ALVO, guarda: fatiaDeGuarda(tribo), pastor: fatiaDePastor(tribo) };
   let faltaMais = null, maiorFalta = -Infinity;
   for (const k of CHAVES_VOCACAO) {
     const falta = alvo[k] * tribo.pop - tem[k];
