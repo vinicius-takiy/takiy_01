@@ -6,7 +6,7 @@
 // fome, vira guerra. É pouca regra de propósito — é o que deixa o resultado
 // depender do mundo que o jogador montou, e não de uma tabela minha.
 
-import { N, T } from './mundo.js';
+import { N, T, TERRENOS } from './mundo.js';
 
 const NOMES = ['Ocre', 'Basalto', 'Junco', 'Corvo', 'Sal', 'Âmbar', 'Lodo', 'Cinza',
                'Raiz', 'Vento', 'Osso', 'Barro', 'Sombra', 'Brasa', 'Musgo', 'Pedra'];
@@ -22,6 +22,11 @@ export const LIMIAR_FOME = 1.6;
 export const LIMIAR_FARTURA = 4.2;
 
 const BANDO_SEM_TETO = 6;
+/** Cerca não cresce para sempre: curral maior que isto vira uma parede de
+ *  mourão atravessando a aldeia inteira. */
+const RAIO_CURRAL = 7;
+/** Lenha por rodada de cerca. A primeira sai mais barata — cerca de galho. */
+export const MADEIRA_CERCA = 6;
 
 let proximoId = 0;
 
@@ -42,6 +47,8 @@ export class Tribo {
     this.temPasto = false;
     this.temMina = false;
     this.cabecas = 0;              // animais domesticados
+    this.curral = null;            // {x, y, raio} — o pasto cercado
+    this.cercas = [];              // tiles de mourão, na volta do curral
     this.rebanhosProximos = 0;     // selvagens pastando no território
     this.plantios = 0;             // roças de pé dentro do território
     this.madeira = 0;              // lenha estocada, para levantar abrigo
@@ -57,8 +64,29 @@ export class Tribo {
   get porHabitante() { return this.pop ? this.celeiro / this.pop : 0; }
   get faminta() { return this.porHabitante < LIMIAR_FOME; }
   get farta() { return this.porHabitante > LIMIAR_FARTURA; }
-  /** Força em combate: gente vezes o que ela tem na mão. */
-  get forca() { return this.pop * (1 + this.tecnologia * 0.55); }
+  /** Força em combate: gente vezes o que ela tem na mão, mais quem treina para
+   *  isso. O guarda pesa quase como uma pessoa a mais — é o que faz valer a
+   *  pena sustentar gente que não produz comida. */
+  get forca() { return this.pop * (1 + this.tecnologia * 0.55) + this.guardas * 0.9; }
+
+  get guardas() { return this.membros.filter((m) => m.viva && m.adulto && m.dom === 'guarda').length; }
+
+  /**
+   * Quanto gado cabe dentro da cerca. Um curral apertado é o que manda ampliar,
+   * e ampliar custa madeira — a mesma que sustenta o telhado. É de propósito:
+   * pasto grande e aldeia coberta disputam a mesma mata.
+   */
+  get capacidadeCurral() {
+    if (!this.curral) return 0;
+    // 0,85 cabeça por tile — perto do teto que o rebanho já tinha antes da
+    // cerca (três cabeças por pessoa), de propósito. Apertar isto para afinar o
+    // visual foi tentador e saiu caro: com 0,45 o curral passa a ser o teto do
+    // rebanho, o rebanho é o que rende no pastoreio, e a semente 90210, a mais
+    // pobre das cinco, morreu no ano 85. Ampliar cedo, em 70% da lotação, custa
+    // mais mata e matou o rebanho selvagem em três sementes. A cerca é para
+    // conter o gado num lugar visível, não para estrangular a pecuária.
+    return Math.round(Math.PI * this.curral.raio * this.curral.raio * 0.85);
+  }
 
   /** Raio do território, em tiles. Cresce devagar com a população. */
   get raio() { return Math.min(16, 3.2 + Math.sqrt(this.pop) * 2.0); }
@@ -83,6 +111,60 @@ export class Tribo {
 
   /** As duas primeiras ocas são de galho: uma aldeia nova não tem braço sobrando. */
   custoDaOca(base) { return this.ocas.length < 2 ? Math.round(base * 0.55) : base; }
+
+  /**
+   * Ergue o curral, ou empurra a cerca um pouco para fora se ele já existe.
+   * O curral fica onde foi feito e não segue o centro da tribo: benfeitoria é
+   * coisa de chão. Fazer a cerca perseguir a média das posições jogaria o gado
+   * para fora dela toda vez que meia dúzia saísse para caçar.
+   */
+  cercar(mundo, x, y) {
+    if (!this.curral) this.curral = { x, y, raio: 3 };
+    else this.curral.raio = Math.min(RAIO_CURRAL, this.curral.raio + 0.9);
+    this.recalcularCerca(mundo);
+    return this.curral;
+  }
+
+  /** Redesenha o pasto de dentro e a fila de mourões da volta. */
+  recalcularCerca(mundo) {
+    const c = this.curral;
+    this.cercas = [];
+    if (!c) return;
+    const r = Math.ceil(c.raio) + 1;
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        const d = Math.hypot(dx, dy);
+        const x = Math.round(c.x) + dx, y = Math.round(c.y) + dy;
+        if (!mundo.dentro(x, y)) continue;
+        const i = mundo.idx(x, y);
+        if (d <= c.raio) {
+          // só campo vira pasto: engolir a roça junto derrubaria a lavoura da
+          // tribo toda vez que ela ampliasse o curral
+          if (mundo.terreno[i] === T.GRAMA || mundo.terreno[i] === T.TERRA) mundo.definir(i, T.PASTO);
+        } else if (d <= c.raio + 1 && TERRENOS[mundo.terreno[i]].andavel) {
+          this.cercas.push({ x, y, ang: Math.atan2(y - c.y, x - c.x) });
+        }
+      }
+    }
+  }
+
+  dentroDoCurral(x, y) {
+    const c = this.curral;
+    return !!c && Math.hypot(x - c.x, y - c.y) <= c.raio;
+  }
+
+  /**
+   * Posto de vigia deste guarda. A divisão é por ordem estável na lista de
+   * guardas, não por sorteio: sorteado, todo mundo acaba amontoado no mesmo
+   * canto da cerca e três quartos do curral ficam abertos.
+   */
+  postoDe(h) {
+    if (!this.cercas.length) return null;
+    const turma = this.membros.filter((m) => m.viva && m.adulto && m.dom === 'guarda');
+    const k = turma.indexOf(h);
+    if (k < 0) return null;
+    return this.cercas[Math.floor((k * this.cercas.length) / turma.length) % this.cercas.length];
+  }
 
   recentrar() {
     if (!this.pop) return;
@@ -227,12 +309,27 @@ export const VOCACOES = {
   construtor: { nome: 'Construtor', cor: 0xd9cb72, construir: 1.9, cercar: 1.7, minerar: 1.15, cacar: 0.85 },
   minerador:  { nome: 'Minerador',  cor: 0x9aa8c0, minerar: 2.0, cercar: 0.9, arar: 0.85, cacar: 0.85 },
   lider:      { nome: 'Líder',      cor: 0xe0b344, arar: 0.8, colher: 0.85, minerar: 0.8, cacar: 0.8, lutar: 1.15 },
+  guarda:     { nome: 'Guarda',     cor: 0xb8574a, lutar: 1.9, enfrentar: 1.9, cercar: 1.2, arar: 0.7, colher: 0.8, minerar: 0.7 },
 };
 
 export const CHAVES_VOCACAO = Object.keys(VOCACOES);
 
 /** Mistura que uma tribo tende a buscar. A soma não precisa dar 1. */
-const MISTURA_ALVO = { lavrador: 0.36, cacador: 0.20, construtor: 0.16, minerador: 0.16, lider: 0.06 };
+const MISTURA_ALVO = { lavrador: 0.34, cacador: 0.19, construtor: 0.16, minerador: 0.15, lider: 0.06 };
+
+/**
+ * Quanto guarda a tribo quer. Guarda não produz comida: uma tribo em paz e sem
+ * rebanho para vigiar que criasse guarda estaria só sustentando gente ociosa —
+ * e é por isso que a proporção depende da situação, não é fixa. Guarda aparece
+ * quando há cerca para rondar ou guerra na fronteira, que é como o jogador vê
+ * a tribo amadurecer: primeiro o curral, depois quem toma conta dele.
+ */
+function fatiaDeGuarda(tribo) {
+  const emGuerra = [...tribo.relacoes.values()].includes('guerra');
+  if (tribo.curral && emGuerra) return 0.16;
+  if (tribo.curral || emGuerra) return 0.10;
+  return 0.01;
+}
 
 export function rende(h, obra) {
   const v = VOCACOES[h.dom];
@@ -253,9 +350,10 @@ export function sortearVocacao(sorte, tribo, pai, mae) {
   for (const k of CHAVES_VOCACAO) tem[k] = 0;
   for (const m of tribo.membros) if (m.dom) tem[m.dom]++;
 
+  const alvo = { ...MISTURA_ALVO, guarda: fatiaDeGuarda(tribo) };
   let faltaMais = null, maiorFalta = -Infinity;
   for (const k of CHAVES_VOCACAO) {
-    const falta = MISTURA_ALVO[k] * tribo.pop - tem[k];
+    const falta = alvo[k] * tribo.pop - tem[k];
     if (falta > maiorFalta) { maiorFalta = falta; faltaMais = k; }
   }
   // um pouco de acaso, senão toda tribo converge para a mesma composição

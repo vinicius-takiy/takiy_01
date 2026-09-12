@@ -68,6 +68,16 @@ const HUMANOS = {
     P(-0.232, 0.40, 0.09, 0.028, 0.56, 0.028, MADEIRA, 'natural', 0, 0, -0.22),
     P(-0.30, 0.66, 0.09, 0.30, 0.045, 0.045, 0x6f7480, 'natural', 0, 0, 0.42),
   ],
+  guarda: () => [
+    ...esqueletoHumano(),
+    P(0, 0.758, 0, 0.225, 0.09, 0.225, METAL, 'natural'),          // elmo
+    P(0, 0.70, 0.105, 0.035, 0.10, 0.03, METAL, 'natural'),        // nasal
+    P(0.245, 0.46, 0.04, 0.028, 1.02, 0.028, MADEIRA, 'natural'),  // lança
+    CONE(0.245, 1.03, 0.04, 0.055, 0.20, 4, METAL, 'natural'),
+    // escudo na cor da tribo: de longe é o que diz de quem é a cerca
+    P(-0.245, 0.40, 0.055, 0.045, 0.34, 0.30, 0xffffff),
+    P(-0.278, 0.40, 0.055, 0.022, 0.11, 0.10, METAL, 'natural'),   // umbo
+  ],
   lider: () => [
     ...esqueletoHumano(),
     P(0, 0.745, 0, 0.225, 0.055, 0.225, 0x8a3f2c, 'natural'),  // faixa
@@ -147,6 +157,18 @@ function pedra() {
   ];
 }
 
+/** Mourão de cerca: dois postes e duas travessas. O topo de um deles leva a cor
+ *  da tribo — é o que faz dois currais vizinhos não virarem a mesma cerca. */
+function cerca() {
+  return [
+    P(-0.38, 0.24, 0, 0.085, 0.48, 0.085, 0x6b4a26, 'natural'),
+    P(0.38, 0.24, 0, 0.085, 0.48, 0.085, 0x6b4a26, 'natural'),
+    P(0, 0.38, 0, 0.86, 0.055, 0.045, 0x7d5a30, 'natural'),
+    P(0, 0.20, 0, 0.86, 0.055, 0.045, 0x7d5a30, 'natural'),
+    P(-0.38, 0.50, 0, 0.105, 0.045, 0.105, 0xffffff),
+  ];
+}
+
 /** Feixe de trigo: só aparece quando a roça amadurece. */
 function espiga() {
   return [
@@ -157,7 +179,7 @@ function espiga() {
 
 export const FIGURAS = {
   ...Object.fromEntries(Object.entries(HUMANOS).map(([k, f]) => [`humano:${k}`, f])),
-  rebanho, predador, arvore, oca, moita, pedra, espiga,
+  rebanho, predador, arvore, oca, moita, pedra, espiga, cerca,
 };
 
 /**

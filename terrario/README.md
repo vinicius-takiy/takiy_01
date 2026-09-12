@@ -20,11 +20,11 @@ com o que tem por perto — e o que está por perto é o que você pôs lá.
 | Pinta pedra ou montanha | O veio de minério vem junto. Num mundo pelado não existe minério que você não tenha posto |
 | Solta humanos num lugar qualquer | Forrageiam; se forem três ou mais perto uns dos outros, fundam uma tribo |
 | Pinta terra fértil embaixo deles | Alguém para de forragear e começa a arar. Nasce a lavoura, e a tribo cresce |
-| Solta rebanho dentro do território | A tribo cerca um pasto e domestica os bichos; a comida deixa de depender de caçada |
+| Solta rebanho dentro do território | A tribo domestica os bichos e, quando já estiver abrigada e com lenha sobrando, ergue um curral cercado. A comida deixa de depender de caçada |
 | Pinta montanha ou rocha por perto | Com cinco pessoas, abrem uma mina. Minério vira cobre, bronze, ferro |
 | Solta humanos longe uns dos outros | Nascem tribos separadas, cada uma explorando sua região |
 | Deixa duas tribos crescerem até se encostarem | Se as duas estão comendo bem, fazem aliança e passam a dividir excedente. Se qualquer uma passa fome, é guerra |
-| Solta feras onde não há presa | Elas caçam o rebanho; sem rebanho, atacam gente |
+| Solta feras onde não há presa | Elas caçam o rebanho; sem rebanho, atacam gente. Onde há curral, aparece guarda para enfrentá-las na cerca |
 | Pinta floresta | Vira madeira em pé. Sem ela a tribo não levanta abrigo, e sem abrigo ela para de crescer |
 | Não faz nada | A terra lavrada se esgota, precisa de umas quatro décadas de pousio, e a tribo tem que procurar terra nova — que costuma ser a do vizinho |
 
@@ -44,6 +44,12 @@ cheio de lavrador atravessa a seca com o celeiro cheio.
 | **Construtor** | Levanta oca e cerca pasto muito mais rápido | Carrega fardo nas costas |
 | **Minerador** | Rende o dobro na mina | Carrega picareta |
 | **Líder** | Não faz nada melhor com as mãos. Muda a tribo: técnica 22% mais barata, aliança bem mais provável, guerra menos, e a tribo demora mais para rachar | Usa adorno de cabeça |
+| **Guarda** | Quase o dobro em combate, e é o único que enfrenta a fera na cerca. Planta e colhe mal | Lança e escudo na cor da tribo |
+
+O guarda é o único dom que **não** sai do balde do jogador: soltar um guarda num
+bando de cinco é pôr uma boca a mais sem nada para vigiar. Ele nasce quando a
+tribo já tem cerca para rondar ou fronteira em guerra — 10% da gente, 16% se as
+duas coisas ao mesmo tempo, e praticamente nenhum numa tribo em paz e sem gado.
 
 Quem nasce puxa a vocação de um dos pais em cerca de um terço das vezes; no
 resto, a tribo preenche a lacuna que tem. Herdar sempre engessaria a tribo numa
@@ -101,6 +107,27 @@ trava de abrigo, a maioria passou a morrer de velhice, perto dos setenta.
 
 A **crônica**, no canto direito, é onde tudo isso vira história. Ela não é
 enfeite: você não vê um humano decidir plantar, você lê "Ocre começa a plantar".
+
+## Curral e guarda
+
+Pasto não é mais um tile pintado: é uma **volta de cerca** com mourões desenhados
+na borda, e o gado da tribo anda dentro dela. Isso muda três coisas de uma vez.
+
+- **O curral tem capacidade.** Cerca de 0,85 cabeça por tile de área. Cheio, o
+  rebanho para de crescer — a cerca é o teto, não um número escondido.
+- **Ampliar custa lenha**, a mesma que levanta oca. Cerca e telhado disputam a
+  mesma mata, e é essa disputa que decide se a aldeia vira criadora de gado ou
+  cresce em gente. Por isso a tribo só ergue e só amplia o curral estando
+  coberta e com sobra: cercar antes de se abrigar já matou um mundo inteiro no
+  teste (semente 1234, extinta no ano 25 com a cerca de pé e nenhuma oca).
+- **Gado junto e parado é alvo fácil** — e é aí que entra o guarda. Ele larga a
+  roça, toma posto num mourão (a turma se divide pela volta, não se amontoa num
+  canto) e sai ao encontro da fera que chega a cinco tiles da cerca. Ganha na
+  maioria das vezes; quando perde, ou morre ou a fera foge para longe.
+
+Guarda também pesa contra vizinho: entra na força da tribo quase como uma pessoa
+a mais, e briga 90% melhor. É o que o inspetor mostra em **gua**, e o que faz
+uma tribo que não conseguiu aliança ainda assim segurar a fronteira.
 
 ## Controles
 

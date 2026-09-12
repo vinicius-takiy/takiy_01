@@ -207,7 +207,8 @@ export class Interface {
     for (const m of t.membros) if (m.viva) conta[m.dom] = (conta[m.dom] || 0) + 1;
     // abreviado de propósito: por extenso isto virava três linhas e o painel
     // crescia até cobrir a fita de tribos
-    const CURTO = { lavrador: 'lav', cacador: 'caç', construtor: 'con', minerador: 'min', lider: 'líd' };
+    const CURTO = { lavrador: 'lav', cacador: 'caç', construtor: 'con', minerador: 'min',
+                    lider: 'líd', guarda: 'gua' };
     const gente = CHAVES_VOCACAO.filter((k) => conta[k])
       .map((k) => `${conta[k]} ${CURTO[k]}`).join(' · ');
     dl.innerHTML = linhas([
@@ -218,7 +219,7 @@ export class Interface {
       ['Roças', t.plantios],
       ['Abrigo', `${t.ocas.length} ocas` + (t.temVagaEmCasa ? '' : ' · sem vaga')],
       ['Madeira', t.madeira.toFixed(0)],
-      ['Gado', t.cabecas],
+      ['Gado', t.cabecas + (t.curral ? ` / ${t.capacidadeCurral} no curral` : ' · solto')],
       ['Situação', t.faminta ? 'passando fome' : t.farta ? 'com fartura' : 'em pé'],
       ['Vizinhas', rel.length ? rel.map(([id, r]) => `${sim.tribo(id)?.nome || '?'} (${r})`).join(', ') : 'nenhuma'],
     ]);

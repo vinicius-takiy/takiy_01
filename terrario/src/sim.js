@@ -5,7 +5,7 @@
 
 import { Mundo, N, T, TERRENOS, mulberry } from './mundo.js';
 import { Humano, Rebanho, Predador, ANO, MADEIRA_OCA } from './agentes.js';
-import { Tribo, encontro, comerciar, encontrarSitioDeOca, reiniciarIds, TECNOLOGIAS,
+import { Tribo, encontro, comerciar, encontrarSitioDeOca, reiniciarIds, TECNOLOGIAS, MADEIRA_CERCA,
          VOCACOES, CHAVES_VOCACAO, rende, sortearVocacao, temLider } from './tribos.js';
 
 // Teto de segurança, não regra de jogo: quando a ecologia encosta nele é sinal
@@ -40,6 +40,8 @@ export class Simulacao {
     this.mortesPorFome = 0;
     this.mortesPorPredador = 0;
     this.mortesEmGuerra = 0;
+    this.ferasAbatidasNaCerca = 0;
+    this.guardasMortos = 0;
   }
 
   get ano() { return Math.floor(this.tempo / ANO); }
@@ -98,6 +100,18 @@ export class Simulacao {
   }
 
   presaPerto(x, y, raio) { return this.maisPerto(x, y, raio, 'rebanhos', (r) => r.viva); }
+  /** Fera rondando a cerca. Um pouco além dela: o guarda sai ao encontro. */
+  feraNoCurral(t) {
+    const c = t.curral;
+    if (!c) return null;
+    let melhor = null, md = c.raio + 5;
+    for (const p of this.predadores) {
+      if (!p.viva) continue;
+      const d = Math.hypot(p.x - c.x, p.y - c.y);
+      if (d < md) { md = d; melhor = p; }
+    }
+    return melhor;
+  }
   humanoPerto(x, y, raio) { return this.maisPerto(x, y, raio, 'humanos', (h) => h.viva); }
   parPerto(h) {
     return this.maisPerto(h.x, h.y, 6, 'humanos',
@@ -133,6 +147,7 @@ export class Simulacao {
       }
       if (h.causa === 'predador') this.mortesPorPredador++;
       if (h.causa === 'guerra') this.mortesEmGuerra++;
+      if (h.causa === 'fera') { this.mortesPorPredador++; this.guardasMortos++; }
     }
     if (this.humanos.some((h) => !h.viva)) this.humanos = this.humanos.filter((h) => h.viva);
     if (this.rebanhos.some((r) => !r.viva)) {
@@ -363,9 +378,49 @@ export class Simulacao {
         break;
       }
       case 'cercar': {
-        if (mundo.terreno[i] === T.GRAMA) {
-          mundo.definir(i, T.PASTO);
-          if (t) { t.temPasto = true; this.cronica(`${t.nome} cerca um pasto`, t, 'pasto', true); }
+        if (!t) break;
+        // a primeira cerca é de galho torto e sai pela metade; ampliar já cobra
+        // a lenha cheia, porque é aí que a cerca disputa com o telhado
+        const custo = t.curral ? MADEIRA_CERCA : Math.round(MADEIRA_CERCA * 0.5);
+        if (t.madeira < custo) break;
+        t.madeira -= custo;
+        const novo = !t.curral;
+        t.cercar(mundo, Math.round(h.x), Math.round(h.y));
+        t.temPasto = true;
+        if (novo) this.cronica(`${t.nome} ergue um curral`, t, 'pasto', true);
+        else this.cronica(`${t.nome} amplia o curral`, t, 'curral', true);
+        break;
+      }
+      case 'vigiar': {
+        // O plantão em si não produz nada: o efeito do guarda está em estar ali
+        // quando a fera chega, e em pesar na força da tribo contra vizinho.
+        break;
+      }
+      case 'enfrentar': {
+        // o índice espacial só cobre gente e rebanho; a lista de feras é curta
+        // o bastante para varrer inteira
+        let fera = null, md = 2.4;
+        for (const p of this.predadores) {
+          if (!p.viva) continue;
+          const d = Math.hypot(p.x - h.x, p.y - h.y);
+          if (d < md) { md = d; fera = p; }
+        }
+        if (!fera) break;
+        // O guarda leva vantagem, senão não compensa sustentar quem não planta.
+        const chance = Math.min(0.9, 0.5 + (t ? t.tecnologia * 0.08 : 0) + (rende(h, 'enfrentar') - 1) * 0.22);
+        if (this.sorte() < chance) {
+          fera.viva = false;
+          this.ferasAbatidasNaCerca++;
+          this.cronica(`Guarda de ${t.nome} abate uma fera na cerca`, t, 'guarda', true);
+        } else if (this.sorte() < 0.35) {
+          h.morrer('fera');
+          this.cronica(`Um guarda de ${t.nome} morre para a fera`, t, 'guardaMorto', true);
+        } else {
+          // enxotada: a fera larga a caça e some por um tempo
+          fera.presa = null;
+          const a = this.sorte() * Math.PI * 2, d = 16 + this.sorte() * 14;
+          const nx = Math.round(fera.x + Math.cos(a) * d), ny = Math.round(fera.y + Math.sin(a) * d);
+          fera.alvo = mundo.andavel(nx, ny) ? { x: nx, y: ny } : null;
         }
         break;
       }
@@ -542,7 +597,11 @@ export class Simulacao {
     if (especie === 'humano') {
       if (this.humanos.length >= TETO_HUMANOS) return;
       const h = new Humano(x, y, 16 + this.sorte() * 10, this.sorte);
-      h.dom = CHAVES_VOCACAO[(this.sorte() * CHAVES_VOCACAO.length) | 0];
+      // guarda não vem do balde do jogador: ele nasce da tribo que já tem cerca
+      // ou fronteira quente. Soltar guarda num bando de cinco é pôr uma boca a
+      // mais sem nada para vigiar.
+      const balde = CHAVES_VOCACAO.filter((k) => k !== 'guarda');
+      h.dom = balde[(this.sorte() * balde.length) | 0];
       this.humanos.push(h);
     } else if (especie === 'rebanho') {
       if (this.rebanhos.length >= TETO_REBANHO) return;
@@ -564,6 +623,10 @@ export class Simulacao {
       comTecnologia: this.tribos.filter((t) => t.tecnologia > 0).length,
       plantando: this.tribos.filter((t) => t.temPlantacao).length,
       pastoreando: this.tribos.filter((t) => t.temPasto).length,
+      currais: this.tribos.filter((t) => t.curral).length,
+      guardas: this.tribos.reduce((n, t) => n + t.guardas, 0),
+      ferasAbatidasNaCerca: this.ferasAbatidasNaCerca,
+      guardasMortos: this.guardasMortos,
       minerando: this.tribos.filter((t) => t.temMina).length,
       abrigos: this.tribos.reduce((s, t) => s + t.ocas.length, 0),
       semAbrigo: this.tribos.filter((t) => t.pop >= 3 && !t.temVagaEmCasa).length,

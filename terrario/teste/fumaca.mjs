@@ -141,8 +141,11 @@ await pagina.locator('#tempo button[data-vel="16"]').click();
 await pagina.waitForTimeout(9000);
 const depois = await estado();
 // no headless com SwiftShader o laço fica em ~10 fps e o mundo anda devagar;
-// no aparelho isto é várias vezes mais rápido, então aqui só se afirma que anda
-checar('o tempo corre', depois.ano > semeado.ano + 8, `ano ${depois.ano}`);
+// no aparelho isto é várias vezes mais rápido, então aqui só se afirma que anda.
+// A margem era de oito anos e virava vermelho sozinha em máquina carregada — o
+// mesmo commit passava e falhava conforme o que mais estivesse rodando. Cinco
+// ainda pega relógio parado, que é o defeito que esta linha existe para pegar.
+checar('o tempo corre', depois.ano > semeado.ano + 5, `ano ${depois.ano}`);
 checar('surge tribo', depois.tribos >= 1, `${depois.tribos}`);
 checar('a crônica registra a história', await pagina.locator('#linhas p').count() > 0,
        `${await pagina.locator('#linhas p').count()} linhas`);
@@ -259,6 +262,40 @@ const madeira = await pagina.evaluate(() => {
 });
 checar('a mata pintada vira madeira na tribo', madeira.lenha > 0 || madeira.ocas > 0,
        `${madeira.lenha.toFixed(0)} de lenha, ${madeira.ocas} ocas`);
+
+// --- curral e guarda: a cerca fecha uma volta e o mourão pisa no chão ---
+// O surgimento espontâneo é assunto do teste de mundo; aqui o que se verifica é
+// que a cerca chega à tela inteira e na altura certa. Figura enterrada um metro
+// abaixo do chão já passou despercebida por asserção nenhuma neste projeto.
+const curral = await pagina.evaluate(() => {
+  const { sim, render } = window.__terrario;
+  const t = sim.tribos[0];
+  if (!t) return null;
+  t.madeira += 80;
+  t.cercar(sim.mundo, Math.round(t.cx), Math.round(t.cy));
+  const g = t.membros.find((m) => m.viva && m.adulto);
+  if (g) g.dom = 'guarda';
+  render.atualizarSeres(sim, 0.016);
+  render.refazerCercas(sim);   // a cerca é redesenhada por relógio, não por quadro
+  const malha = render.figuras.get('cerca').natural;
+  const a = malha.instanceMatrix.array;
+  let piorDesvio = 0;
+  for (let k = 0; k < malha.count; k++) {
+    const x = a[k * 16 + 12], y = a[k * 16 + 13], z = a[k * 16 + 14];
+    piorDesvio = Math.max(piorDesvio, Math.abs(y - render.alturaEm(x, z)));
+  }
+  return { mouroes: t.cercas.length, desenhados: malha.count, piorDesvio,
+           raio: t.curral.raio, gado: t.capacidadeCurral,
+           guarda: render.figuras.get('humano:guarda').natural.count };
+});
+checar('a tribo cerca um curral', curral && curral.mouroes > 8,
+       curral ? `${curral.mouroes} mourões, raio ${curral.raio.toFixed(1)}, cabem ${curral.gado}` : 'sem tribo');
+checar('a cerca inteira chega à tela', curral && curral.desenhados === curral.mouroes,
+       curral ? `${curral.desenhados} de ${curral.mouroes}` : '');
+checar('o mourão pisa no topo do tile', curral && curral.piorDesvio < 0.01,
+       curral ? `desvio ${curral.piorDesvio.toFixed(3)}` : '');
+checar('o guarda tem boneco próprio', curral && curral.guarda > 0, curral ? `${curral.guarda} em cena` : '');
+await foto('curral');
 
 // --- novo mundo não quebra nada ---
 await pagina.locator('#recomecar').click();

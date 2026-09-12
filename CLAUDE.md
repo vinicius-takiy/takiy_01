@@ -57,7 +57,7 @@ nele.
 
 | Pasta | O que é | Tem teste? |
 |---|---|---|
-| `terrario/` | Terrário — simulador de mundo com tribos, agricultura, pecuária, mineração, guerra e aliança | sim, dois |
+| `terrario/` | Terrário — simulador de mundo com tribos, agricultura, pecuária cercada, mineração, guerra e aliança | sim, dois |
 | `frontline/` | Linha de Frente — FPS de trincheira em three.js, e laboratório de esquemas de controle no toque | sim |
 | `web-prototype/` | Sniper 300m — três contratos, balística com queda e vento | não |
 | `castle-defense/` | Muralha dos Rabiscos — defesa de muralha 2D em estilo caderno | não |

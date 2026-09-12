@@ -16,7 +16,7 @@ const ALTURA_MIN = 0.35;
 const COR_MAR = 0x397f91;
 
 const TETOS = {
-  arvore: 2600, moita: 1100, pedra: 800, espiga: 1400, oca: 200,
+  arvore: 2600, moita: 1100, pedra: 800, espiga: 1400, oca: 200, cerca: 900,
   rebanho: 240, predador: 70, humano: 260,
 };
 
@@ -29,6 +29,7 @@ export class Render {
     this.aux = new THREE.Object3D();
     this.tempo = 0;
     this.relogioCenario = 0;
+    this.assinaturaCercas = '';
     this.figuras = new Map();
     this.entradas = new WeakMap();
     this.efeitos = [];
@@ -74,7 +75,7 @@ export class Render {
 
     // ---------- figuras ----------
     for (const k of CHAVES_VOCACAO) this.criarFigura(`humano:${k}`, TETOS.humano);
-    for (const k of ['rebanho', 'predador', 'oca', 'arvore', 'moita', 'pedra', 'espiga']) {
+    for (const k of ['rebanho', 'predador', 'oca', 'cerca', 'arvore', 'moita', 'pedra', 'espiga']) {
       this.criarFigura(k, TETOS[k]);
     }
     this.refazerCenario();
@@ -314,9 +315,43 @@ export class Render {
 
     this.fecharLote(nomes);
 
-    // espiga muda com a maturação, que não suja o tile a cada passo
+    // espiga muda com a maturação, e cerca só muda quando alguém amplia o
+    // curral: nenhuma das duas precisa ser reescrita a cada quadro. Redesenhar
+    // mil e trezentos mourões sessenta vezes por segundo já custou dois anos de
+    // mundo por partida no headless.
     this.relogioCenario += dt;
-    if (this.relogioCenario > 0.7) { this.relogioCenario = 0; this.refazerCenario(); }
+    if (this.relogioCenario > 0.7) {
+      this.relogioCenario = 0;
+    this.assinaturaCercas = '';
+      this.refazerCenario();
+      this.refazerCercas(sim);
+    }
+  }
+
+  /** Mourões de todos os currais. Mourão fica de través ao raio: girar pelo
+   *  ângulo de saída deixaria toda a cerca apontando para o centro, que lê como
+   *  estaca solta e não como volta fechada. */
+  refazerCercas(sim) {
+    // Cerca só muda quando alguém ergue ou amplia um curral, o que acontece
+    // umas poucas vezes por século. Reescrever mil mourões a cada meio segundo
+    // por nada é o tipo de gasto que não aparece no relógio e aparece na conta.
+    let assinatura = '';
+    for (const t of sim.tribos) if (t.cercas.length) assinatura += `${t.id}:${t.cercas.length},`;
+    if (assinatura === this.assinaturaCercas) return;
+    this.assinaturaCercas = assinatura;
+
+    this.abrirLote(['cerca']);
+    for (const t of sim.tribos) {
+      if (!t.cercas.length) continue;
+      this.cor.set(t.cor);
+      for (const m of t.cercas) {
+        this.aux.position.set(m.x, this.alturaEm(m.x, m.y), m.y);
+        this.aux.rotation.set(0, -(m.ang + Math.PI / 2), 0);
+        this.aux.scale.setScalar(this.escalaEntrada(m));
+        this.por('cerca', this.cor);
+      }
+    }
+    this.fecharLote(['cerca']);
   }
 
   marcarPincel(x, y, raio, visivel) {

@@ -6,7 +6,7 @@
 // é essa a peça que precisa ficar de pé, não a lista de tarefas.
 
 import { T, TERRENOS } from './mundo.js';
-import { rende } from './tribos.js';
+import { rende, MADEIRA_CERCA } from './tribos.js';
 
 /** Um ano de mundo em segundos de simulação. Toda taxa abaixo é por ano. */
 export const ANO = 4;
@@ -35,6 +35,8 @@ const OBRA = {
   cacar:     { dur: 0.45 },
   arar:      { dur: 0.45 },
   cercar:    { dur: 0.5 },
+  vigiar:    { dur: 0.4 },
+  enfrentar: { dur: 0.22 },
   minerar:   { dur: 0.4, minerio: 2.2 },
   lenhar:    { dur: 0.34 },
   construir: { dur: 0.6 },
@@ -119,15 +121,35 @@ export class Humano {
       return;
     }
 
+    // 2b. Fera rondando a cerca. O guarda vai atrás; os outros seguem a vida.
+    //     Sem isto o curral só junta o gado num lugar — e junto e parado ele é
+    //     alvo mais fácil do que espalhado.
+    if (this.adulto && this.dom === 'guarda' && t.curral) {
+      const fera = sim.feraNoCurral(t);
+      if (fera) { this.alvo = { x: fera.x, y: fera.y, obra: 'enfrentar' }; return; }
+    }
+
     if (this.adulto) {
       // 3. as três viradas de chave, mesmo com a tribo pobre
       if (!t.temPlantacao && t.pop >= 2 && this.acharFertil(sim)) { this.alvo.obra = 'arar'; return; }
-      if (!t.temPasto && t.rebanhosProximos >= 3 && this.acharPastagem(sim)) { this.alvo.obra = 'cercar'; return; }
+      // cerca depois do telhado: a mesma lenha levanta as duas coisas, e uma
+      // tribo que cercou o pasto antes de se abrigar fica sem oca, para de ter
+      // filho e morre de velha — foi o que a semente 1234 fez na primeira vez
+      if (!t.temPasto && t.rebanhosProximos >= 3 && t.temVagaEmCasa
+          && t.madeira >= MADEIRA_CERCA * 0.5 + t.custoDaOca(MADEIRA_OCA)
+          && this.acharPastagem(sim)) { this.alvo.obra = 'cercar'; return; }
       if (!t.temMina && t.pop >= 5 && !t.faminta && this.acharVeio(sim)) { this.alvo.obra = 'minerar'; return; }
     }
 
     // 4. celeiro baixo: trabalhar comida
     if (t.porHabitante < 3.6 && this.buscarComida(sim)) return;
+
+    // 4c. Guarda de plantão: fica no mourão em vez de ir para a roça. Custa uma
+    //     boca que não produz — é o preço de ter rebanho e fronteira.
+    if (this.adulto && this.dom === 'guarda' && t.curral) {
+      const posto = t.postoDe(this);
+      if (posto) { this.alvo = { x: posto.x, y: posto.y, obra: 'vigiar' }; return; }
+    }
 
     // 5. Abrigo antes de tudo o que é opcional. Sem oca a tribo não procria, e
     //    oca custa madeira — que sai de derrubar árvore. É a corrente inteira:
@@ -141,6 +163,16 @@ export class Humano {
         this.alvo.obra = 'lenhar';
         return;
       }
+    }
+
+    // 5b. Curral apertado. Ampliar sai da mesma lenha do telhado, então só
+    //     acontece com a tribo coberta e com sobra — é essa disputa que decide
+    //     se a aldeia cria gado ou abriga gente.
+    if (this.adulto && t.curral && t.cabecas >= t.capacidadeCurral && t.temVagaEmCasa
+        && t.madeira >= MADEIRA_CERCA + t.custoDaOca(MADEIRA_OCA) && !t.faminta
+        && sim.sorte() < 0.4 * rende(this, 'cercar')) {
+      this.alvo = { x: Math.round(t.curral.x), y: Math.round(t.curral.y), obra: 'cercar' };
+      return;
     }
 
     // 5b. uma roça por pessoa é a meta; abrir lavoura não espera a tribo engordar
@@ -359,23 +391,40 @@ export class Rebanho {
       if (this.magro > 6) { this.viva = false; return; }
     } else this.magro = 0;
 
-    // criação não cresce sem quem cuide: três cabeças por pessoa é o teto
-    const cabeExcesso = this.domesticado && this.tribo && this.tribo.cabecas > this.tribo.pop * 3;
+    // criação não cresce sem quem cuide: três cabeças por pessoa é o teto, e a
+    // cerca é o outro — gado além do que o curral comporta viraria de novo a
+    // parede branca de cento e vinte cabeças em cima da aldeia
+    const t = this.domesticado ? this.tribo : null;
+    const cabeExcesso = !!t && (t.cabecas > t.pop * 3
+      || (t.curral && t.cabecas >= t.capacidadeCurral));
     if (this.descanso <= 0 && this.saciado > 0.5 && !cabeExcesso
         && sim.rebanhos.length < sim.tetoRebanho) {
       this.descanso = 2.5 + sim.sorte() * 3;
       sim.nascerRebanho(this);
     }
 
+    // Curral: quem é da tribo e tem cerca de pé anda dentro dela. É o que dá
+    // sentido a vigiar a cerca — gado espalhado por dezesseis tiles não tem
+    // volta que se ronde.
+    const curral = this.domesticado && this.tribo && this.tribo.curral
+      ? this.tribo.curral : null;
+    if (curral && !this.tribo.dentroDoCurral(this.x, this.y)) {
+      this.alvo = { x: Math.round(curral.x), y: Math.round(curral.y) };
+      mover(this, this.alvo, 1.1 * dt, mundo);
+      return;
+    }
+
     // com fome, anda atrás de capim; vagar ao acaso num pasto já comido é o que
     // fazia o rebanho inteiro morrer em cima de uma mancha pelada
     if (this.saciado < 0.35 && (!this.alvo || sim.sorte() < 0.05)) {
       const cx = Math.round(this.x), cy = Math.round(this.y);
+      const alcance = curral ? Math.ceil(curral.raio) : 10;
       let melhor = null, nota = 0.03;
-      for (let dy = -10; dy <= 10; dy += 2) {
-        for (let dx = -10; dx <= 10; dx += 2) {
+      for (let dy = -alcance; dy <= alcance; dy += 2) {
+        for (let dx = -alcance; dx <= alcance; dx += 2) {
           const x = cx + dx, y = cy + dy;
           if (!mundo.andavel(x, y)) continue;
+          if (curral && !this.tribo.dentroDoCurral(x, y)) continue;
           const c = mundo.comida[mundo.idx(x, y)] - Math.hypot(dx, dy) * 0.012;
           if (c > nota) { nota = c; melhor = { x, y }; }
         }
@@ -384,20 +433,18 @@ export class Rebanho {
     }
 
     if (!this.alvo || Math.hypot(this.alvo.x - this.x, this.alvo.y - this.y) < 0.5) {
-      const ancora = this.domesticado && this.tribo ? this.tribo : this;
-      // o raio do pasto acompanha o tamanho do rebanho: preso em cinco tiles,
+      // sem cerca o raio acompanha o tamanho do rebanho: preso em cinco tiles,
       // cento e vinte cabeças viram uma parede branca em cima da aldeia
-      const raio = this.domesticado && this.tribo
-        ? Math.min(16, 3 + Math.sqrt(this.tribo.cabecas) * 1.1)
+      const raio = curral ? curral.raio - 0.6
+        : this.domesticado && this.tribo ? Math.min(16, 3 + Math.sqrt(this.tribo.cabecas) * 1.1)
         : 9;
+      const cx = curral ? curral.x : this.domesticado && this.tribo ? this.tribo.cx : this.x;
+      const cy = curral ? curral.y : this.domesticado && this.tribo ? this.tribo.cy : this.y;
       for (let k = 0; k < 6; k++) {
         const a = sim.sorte() * Math.PI * 2, d = sim.sorte() * raio;
-        const cx = this.domesticado && this.tribo ? this.tribo.cx : this.x;
-        const cy = this.domesticado && this.tribo ? this.tribo.cy : this.y;
         const x = Math.round(cx + Math.cos(a) * d), y = Math.round(cy + Math.sin(a) * d);
         if (mundo.andavel(x, y)) { this.alvo = { x, y }; break; }
       }
-      void ancora;
     }
     if (this.alvo) mover(this, this.alvo, 1.1 * dt, mundo);
   }
