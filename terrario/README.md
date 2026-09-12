@@ -497,6 +497,58 @@ Nem todo encontro de fronteira tem morto. Em pouco mais de um quarto das brigas
 os dois se machucam, largam a luta e voltam com fome. Muda a história que se lê:
 uma tribo pode sangrar numa fronteira por décadas sem nunca perder ninguém.
 
+## Calibrar a fauna: o que estava faltando
+
+Uma partida chegou ao ano 65 com **12 pessoas e 267 bichos** — um tapete branco
+cobrindo a aldeia. A pergunta certa não era "diminua o número", era **por que o
+ecossistema não se regula sozinho**. Medi, e a resposta veio em três números.
+
+**1. A oferta era vinte e cinco vezes a demanda.** O mapa produzia ~700 de
+forragem por ano e todos os bichos juntos comiam 28. Ninguém passava fome nunca,
+a morte por magreza jamais disparava, e as três espécies viviam encostadas no
+teto de código: 149/150, 110/110, 150/150. Quem calibrava a fauna era uma
+constante, não o mundo. O apetite subiu quinze vezes — um boi precisa de umas
+vinte casas de capim, uma lebre de seis — e a demanda foi de 28 para ~175.
+
+**2. Estavam todos no mesmo lugar.** 83% a 90% de toda a fauna cabia em **cinco
+células** de 4×4 tiles, com o resto do mapa vazio. A coesão de manada, que eu
+tinha posto para o rebanho não se dispersar, virou um imã sem contrapeso. Agora
+bando apertado manda gente embora: acima de nove vizinhos, alguém sai andando
+para longe e não olha para trás por alguns anos. Caiu para ~50% em cinco células,
+com o dobro de células ocupadas.
+
+**3. Todo mundo comia o mesmo capim.** Com apetite de verdade, a lebre (que
+precisa de seis casas) simplesmente expulsava o boi (que precisa de vinte), e o
+gado — a espécie que a tribo cria — se extinguia no ano 240. Entrou **partilha de
+nicho**: boi rende mais no campo aberto e na mata, capivara na margem, lebre no
+campo e na roça.
+
+### O que ainda não fecha, e por quê
+
+O predador deveria ser o teto do herbívoro. Tentei: subi a caçada dele de 0,38
+para 1,1 abate-por-ano e pus uma fera para cada oito presas. **Colapso
+predador-presa de manual** — as três espécies zeradas no ano 60, a fera morta
+junto. Testei 0,55 e 0,75, com teto de 1/9 e 1/12: as quatro combinações zeram o
+mundo animal antes do ano 300.
+
+O motivo apareceu na contagem de mortes: o herbívoro é caçado pela fera **e por
+uma população humana que cresce sem limite**. Aos 1200 habitantes, duzentos
+caçadores e cem pescadores varrem bicho, peixe e fera em algumas décadas — um
+mundo que estava estável no ano 240 zerava no 300. Nenhum rebanho aguenta as
+duas pressões somadas.
+
+O freio que entrou é o mais simples e o que faltava: **tribo gorda não caça nem
+pesca**. Acima de 6,5 de celeiro por cabeça, caçador e pescador vão trabalhar em
+outra coisa. Com isso a partida atravessa trezentos anos com boi 52-55, capivara
+39-45, lebre 55-60, fera 15-17, jacaré 14 e peixe 235 — estável, e com as três
+espécies vivas o tempo todo.
+
+Os tetos por espécie caíram para 55/45/60. Eles **ainda são o que segura o
+rebanho pequeno** em duas das cinco sementes, e o teste diz isso na cara: a
+asserção "alguma espécie vive abaixo do próprio teto" existe justamente para não
+deixar esconder. Fechar essa última folga exige limitar a população humana pela
+ecologia, que é a próxima calibração e não cabia nesta.
+
 ## Na fila
 
 Coisas pedidas que ainda não estão aqui, para não empilhar sistema sobre uma
@@ -507,6 +559,9 @@ simulação que já tem seus buracos:
   atributo e não só diplomacia.
 - **Tribo saqueadora.** A que fica sem suprimento parte para tomar a vila alheia
   em vez de plantar a sua.
+- **População humana com teto ecológico.** Enquanto ela cresce sem limite, a
+  pressão de caça e pesca não deixa o predador ser o teto do herbívoro — é o que
+  impede a fauna de se calibrar sozinha por inteiro.
 - **Matilha.** Feras que se encontram caçarem juntas e atacarem organizadas, a
   ponto de acabar com uma tribo — e a que viu o bando morrer numa aldeia
   aprender a não voltar sozinha.

@@ -492,23 +492,37 @@ const gestos = await pagina.evaluate(async () => {
     // a pose sai da rotação em x, que é o que `curva` e `balanco` mexem
     poses.push({ obra: h.obra, curva: h.obra });
   }
-  // mede pela matriz: põe cada um sozinho em cena e lê a primeira instância
+  // Mede pela matriz. Amostra em quatro instantes e fica com a maior diferença:
+  // as duas poses oscilam no tempo e num instante qualquer elas podem coincidir
+  // — foi assim que "arar × enfrentar" reprovou com 0,05 num gesto que difere.
   const ler = (obra) => {
     const h = gente[0];
     h.obra = obra;
-    render.atualizarSeres(sim, 0.016);
-    const fig = render.figuras.get(`humano:${h.dom in { lavrador: 1, cacador: 1, construtor: 1, minerador: 1, lider: 1, guarda: 1, pastor: 1, pescador: 1 } ? h.dom : 'lavrador'}`);
-    const malha = fig.tribo || fig.natural;
-    return Array.from(malha.instanceMatrix.array.slice(0, 12));
+    const amostras = [];
+    for (let q = 0; q < 4; q++) {
+      render.atualizarSeres(sim, 0.11);
+      const dom = h.dom in { lavrador: 1, cacador: 1, construtor: 1, minerador: 1,
+                             lider: 1, guarda: 1, pastor: 1, pescador: 1 } ? h.dom : 'lavrador';
+      const fig = render.figuras.get(`humano:${dom}`);
+      const malha = fig.tribo || fig.natural;
+      amostras.push(Array.from(malha.instanceMatrix.array.slice(0, 12)));
+    }
+    return amostras;
+  };
+  const distancia = (a, b) => {
+    let pior = 0;
+    for (let q = 0; q < a.length; q++) {
+      let d = 0;
+      for (let i = 0; i < 12; i++) d += Math.abs(a[q][i] - b[q][i]);
+      pior = Math.max(pior, d);
+    }
+    return pior;
   };
   const arar = ler('arar');
   const lutar = ler('enfrentar');
   const parado = ler(null);
-  let difA = 0, difB = 0;
-  for (let i = 0; i < 12; i++) {
-    difA += Math.abs(arar[i] - parado[i]);
-    difB += Math.abs(arar[i] - lutar[i]);
-  }
+  const difA = distancia(arar, parado);
+  const difB = distancia(arar, lutar);
   // árvore caindo
   const antes = render.efeitos.length;
   render.derrubarArvore(Math.round(cam.alvo.x), Math.round(cam.alvo.z));

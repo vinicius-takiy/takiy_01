@@ -24,19 +24,42 @@ const VEL_FERA = 3.4;
  * `apetite` é forragem por ano; alto demais transforma o bicho em concorrente
  * do forrageio humano e ele mata os bandos de fome.
  */
+/**
+ * `apetite` é forragem por ano, e é o número que decide o tamanho do rebanho no
+ * mundo — não o teto de código. Estava vinte vezes baixo demais: o mapa oferecia
+ * 700 de forragem por ano e os bichos todos comiam 28, ou seja, sobrava vinte e
+ * cinco vezes o que se consumia. Ninguém passava fome nunca, `magro` jamais
+ * disparava, e as três espécies viviam encostadas no teto — 149/150, 110/110,
+ * 150/150 — que é a definição de população calibrada por constante e não por
+ * ecossistema.
+ *
+ * Com estes valores um boi precisa de umas vinte casas de capim para se manter,
+ * e é a conta capim-por-bicho que passa a mandar. Gado em curral é a exceção:
+ * quem está preso come do que a tribo traz.
+ *
+ * `nicho` é o que impede a espécie mais eficiente de varrer as outras. Com
+ * apetite de verdade e todo mundo comendo o mesmo capim, a lebre (que precisa
+ * de seis casas) expulsava o boi (que precisa de vinte) e o gado se extinguia
+ * no ano 240 — matematicamente correto e péssimo, porque o gado é a espécie que
+ * a tribo cria. Cada bicho rende mais no lugar que é dele: boi no campo aberto
+ * e na mata, capivara na margem, lebre no campo e na roça.
+ */
 export const ESPECIES = {
   gado: {
-    nome: 'Gado', escala: 1, escalaDesenho: 1, vel: 1.1, apetite: 0.12, carne: 2.6,
+    nome: 'Gado', escala: 1, escalaDesenho: 1, vel: 1.1, apetite: 1.9, carne: 2.6,
+    nicho: { campo: 1, mata: 0.85, margem: 0.55, roca: 0.9 },
     cria: 3.5, vida: 12, varVida: 6, domesticavel: true, beiraDagua: false,
   },
   capivara: {
     // `escala` pesa esterco e carne; `escalaDesenho` é só o tamanho na tela, e
     // é separado porque a geometria da capivara já nasce menor que a do boi.
-    nome: 'Capivara', escala: 0.62, escalaDesenho: 0.92, vel: 1.3, apetite: 0.055, carne: 1.5,
+    nome: 'Capivara', escala: 0.62, escalaDesenho: 0.92, vel: 1.3, apetite: 0.95, carne: 1.5,
+    nicho: { campo: 0.6, mata: 0.45, margem: 1.35, roca: 0.8 },
     cria: 1.8, vida: 7, varVida: 4, domesticavel: false, beiraDagua: true,
   },
   lebre: {
-    nome: 'Lebre', escala: 0.4, escalaDesenho: 0.85, vel: 1.55, apetite: 0.03, carne: 0.9,
+    nome: 'Lebre', escala: 0.4, escalaDesenho: 0.85, vel: 1.55, apetite: 0.5, carne: 0.9,
+    nicho: { campo: 1, mata: 0.35, margem: 0.6, roca: 1.25 },
     cria: 1.0, vida: 4, varVida: 3, domesticavel: false, beiraDagua: false,
   },
 };
@@ -346,10 +369,13 @@ export class Humano {
   buscarComida(sim) {
     const { mundo } = sim;
     const t = this.tribo;
-    // O pescador vai ao rio antes de olhar a roça. É o ofício dele, e é o que
-    // faz uma tribo de beira d'água comer do rio em vez de só ter margem no
-    // mapa: sem esta linha a pesca era um acaso de quem passava perto.
-    if (t && t.temCosta && this.dom === 'pescador' && this.pescaria(sim)) return true;
+    // Tribo gorda não manda ninguém caçar nem pescar. Parece detalhe e é o
+    // freio que faltava: com mil e duzentas pessoas, duzentos caçadores e cem
+    // pescadores varriam o mundo animal inteiro em algumas décadas — bicho,
+    // peixe e fera zerados no ano 300 num mundo que estava estável no ano 240.
+    // Quem tem celeiro cheio vai trabalhar em outra coisa.
+    const precisaCaçar = !t || t.porHabitante < FARTO_DEMAIS;
+    if (t && t.temCosta && precisaCaçar && this.dom === 'pescador' && this.pescaria(sim)) return true;
     if (t) {
       if (t.temPlantacao && this.acharTile(sim, (i) => mundo.terreno[i] === T.PLANTACAO && mundo.crescer[i] >= 1, true)) {
         this.alvo.obra = 'colher';
@@ -360,11 +386,11 @@ export class Humano {
         return true;
       }
       // Margem com peixe também serve a quem não é pescador, com menos vontade.
-      if (t.temCosta && sim.sorte() < 0.28 && this.pescaria(sim)) return true;
+      if (t.temCosta && precisaCaçar && sim.sorte() < 0.28 && this.pescaria(sim)) return true;
     }
     // caçador vai atrás de bicho antes de catar mato; é o que faz um bando de
     // caçadores esgotar o rebanho enquanto um de lavradores nem encosta nele
-    if (this.dom === 'cacador') {
+    if (this.dom === 'cacador' && precisaCaçar) {
       const bicho = sim.presaPerto(this.x, this.y, RAIO_BUSCA);
       if (bicho) { this.alvo = { x: bicho.x, y: bicho.y, obra: 'cacar', presa: bicho }; return true; }
     }
@@ -379,7 +405,7 @@ export class Humano {
       this.alvo.obra = 'forragear';
       return true;
     }
-    const presa = sim.presaPerto(this.x, this.y, RAIO_BUSCA + 4);
+    const presa = precisaCaçar ? sim.presaPerto(this.x, this.y, RAIO_BUSCA + 4) : null;
     if (presa) {
       this.alvo = { x: presa.x, y: presa.y, obra: 'cacar', presa };
       return true;
@@ -521,6 +547,7 @@ export class Rebanho {
     this.domesticado = false;
     this.conduzido = null;         // humano que está tocando este bicho
     this.panico = 0;               // anos de susto; em pânico o bicho entra na água
+    this.emigrando = 0;            // anos de viagem para longe do bando cheio
     this.afogando = 0;
     this.tribo = null;
     this.alvo = null;
@@ -536,11 +563,12 @@ export class Rebanho {
     this.idade += anos;
     this.descanso = Math.max(0, this.descanso - anos);
     this.fugindo = Math.max(0, this.fugindo - anos);
-    if (this.idade > this.expectativa) { this.viva = false; return; }
+    if (this.idade > this.expectativa) { this.viva = false; this.causa = 'velhice'; return; }
 
     const { mundo } = sim;
     const i = mundo.idx(Math.round(this.x), Math.round(this.y));
     this.panico = Math.max(0, this.panico - anos);
+    this.emigrando = Math.max(0, this.emigrando - anos);
 
     // Dentro d'água. Bicho de terra não entra por vontade — entra fugindo — e
     // uma vez lá dentro tem pouco tempo: ou acha a margem, ou se afoga, ou o
@@ -602,7 +630,7 @@ export class Rebanho {
         mundo.definir(i, T.TERRA);      // broto é folha nova: some antes de virar árvore
       }
     }
-    const apetite = anos * e.apetite;
+    const apetite = anos * e.apetite * nichoDe(e, mundo, i);
     const pasto = Math.min(mundo.comida[i], apetite);
     mundo.comida[i] -= pasto;
     // esterco: onde o rebanho fica, a terra melhora. É o que faz o campo
@@ -620,7 +648,7 @@ export class Rebanho {
 
     if (this.saciado < 0.25) {
       this.magro = (this.magro || 0) + anos;
-      if (this.magro > 6) { this.viva = false; return; }
+      if (this.magro > 6) { this.viva = false; this.causa = 'fome'; return; }
     } else this.magro = 0;
 
     // criação não cresce sem quem cuide: três cabeças por pessoa é o teto, e a
@@ -635,7 +663,7 @@ export class Rebanho {
     // num raio de cinco. É o que faz o rebanho crescer onde está junto (dentro
     // do curral, por exemplo) e minguar onde ficou espalhado.
     if (this.descanso <= 0 && this.saciado > 0.5 && !cabeExcesso
-        && sim.manadaAoRedor(this) >= 2) {
+        && sim.manadaAoRedor(this, 8) >= 2) {
       this.descanso = e.cria * (0.85 + sim.sorte() * 0.9);
       sim.nascerRebanho(this);
     }
@@ -661,7 +689,7 @@ export class Rebanho {
 
     // com fome, anda atrás de capim; vagar ao acaso num pasto já comido é o que
     // fazia o rebanho inteiro morrer em cima de uma mancha pelada
-    if (this.saciado < 0.35 && (!this.alvo || sim.sorte() < 0.05)) {
+    if (this.saciado < 0.55 && (!this.alvo || sim.sorte() < 0.05)) {
       const cx = Math.round(this.x), cy = Math.round(this.y);
       const alcance = curral ? Math.ceil(curral.raio) : 10;
       let melhor = null, nota = 0.03;
@@ -670,7 +698,8 @@ export class Rebanho {
           const x = cx + dx, y = cy + dy;
           if (!mundo.andavel(x, y)) continue;
           if (curral && !this.tribo.dentroDoCurral(x, y)) continue;
-          const c = mundo.comida[mundo.idx(x, y)] - Math.hypot(dx, dy) * 0.012;
+          const j = mundo.idx(x, y);
+          const c = mundo.comida[j] * nichoDe(e, mundo, j) - Math.hypot(dx, dy) * 0.012;
           if (c > nota) { nota = c; melhor = { x, y }; }
         }
       }
@@ -688,13 +717,34 @@ export class Rebanho {
       // Bicho selvagem anda junto do bando. Sem isto o punhado que o jogador
       // solta se dispersa em uma década, e como manada é o que se reproduz, o
       // rebanho some do mundo sem ninguém caçar. Rebanho é rebanho: fica perto.
+      //
+      // Mas só até certo ponto. Sem um limite, a coesão vira um imã: 83% a 90%
+      // de todos os bichos do mundo ficavam em cinco células de quatro tiles,
+      // um tapete branco em cima da aldeia, com o resto do mapa vazio — e o
+      // predador que não estivesse no tapete morria de fome com a presa no
+      // teto. Bando grande manda gente embora, que é o que espalha a fauna e o
+      // que dá ao predador presa em toda parte.
       if (!curral && !this.domesticado) {
         let n = 0, sx = 0, sy = 0;
         for (const o of sim.perto(this.x, this.y, 9, 'rebanhos')) {
           if (o === this || !o.viva || o.domesticado) continue;
           sx += o.x; sy += o.y; n++;
         }
-        if (n) { cx = (sx / n + this.x) / 2; cy = (sy / n + this.y) / 2; raio = 5; }
+        // Não se espalha quem já é pouco: com a dispersão valendo para todos, o
+        // gado — que é o menos numeroso e o que cria mais devagar — perdia o
+        // parceiro de vista e parava de nascer. Morria de velhice e de fera até
+        // sumir no ano 180, com UMA morte de fome em trezentos anos: não era
+        // falta de capim, era falta de quem procriar junto.
+        if (n > BANDO_CHEIO && this.emigrando <= 0 && sim.quantosDa(this.especie) > 45
+            && sim.sorte() < anos * 0.9) {
+          this.emigrando = 3 + sim.sorte() * 4;
+        }
+        if (this.emigrando > 0) {
+          // sai andando para longe e não olha para trás enquanto durar
+          raio = 30; cx = this.x; cy = this.y;
+        } else if (n) {
+          cx = (sx / n + this.x) / 2; cy = (sy / n + this.y) / 2; raio = 5;
+        }
       }
       // Capivara não se afasta da água. É o que dá à margem uma fauna própria,
       // e é o que põe presa ao alcance do jacaré sem eu ter que empurrar bicho
@@ -737,7 +787,15 @@ export class Predador {
   atualizar(dt, sim) {
     const anos = dt / ANO;
     this.idade += anos;
-    this.fome += anos * 0.38;
+    // Metabolismo da fera. Tentei subir para 1,1 ao ano para que fosse ELA a
+    // segurar o herbívoro, e o resultado foi o colapso predador-presa de
+    // manual: as três espécies zeradas no ano 60 e a fera morta junto. Testei
+    // 0,55 e 0,75, com teto de uma fera por 9 e por 12 presas: as quatro
+    // combinações zeram o mundo animal antes do ano 300. O motivo está no
+    // README — o herbívoro é caçado pela fera E por uma população humana que
+    // cresce sem limite, e essa soma nenhum rebanho aguenta. 0,42 é o valor que
+    // fica: um pouco acima do original, e ainda longe da beira.
+    this.fome += anos * 0.42;
     if (this.idade > this.expectativa || this.fome >= 1) { this.viva = false; return; }
 
     if (this.presa && !this.presa.viva) { this.presa = null; this.alvo = null; }
@@ -808,11 +866,27 @@ function mover(ag, alvo, passo, mundo, passavel = null) {
 
 const naAgua = (mundo) => (x, y) => mundo.ehAgua(x, y);
 
+/** Quanto este tile rende para esta espécie. É a partilha de nicho: o mesmo
+ *  capim alimenta melhor uns que outros conforme onde está. */
+function nichoDe(e, mundo, i) {
+  if (!e.nicho) return 1;
+  const tipo = mundo.terreno[i];
+  if (tipo === T.FLORESTA || tipo === T.BROTO) return e.nicho.mata;
+  if (tipo === T.PLANTACAO) return e.nicho.roca;
+  const x = i % mundo.n, y = (i / mundo.n) | 0;
+  if (mundo.naMargem(x, y)) return e.nicho.margem;
+  return e.nicho.campo;
+}
+
 // ------------------------------------------------------------------- água
 const VEL_PEIXE = 1.6;
 /** Quanto plâncton um peixe come por ano. Baixo de propósito: peixe voraz
  *  raspa o mar e o cardume desaba junto, o mesmo colapso da fera com a presa. */
 const PLANCTON = 0.12;
+/** Acima disto o bando está apertado e alguém vai procurar outro lugar. */
+const BANDO_CHEIO = 9;
+/** Acima disto de celeiro por cabeça, a tribo não precisa mais caçar nem pescar. */
+const FARTO_DEMAIS = 6.5;
 const VEL_JACARE = 2.6;
 
 /**
@@ -926,7 +1000,12 @@ export class Jacare {
 
     if (!this.presa && this.fome > 0.35) {
       // o que caiu na água vem antes do peixe: é a refeição grande
-      this.presa = sim.afogadoPerto(this.x, this.y, 7) || sim.peixePerto(this.x, this.y, 16);
+      // Bicho na beirada também serve. Jacaré é bicho de emboscada de margem, e
+      // sem isto ele dependia só do cardume: quando o peixe se afastava ele
+      // morria, e a espécie sumia em quase toda semente.
+      this.presa = sim.afogadoPerto(this.x, this.y, 7)
+                || sim.bichoNaBeira(this.x, this.y, 3.2)
+                || sim.peixePerto(this.x, this.y, 16);
     }
 
     if (this.presa) {

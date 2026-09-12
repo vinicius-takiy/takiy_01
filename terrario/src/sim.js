@@ -23,9 +23,19 @@ const TETO_HUMANOS = 1400;
  * capivara e lebre se extinguiam nas cinco sementes. Cada uma tem o seu lugar
  * no mundo, e é isso que mantém a cadeia de pé.
  */
-const TETO_ESPECIE = { gado: 150, capivara: 110, lebre: 150 };
-const TETO_REBANHO = 410;
-const TETO_PREDADOR = 60;
+/**
+ * Estes números ainda são o que segura o rebanho pequeno, e isso está
+ * documentado no README em vez de escondido: a oferta de capim do mapa é três
+ * vezes a demanda, então quem para o crescimento é esta linha. Subir a caçada
+ * da fera até que fosse ela a segurar zerou o mundo animal em toda tentativa.
+ *
+ * O que mudou é o valor: 150/110/150 punha 410 bichos num mapa que, na tela de
+ * um telefone, vira um tapete branco em cima da aldeia. 160 é o número em que
+ * ainda se enxerga o chão, a aldeia e cada bicho.
+ */
+const TETO_ESPECIE = { gado: 55, capivara: 45, lebre: 60 };
+const TETO_REBANHO = 190;
+const TETO_PREDADOR = 90;
 const TETO_JACARE = 40;
 /**
  * Capacidade da água, em peixe por tile. Não é um teto de segurança como o de
@@ -71,6 +81,9 @@ export class Simulacao {
     this.mortosPorRaio = 0;
     this.mortosNoFogo = 0;
     this.empates = 0;
+    // Por que o bicho morre. É a única forma de saber se uma espécie sumiu de
+    // fome, de caçada ou de velhice — e sem saber isso não se calibra nada.
+    this.fimDoBicho = {};
   }
 
   get ano() { return Math.floor(this.tempo / ANO); }
@@ -236,6 +249,8 @@ export class Simulacao {
       for (const r of this.rebanhos) {
         if (r.viva) continue;
         if (r.causa === 'afogado') this.afogados++;
+        const k = `${r.especie}:${r.causa || 'outra'}`;
+        this.fimDoBicho[k] = (this.fimDoBicho[k] || 0) + 1;
         if (r.domesticado && r.tribo) r.tribo.cabecas--;
         // o que morre volta para o chão: é o adubo que puxa o verde para onde
         // o bicho viveu, e é o outro lado do esterco
@@ -268,9 +283,15 @@ export class Simulacao {
       (r) => r.viva && this.mundo.ehAgua(Math.round(r.x), Math.round(r.y)));
   }
 
+  /** Bicho de terra parado na margem, ao alcance do bote do jacaré. */
+  bichoNaBeira(x, y, raio) {
+    return this.maisPerto(x, y, raio, 'rebanhos',
+      (r) => r.viva && this.mundo.naMargem(Math.round(r.x), Math.round(r.y)));
+  }
+
   abatidoNaAgua(alvo) {
     alvo.viva = false;
-    if (alvo.causa === undefined) alvo.causa = 'jacare';
+    if (!alvo.causa) alvo.causa = 'jacaré';
   }
 
   nascerPeixe(mae) {
@@ -548,6 +569,7 @@ export class Simulacao {
         if (!presa) break;
         if (this.sorte() < (0.38 + (t ? t.tecnologia * 0.09 : 0)) * rende(h, 'cacar')) {
           presa.viva = false;
+          presa.causa = 'caçada';
           // bicho pequeno rende menos carne: é o que faz caçar lebre não
           // substituir caçar boi, e a diferença é o que dá sentido à variedade
           this.depositar(h, ESPECIES[presa.especie].carne);
@@ -777,7 +799,10 @@ export class Simulacao {
     // Uma fera come ~0,5 presa por ano; o teto tem que refletir isso. Com
     // presas/6 as feras dobravam antes do rebanho crescer, limpavam o mundo em
     // dezenove anos e morriam junto — o colapso predador-presa de manual.
-    if (this.predadores.length >= Math.min(TETO_PREDADOR, 2 + this.rebanhos.length / 15)) return;
+    // Uma fera para cada oito presas. A 1/15 o predador nunca chegava a pesar
+    // na conta do herbívoro; é ele que tem que ser o teto do rebanho, não o
+    // número que eu escrevo aqui.
+    if (this.predadores.length >= Math.min(TETO_PREDADOR, 3 + this.rebanhos.length / 12)) return;
     const f = new Predador(pai.x + (this.sorte() - 0.5) * 2, pai.y + (this.sorte() - 0.5) * 2, this.sorte);
     if (!this.mundo.andavel(Math.round(f.x), Math.round(f.y))) return;
     f.idade = 0;
@@ -802,6 +827,7 @@ export class Simulacao {
   }
 
   abatidoPorPredador(alvo) {
+    if (alvo && alvo.especie && !alvo.causa) alvo.causa = 'fera';
     if (alvo instanceof Humano) {
       alvo.morrer('predador');
       if (alvo.tribo) this.cronica(`Fera mata alguém de ${alvo.tribo.nome}`, alvo.tribo, 'fera', true);
@@ -900,6 +926,23 @@ export class Simulacao {
       humanos: this.humanos.length,
       rebanhos: this.rebanhos.length,
       bois: this.rebanhos.reduce((n, r) => n + (r.especie === 'gado' ? 1 : 0), 0),
+      tetos: TETO_ESPECIE,
+      // Aglomeração: quanto da fauna está nas cinco células de 4×4 mais cheias.
+      // É o número que diz se o mapa tem fauna espalhada ou um tapete de bicho
+      // em cima da aldeia — foi 83% a 90% até a dispersão de bando entrar.
+      aglomeracao: (() => {
+        const cel = new Map();
+        for (const r of this.rebanhos) {
+          if (!r.viva) continue;
+          const k = ((r.y / 4) | 0) * 1000 + ((r.x / 4) | 0);
+          cel.set(k, (cel.get(k) || 0) + 1);
+        }
+        const contas = [...cel.values()].sort((a, b) => b - a);
+        const total = contas.reduce((a, b) => a + b, 0);
+        const cinco = contas.slice(0, 5).reduce((a, b) => a + b, 0);
+        return { celulas: contas.length, maior: contas[0] || 0,
+                 top5: total ? Math.round((cinco / total) * 100) : 0 };
+      })(),
       capivaras: this.rebanhos.reduce((n, r) => n + (r.especie === 'capivara' ? 1 : 0), 0),
       lebres: this.rebanhos.reduce((n, r) => n + (r.especie === 'lebre' ? 1 : 0), 0),
       predadores: this.predadores.length,

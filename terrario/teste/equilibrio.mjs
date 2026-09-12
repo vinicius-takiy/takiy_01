@@ -115,6 +115,15 @@ function avaliar({ pico, fim }) {
     ['alguém come do rio', fim.pescados > 0, `${fim.pescados} peixes pescados`],
     ['as três espécies de herbívoro atravessam', fim.bois > 0 && fim.capivaras > 0 && fim.lebres > 0,
       `${fim.bois} bois, ${fim.capivaras} capivaras, ${fim.lebres} lebres`],
+    // O teto é rede de segurança. Se as três espécies vivem encostadas nele,
+    // quem calibra a fauna é a constante e não o mundo — e era exatamente esse
+    // o estado antes: 149/150, 110/110, 150/150.
+    ['alguma espécie vive abaixo do próprio teto',
+      fim.bois < fim.tetos.gado * 0.92 || fim.capivaras < fim.tetos.capivara * 0.92
+      || fim.lebres < fim.tetos.lebre * 0.92,
+      `${fim.bois}/${fim.tetos.gado}, ${fim.capivaras}/${fim.tetos.capivara}, ${fim.lebres}/${fim.tetos.lebre}`],
+    ['a fauna se espalha pelo mapa', fim.aglomeracao.top5 < 72,
+      `${fim.aglomeracao.top5}% em cinco células, maior com ${fim.aglomeracao.maior}`],
     ['o raio acende alguma coisa', fim.tilesQueimados > 0, `${fim.tilesQueimados} tiles queimados`],
     // O mundo tem que se refazer sozinho: mata zero ao fim de trezentos anos é
     // um mapa raspado sem volta, não um ecossistema.
@@ -165,7 +174,10 @@ const censo = r.fim.censo;
 console.log('mapa   — mata', censo[4] || 0, '· broto', censo[10] || 0, '· campo', censo[2] || 0,
             '· fértil', censo[3] || 0, '· terra nua', censo[9] || 0,
             '| queimados', r.fim.tilesQueimados, '· raio', r.fim.mortosPorRaio, '· fogo', r.fim.mortosNoFogo);
-console.log('bicho  — bois', r.fim.bois, '· capivaras', r.fim.capivaras, '· lebres', r.fim.lebres);
+console.log('bicho  — bois', r.fim.bois, '· capivaras', r.fim.capivaras, '· lebres', r.fim.lebres,
+            '| em', r.fim.aglomeracao.celulas, 'células, top5', r.fim.aglomeracao.top5 + '%');
+console.log('fim    —', Object.entries(r.sim.fimDoBicho).sort((a, b) => b[1] - a[1])
+            .slice(0, 8).map(([k, v]) => `${k} ${v}`).join(' · '));
 console.log('água   — peixes', r.fim.peixes, '· jacarés', r.fim.jacares, '· pescados', r.fim.pescados,
             '· bichos afogados', r.fim.afogados, '· tribos com margem', r.fim.pescando);
 
