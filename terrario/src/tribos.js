@@ -307,6 +307,10 @@ export function encontrarSitioDeOca(mundo, tribo, sorte) {
 }
 
 export function reiniciarIds() { proximoId = 0; }
+/** Depois de abrir um mundo salvo, o contador tem que continuar de onde parou —
+ *  senão a próxima tribo nasce com o id de uma que já existe. */
+export function retomarIds(n) { proximoId = Math.max(proximoId, n); }
+Tribo.retomarIds = retomarIds;
 
 // ---------------------------------------------------------------- vocações
 /**

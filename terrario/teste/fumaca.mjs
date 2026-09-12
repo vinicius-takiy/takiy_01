@@ -335,11 +335,27 @@ checar('a pata se mexe entre um quadro e outro',
 const agua = await pagina.evaluate(() => {
   const { sim, render } = window.__terrario;
   const m = sim.mundo;
-  // longe da aldeia de propósito: pintar água em cima da tribo afoga a tribo, e
-  // aí as checagens seguintes reprovam por falta de gente, não por defeito
+  // Longe da aldeia de propósito — pintar água em cima da tribo afoga a tribo e
+  // as checagens seguintes reprovam por falta de gente — e no chão mais plano
+  // que houver por perto: num barranco de rocha a medida do degrau vira ruído,
+  // e o teste acusava 0,67 com sete pontos de beirada num lago que estava certo.
   const t0 = sim.tribos[0];
-  const cx = t0 ? Math.max(6, Math.min(m.n - 7, Math.round(t0.cx) + 22)) : 14;
-  const cy = t0 ? Math.max(6, Math.min(m.n - 7, Math.round(t0.cy) + 22)) : 14;
+  const base = { x: t0 ? Math.round(t0.cx) : 40, y: t0 ? Math.round(t0.cy) : 40 };
+  let cx = 14, cy = 14, melhorNota = -1;
+  for (const [ox, oy] of [[22, 22], [-22, 22], [22, -22], [-22, -22], [0, 26], [0, -26], [26, 0], [-26, 0]]) {
+    const x = Math.max(8, Math.min(m.n - 9, base.x + ox));
+    const y = Math.max(8, Math.min(m.n - 9, base.y + oy));
+    let planos = 0, alturas = [];
+    for (let dy = -5; dy <= 5; dy++) for (let dx = -5; dx <= 5; dx++) {
+      if (!m.andavel(x + dx, y + dy)) continue;
+      planos++;
+      alturas.push(m.relevo[m.idx(x + dx, y + dy)]);
+    }
+    if (!alturas.length) continue;
+    const espalho = Math.max(...alturas) - Math.min(...alturas);
+    const nota = planos - espalho * 40;
+    if (nota > melhorNota) { melhorNota = nota; cx = x; cy = y; }
+  }
   sim.pintar(cx, cy, 4, { tipo: 'terreno', terreno: 0 });    // T.AGUA
   render.aplicarSujos();
   // Degrau medido tile a tile na beirada, não contra uma margem cinco tiles
@@ -379,7 +395,7 @@ const agua = await pagina.evaluate(() => {
 });
 checar('água pintada ganha lâmina desenhada', agua.laminas > 20, `${agua.laminas} tiles de lâmina`);
 checar('a lâmina fica no nível da margem, não no fundo de um buraco',
-       agua.pares > 5 && agua.degrau < 0.30,
+       agua.pares > 15 && agua.degrau < 0.30,
        `degrau médio de ${agua.degrau.toFixed(2)} em ${agua.pares} pontos de beirada`);
 checar('o pincel de peixe só solta dentro da água',
        agua.peixes > 0 && agua.encalhados === 0, `${agua.peixes} soltos, ${agua.encalhados} encalhados`);
@@ -505,6 +521,93 @@ checar('cada tarefa tem gesto próprio', gestos && gestos.difB > 0.05,
        gestos ? `arar × enfrentar diferem em ${gestos.difB.toFixed(2)}` : 'sem tribo');
 checar('a árvore derrubada tomba em cena', gestos && gestos.tombos > 0,
        gestos ? `${gestos.tombos} tombando` : 'sem tribo');
+
+// --- registro: guardar o mundo, listar e voltar nele ---
+const registro = await pagina.evaluate(async () => {
+  const { sim, iface } = window.__terrario;
+  localStorage.removeItem('terrario:mundos');
+  const antes = { ano: sim.ano, pessoas: sim.humanos.length, tribos: sim.tribos.length,
+                  semente: sim.semente, mata: 0 };
+  for (const t of sim.mundo.terreno) if (t === 4) antes.mata++;
+  document.getElementById('abrirMundos').click();
+  document.getElementById('nomeMundo').value = 'mundo de teste';
+  document.getElementById('guardarMundo').click();
+  const naLista = document.querySelectorAll('#listaMundos li').length;
+  const bytes = (localStorage.getItem('terrario:mundos') || '').length;
+  // troca por um mundo novo e depois volta: é o gesto que o jogador faz
+  document.getElementById('recomecar').click();
+  const vazio = window.__terrario.sim.humanos.length;
+  document.getElementById('abrirMundos').click();
+  document.querySelector('#listaMundos .ler').click();
+  const s2 = window.__terrario.sim;
+  let mata = 0;
+  for (const t of s2.mundo.terreno) if (t === 4) mata++;
+  return { antes, naLista, bytes, vazio,
+           depois: { ano: s2.ano, pessoas: s2.humanos.length, tribos: s2.tribos.length,
+                     semente: s2.semente, mata } };
+});
+checar('guardar põe o mundo na prateleira', registro.naLista === 1,
+       `${registro.naLista} na lista, ${(registro.bytes / 1024).toFixed(0)} kB no armazenamento`);
+checar('mundo novo entra vazio', registro.vazio === 0, `${registro.vazio} pessoas`);
+checar('voltar ao mundo guardado devolve o ano e a gente',
+       registro.depois.ano === registro.antes.ano
+       && registro.depois.pessoas === registro.antes.pessoas
+       && registro.depois.tribos === registro.antes.tribos,
+       `ano ${registro.depois.ano}/${registro.antes.ano}, `
+       + `${registro.depois.pessoas}/${registro.antes.pessoas} pessoas, `
+       + `${registro.depois.tribos}/${registro.antes.tribos} tribos`);
+checar('o terreno volta igual', registro.depois.mata === registro.antes.mata,
+       `${registro.depois.mata} de mata contra ${registro.antes.mata}`);
+checar('a semente volta junto', registro.depois.semente === registro.antes.semente);
+await pagina.evaluate(() => document.getElementById('mundos').classList.remove('on'));
+
+// --- a cerca segura o gado, e a fera passa por cima dela ---
+const cerca = await pagina.evaluate(() => {
+  const { sim } = window.__terrario;
+  const t = sim.tribos[0];
+  if (!t) return null;
+  t.madeira += 90;
+  for (let k = 0; k < 3; k++) t.cercar(sim.mundo, Math.round(t.cx) + 10, Math.round(t.cy));
+  t.temPasto = true;
+  const c = t.curral;
+  sim.soltar('rebanho', c.x, c.y);
+  const boi = sim.rebanhos[sim.rebanhos.length - 1];
+  boi.domesticado = true; boi.tribo = t; t.cabecas++;
+  // A fera nasce DENTRO do curral e mira para fora: o que se mede é se a cerca
+  // a segura como segura o boi. Ela é reposta a cada tique se morrer — os
+  // guardas da tribo a matam em segundos, e "morreu" não é resposta para
+  // "atravessa a cerca?".
+  const longe = { x: Math.round(c.x) + Math.ceil(c.raio) + 9, y: Math.round(c.y) };
+  // Ninguém de arma na mão enquanto se mede a cerca: guarda e caçador matam a
+  // fera em segundos e o teste passa a medir a defesa da tribo, não o mourão.
+  const domAntes = t.membros.map((m) => m.dom);
+  for (const m of t.membros) m.dom = 'lavrador';
+  sim.soltar('predador', c.x, c.y);
+  let fera = sim.predadores[sim.predadores.length - 1];
+  boi.alvo = { x: Math.round(c.x) + 22, y: Math.round(c.y) };
+  boi.panico = 8;
+  let saiu = false;
+  for (let k = 0; k < 260; k++) {
+    if (!fera.viva || !sim.predadores.includes(fera)) {
+      sim.soltar('predador', c.x, c.y);
+      fera = sim.predadores[sim.predadores.length - 1];
+    }
+    boi.panico = 8;
+    fera.presa = null;
+    fera.fome = 0.1;
+    fera.alvo = longe;
+    sim.tique(1 / 12);
+    if (!t.dentroDoCurral(fera.x, fera.y)) saiu = true;
+  }
+  t.membros.forEach((m, k) => { m.dom = domAntes[k] || m.dom; });
+  return { boiDentro: t.dentroDoCurral(boi.x, boi.y), boiVivo: boi.viva,
+           saiu, raio: c.raio.toFixed(1),
+           feraLonge: Math.hypot(fera.x - c.x, fera.y - c.y).toFixed(1) };
+});
+checar('o gado não atravessa a cerca, nem em pânico',
+       cerca && cerca.boiVivo && cerca.boiDentro, cerca ? `curral de raio ${cerca.raio}` : 'sem tribo');
+checar('a fera passa por cima da cerca', cerca && cerca.saiu,
+       cerca ? `a fera chegou a ${cerca.feraLonge} do centro, num curral de ${cerca.raio}` : '');
 
 // --- painéis que encolhem: a tela é o jogo ---
 const naTela = (sel) => pagina.locator(sel).isVisible();

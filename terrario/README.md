@@ -448,13 +448,68 @@ Duas travas que o teste exigiu, as duas por extinção em massa:
   correndo em vez de comer. E só fera caçando ou com fome assusta: a de barriga
   cheia já passa longe da aldeia por conta própria.
 
+## O mundo se guarda
+
+Faltava o básico: o que você criou sumia ao fechar a aba. Agora há **Mundos**, na
+barra de baixo — nomeia, guarda, lista o que já guardou, abre de volta, apaga.
+Fica em `localStorage`, que é o único armazenamento que cumpre as regras da casa:
+sem servidor, sem download, funciona offline.
+
+Um mundo dá cerca de **80 kB**, e cabem oito. Duas economias sustentam isso: o
+relevo e o ruído de umidade saem da semente, então não se guarda nada disso — na
+hora de abrir, gera-se o mundo com a mesma semente e por cima dele se aplicam os
+campos salvos; e os campos contínuos (comida, umidade, vigor, nutriente…) vão de
+0 a 1 e cabem num byte cada, em vez dos quatro de um Float32.
+
+Volta tudo: ano, gente com idade e vocação, tribos com celeiro, técnica, curral e
+relações, rebanho com espécie, peixe, jacaré, o terreno inteiro e as últimas
+sessenta linhas da crônica. Se a gravação não couber, o jogo avisa em vez de
+morrer — quem está jogando há duas horas não perde a partida porque a nona
+gravação estourou a cota.
+
+## A cerca segura
+
+Antes o curral era só uma preferência de destino: bicho assustado atravessava o
+mourão como se não houvesse nada ali. Agora o gado **não passa**, nem em pânico
+— quem está sendo tocado para dentro é a única exceção, senão nunca entraria. A
+fera passa por cima.
+
+## Bicho na roça
+
+Herbívoro come o que estiver debaixo do pé, e roça é comida boa. Mas só vira
+problema **em boiada e sem ninguém tomando conta**: seis num raio de três tiles,
+e nenhuma pessoa a quatro. Bicho não come a lavoura debaixo do nariz de quem
+está capinando.
+
+As duas condições custaram caro para achar. Sem a contagem de bando, um único
+boi parado num canteiro anulava exatamente o crescimento da roça e travava a
+colheita para sempre — a semente 7 se extinguia no ano 39 com catorze roças
+plantadas e nenhuma madurando. Sem a segunda, a tribo pequena, que vive em cima
+da própria lavoura, perdia a primeira colheita para o rebanho que o jogador
+soltou junto, e morria no ano 14.
+
+Roça pisada não é roça destruída: o bicho come o que está de pé e a terra
+continua lá.
+
+## Empate
+
+Nem todo encontro de fronteira tem morto. Em pouco mais de um quarto das brigas
+os dois se machucam, largam a luta e voltam com fome. Muda a história que se lê:
+uma tribo pode sangrar numa fronteira por décadas sem nunca perder ninguém.
+
 ## Na fila
 
 Coisas pedidas que ainda não estão aqui, para não empilhar sistema sobre uma
 simulação que já tem seus buracos:
 
-- **Aprendizado.** A tribo lembrar do que a queimou e mudar de comportamento,
-  com o líder conduzindo — inteligência como atributo, não só diplomacia.
+- **Tribo que aprende.** Depois de apanhar de fera e de vizinho, levantar muro e
+  pôr guerreiro rondando a região — com o líder conduzindo, inteligência como
+  atributo e não só diplomacia.
+- **Tribo saqueadora.** A que fica sem suprimento parte para tomar a vila alheia
+  em vez de plantar a sua.
+- **Matilha.** Feras que se encontram caçarem juntas e atacarem organizadas, a
+  ponto de acabar com uma tribo — e a que viu o bando morrer numa aldeia
+  aprender a não voltar sozinha.
 - **Apagar antes de trocar.** Hoje o pincel de terreno sobrescreve o que havia.
   A ideia é ter que limpar primeiro, e o que se planta somar com o substrato em
   vez de substituí-lo.

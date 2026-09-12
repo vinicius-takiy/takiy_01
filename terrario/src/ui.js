@@ -5,6 +5,7 @@
 // despercebida, e o jogo vira um protetor de tela.
 
 import { T, TERRENOS } from './mundo.js';
+import { indice, abrir, apagar, guardar } from './registro.js';
 import { TECNOLOGIAS, VOCACOES, CHAVES_VOCACAO } from './tribos.js';
 
 const el = (id) => document.getElementById(id);
@@ -37,8 +38,12 @@ export const PINCEIS = [
 ];
 
 export class Interface {
-  constructor({ aoTrocarVelocidade, aoEnquadrar, aoRecomecar, aoIlhaPronta, aoComecar, aoSeguir }) {
+  constructor({ aoTrocarVelocidade, aoEnquadrar, aoRecomecar, aoIlhaPronta, aoComecar, aoSeguir,
+                aoAbrirMundo, mundoAtual }) {
     this.aoSeguir = aoSeguir;
+    this.aoAbrirMundo = aoAbrirMundo;
+    this.mundoAtual = mundoAtual;      // devolve a Simulacao viva
+    this.idDoMundo = null;             // slot em que este mundo foi guardado
     this.seguindo = null;
     this.fixado = null;
     this.pincel = null;
@@ -100,8 +105,70 @@ export class Interface {
       el('modoLimpo').title = limpo ? 'Mostrar os painéis' : 'Esconder os painéis';
     };
     el('fecharInspetor').onclick = () => this.limparInspetor();
+    el('abrirMundos').onclick = () => this.mostrarMundos();
+    el('fecharMundos').onclick = () => el('mundos').classList.remove('on');
+    el('guardarMundo').onclick = () => {
+      const sim = this.mundoAtual();
+      if (!sim) return;
+      const nome = el('nomeMundo').value.trim() || `Mundo do ano ${sim.ano}`;
+      // Guardar por cima do mesmo slot: quem salva de novo o mundo em que está
+      // jogando quer atualizar aquele registro, não colecionar oito cópias dele.
+      const r = guardar(sim, nome, this.idDoMundo);
+      this.idDoMundo = r.ok ? r.id : this.idDoMundo;
+      this.avisar(r.ok ? (r.aviso || `guardado como "${nome}"`) : r.erro);
+      this.listarMundos();
+    };
     el('comecar').onclick = () => { el('abertura').hidden = true; aoComecar(); };
     this.escolher('humano');
+  }
+
+  avisar(texto) {
+    el('avisoMundos').textContent = texto || '';
+    clearTimeout(this._avisoRelogio);
+    this._avisoRelogio = setTimeout(() => { el('avisoMundos').textContent = ''; }, 4000);
+  }
+
+  mostrarMundos() {
+    const sim = this.mundoAtual();
+    if (sim && !el('nomeMundo').value) el('nomeMundo').value = `Mundo do ano ${sim.ano}`;
+    this.listarMundos();
+    el('mundos').classList.add('on');
+  }
+
+  listarMundos() {
+    const lista = el('listaMundos');
+    lista.innerHTML = '';
+    const mundos = indice();
+    if (!mundos.length) {
+      const p = document.createElement('p');
+      p.className = 'vazio';
+      p.textContent = 'Nenhum mundo guardado ainda. Guarde este e ele fica aqui, no próprio aparelho.';
+      lista.appendChild(p);
+      return;
+    }
+    for (const m of mundos) {
+      const li = document.createElement('li');
+      const quando = new Date(m.quando).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+      li.innerHTML = '<div class="nome"><b></b><i></i></div>'
+                   + '<button class="ler">Abrir</button><button class="apagar">Apagar</button>';
+      li.querySelector('b').textContent = m.nome;
+      li.querySelector('i').textContent =
+        `ano ${m.resumo.ano} · ${m.resumo.pessoas} pessoas · ${m.resumo.tribos} tribos · ${quando}`;
+      li.querySelector('.ler').onclick = () => {
+        const pacote = abrir(m.id);
+        if (!pacote) return this.avisar('esse mundo sumiu do armazenamento');
+        this.idDoMundo = m.id;
+        el('nomeMundo').value = m.nome;
+        el('mundos').classList.remove('on');
+        this.aoAbrirMundo(pacote);
+      };
+      li.querySelector('.apagar').onclick = () => {
+        apagar(m.id);
+        if (this.idDoMundo === m.id) this.idDoMundo = null;
+        this.listarMundos();
+      };
+      lista.appendChild(li);
+    }
   }
 
   escolher(id) {

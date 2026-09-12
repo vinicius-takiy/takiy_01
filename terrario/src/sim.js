@@ -43,6 +43,8 @@ const UPKEEP_OCA = 0.30;       // lenha por oca por ano só para manter o telhad
 export class Simulacao {
   constructor(semente = Date.now() & 0xffff, { pelado = false } = {}) {
     reiniciarIds();
+    this.semente = semente;
+    this.pelado = pelado;
     this.sorte = mulberry(semente);
     this.mundo = new Mundo(semente, pelado);
     this.humanos = [];
@@ -68,6 +70,7 @@ export class Simulacao {
     this.pescados = 0;
     this.mortosPorRaio = 0;
     this.mortosNoFogo = 0;
+    this.empates = 0;
   }
 
   get ano() { return Math.floor(this.tempo / ANO); }
@@ -717,6 +720,20 @@ export class Simulacao {
     if (!inimigo) return;
     const meu = t.forca * rende(h, 'lutar');
     const dele = inimigo.tribo.forca * rende(inimigo, 'lutar');
+    // Empate: nem todo encontro tem morto. Os dois se machucam, largam a briga
+    // e voltam com fome — o que muda a história é que uma tribo pode sangrar
+    // numa fronteira por décadas sem nunca perder ninguém, e isso pesa.
+    if (this.sorte() < 0.28) {
+      for (const [a, b] of [[h, t], [inimigo, inimigo.tribo]]) {
+        a.fome = Math.min(0.95, a.fome + 0.22);
+        a.fugindo = 1.0;
+        a.obra = null;
+        a.alvo = { x: Math.round(b.cx), y: Math.round(b.cy), obra: null };
+      }
+      this.empates++;
+      this.cronica(`${t.nome} e ${inimigo.tribo.nome} se largam feridos`, t, 'empate', true);
+      return;
+    }
     const chance = meu / (meu + dele);
     const vitima = this.sorte() < chance ? inimigo : h;
     vitima.morrer('guerra');
@@ -891,6 +908,7 @@ export class Simulacao {
       pescando: this.tribos.filter((t) => t.temCosta).length,
       pescados: this.pescados,
       afogados: this.afogados,
+      empates: this.empates,
       mortosPorRaio: this.mortosPorRaio,
       mortosNoFogo: this.mortosNoFogo,
       queimando: this.mundo.queimando.size,

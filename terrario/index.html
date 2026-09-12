@@ -127,6 +127,34 @@
   #inspetor dt{opacity:.55}
   #inspetor dd{margin:0;color:var(--claro);font-variant-numeric:tabular-nums}
 
+  /* ---- mundos guardados ---- */
+  #mundos{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    width:min(420px,90vw);max-height:min(76vh,520px);padding:12px 14px 14px;
+    display:none;flex-direction:column;gap:9px;overflow:hidden;z-index:20}
+  #mundos.on{display:flex}
+  #mundos h3{margin:0;font-size:12.5px;color:var(--claro);display:flex;align-items:center;gap:6px}
+  #mundos h3 span{flex:1}
+  .linhaGuardar{display:flex;gap:7px}
+  .linhaGuardar input{flex:1;min-width:0;background:rgba(0,0,0,.25);border:1px solid var(--linha);
+    border-radius:7px;color:var(--claro);font:inherit;font-size:11.5px;padding:6px 9px}
+  .linhaGuardar input::placeholder{color:var(--dim)}
+  .linhaGuardar button,#listaMundos button{background:rgba(255,255,255,.05);border:1px solid var(--linha);
+    border-radius:7px;color:var(--tinta);padding:6px 11px;font:inherit;font-size:10.5px;cursor:pointer;
+    white-space:nowrap;transition:border-color .18s,background .18s,transform .18s}
+  .linhaGuardar button:active,#listaMundos button:active{transform:scale(.95)}
+  #avisoMundos{margin:0;font-size:10.5px;color:var(--ouro);min-height:0}
+  #avisoMundos:empty{display:none}
+  #listaMundos{list-style:none;margin:0;padding:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
+    display:flex;flex-direction:column;gap:6px}
+  #listaMundos li{display:flex;align-items:center;gap:8px;padding:7px 9px;border:1px solid var(--linha);
+    border-radius:9px;background:rgba(255,255,255,.025)}
+  #listaMundos .nome{flex:1;min-width:0}
+  #listaMundos .nome b{display:block;color:var(--claro);font-size:11.5px;font-weight:600;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #listaMundos .nome i{font-style:normal;font-size:9.5px;color:var(--dim)}
+  #listaMundos .apagar{color:#e9b3a7}
+  #mundos .vazio{font-size:11px;color:var(--dim);margin:0;padding:6px 2px}
+
   /* ---- dobrar painel e modo limpo ---- */
   /* Um gesto só em todo canto da tela: um "—" que encolhe, um "+" que devolve.
      Painel que não se encolhe é o que faz o jogo de tela cheia caber em meia. */
@@ -222,6 +250,16 @@
 
   <div id="fita"></div>
 
+  <div class="painel" id="mundos">
+    <h3><span>Mundos guardados</span><button class="dobrar" id="fecharMundos" aria-label="Fechar">×</button></h3>
+    <div class="linhaGuardar">
+      <input id="nomeMundo" type="text" maxlength="28" placeholder="nome deste mundo">
+      <button id="guardarMundo">Guardar</button>
+    </div>
+    <p id="avisoMundos"></p>
+    <ul id="listaMundos"></ul>
+  </div>
+
   <div class="painel" id="inspetor"><h3><b></b><span></span><button class="dobrar" id="fecharInspetor" aria-label="Fechar o painel">×</button></h3><dl></dl></div>
 
   <div id="paleta">
@@ -235,6 +273,7 @@
         <button id="enquadrar">Ver tudo</button>
         <button id="recomecar">Mundo pelado</button>
         <button id="ilhaPronta">Ilha pronta</button>
+        <button id="abrirMundos">Mundos</button>
         <button class="dobrar" id="dobrarPaleta" aria-label="Encolher a paleta">—</button>
       </div>
     </div>

@@ -577,6 +577,31 @@ export class Rebanho {
     // Pasta o que tem debaixo do pé. `saciado` é a fração do apetite atendida,
     // com memória de pouco mais de um ano — antes era uma soma sem escala clara,
     // e o rebanho oscilava entre bater no teto e sumir do mundo inteiro.
+    // Roça e broto são comida boa, mas só viram problema em bando. Um bicho de
+    // passagem não é praga; quatro num raio de três, sim — e é assim que a
+    // superpopulação vira estrago de lavoura em vez de qualquer bicho solto
+    // travar um canteiro para sempre. Com a conta por bicho, a semente 7 morria
+    // de fome no ano 39 com catorze roças plantadas e nenhuma madurando.
+    const tipoAqui = mundo.terreno[i];
+    if (tipoAqui === T.PLANTACAO || tipoAqui === T.BROTO) {
+      // Seis num raio de três, não três: bicho selvagem anda em manada por
+      // regra, então "em bando" é o estado normal dele e não uma exceção. Com
+      // três, o gado de passagem travava a lavoura e a colheita nunca vinha —
+      // três das cinco sementes se extinguiam antes do ano 120. Seis é boiada.
+      // E ninguém tomando conta. Bicho não come a roça debaixo do nariz de quem
+      // está capinando — é isso que faz uma tribo pequena, que vive em cima da
+      // própria lavoura, não perder a primeira colheita para o rebanho que o
+      // jogador soltou junto. A semente 7 morria no ano 14 sem esta linha.
+      const emBando = sim.manadaAoRedor(this, 3) >= 6 && !sim.humanoPerto(this.x, this.y, 4);
+      if (emBando && tipoAqui === T.PLANTACAO) {
+        // come o que está de pé, mas não arrasa a terra: roça pisada volta a
+        // crescer, e destruir o canteiro fazia a tribo perder o chão junto
+        mundo.crescer[i] = Math.max(0, mundo.crescer[i] - anos * 0.5 * e.escala);
+        mundo.tocar(i);
+      } else if (emBando && sim.sorte() < anos * 0.35 * e.escala) {
+        mundo.definir(i, T.TERRA);      // broto é folha nova: some antes de virar árvore
+      }
+    }
     const apetite = anos * e.apetite;
     const pasto = Math.min(mundo.comida[i], apetite);
     mundo.comida[i] -= pasto;
@@ -685,9 +710,13 @@ export class Rebanho {
       }
       if (escolha) this.alvo = escolha;
     }
-    // em pânico a água deixa de ser parede: é assim que o bicho fugindo acaba
-    // no rio, e é de propósito
-    const passavel = this.panico > 0 ? (x, y) => mundo.andavel(x, y) || mundo.ehAgua(x, y) : null;
+    // A cerca segura de verdade, e segura até em pânico — é para isso que ela
+    // existe. Antes o curral era só uma preferência de destino: bicho assustado
+    // atravessava o mourão como se não houvesse nada ali. A fera pula; o gado
+    // não. Quem está sendo tocado para dentro passa, senão nunca entraria.
+    let passavel = null;
+    if (curral && !this.conduzido) passavel = (x, y) => mundo.andavel(x, y) && this.tribo.dentroDoCurral(x, y);
+    else if (this.panico > 0) passavel = (x, y) => mundo.andavel(x, y) || mundo.ehAgua(x, y);
     if (this.alvo) mover(this, this.alvo, e.vel * dt, mundo, passavel);
   }
 }

@@ -8,6 +8,7 @@ import { N, T, TERRENOS } from './mundo.js';
 import { Render } from './render.js';
 import { Camera } from './camera.js';
 import { Interface } from './ui.js';
+import { desempacotar } from './registro.js';
 
 const PASSO = 1 / 12;          // segundos de simulação por passo
 const MAX_PASSOS = 40;         // teto por quadro, para 16× não travar o toque
@@ -55,6 +56,8 @@ const iface = new Interface({
   aoIlhaPronta: () => novoMundo(undefined, false),
   aoComecar: () => { rodando = true; },
   aoSeguir: (t) => cam.seguir(t),
+  aoAbrirMundo: (pacote) => abrirMundo(pacote),
+  mundoAtual: () => sim,
 });
 
 const cam = new Camera(camera, tela, {
@@ -72,9 +75,11 @@ const cam = new Camera(camera, tela, {
   },
 });
 
-function novoMundo(semente = (Math.random() * 65535) | 0, pelado = true) {
+/** Troca a simulação viva por outra, seja nova ou vinda do registro. Tudo o que
+ *  aponta para a anterior — render, câmera, fita, inspetor — precisa soltar. */
+function trocarSim(nova) {
   if (render) render.descartar();
-  sim = new Simulacao(semente, { pelado });
+  sim = nova;
   render = new Render(cena, sim.mundo);
   iface.ultimaCronica = 0;
   document.getElementById('linhas').innerHTML = '';
@@ -85,6 +90,21 @@ function novoMundo(semente = (Math.random() * 65535) | 0, pelado = true) {
   cam.seguir(null);
   cam.enquadrarTudo();
   window.__terrario = { sim, render, cam, iface };
+}
+
+function novoMundo(semente = (Math.random() * 65535) | 0, pelado = true) {
+  iface.idDoMundo = null;
+  document.getElementById('nomeMundo').value = '';
+  trocarSim(new Simulacao(semente, { pelado }));
+}
+
+function abrirMundo(pacote) {
+  trocarSim(desempacotar(Simulacao, pacote));
+  // a crônica guardada volta junto: é a memória do mundo, não enfeite
+  const caixa = document.getElementById('linhas');
+  caixa.innerHTML = '';
+  iface.ultimaCronica = 0;
+  iface.atualizarCronica(sim);
 }
 
 novoMundo();
