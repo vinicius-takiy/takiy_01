@@ -90,20 +90,37 @@ const HUMANOS = {
 };
 
 // ------------------------------------------------------------------- bichos
-/** Rebanho: bicho de quatro patas, corpo comprido, cabeça baixa de quem pasta. */
+// Bicho é montado em duas figuras: corpo e pata. Uma malha só por bicho é o que
+// fazia o rebanho deslizar pelo chão de pernas duras — some quando a câmera
+// está longe e é a primeira coisa que se vê quando ela chega perto, que é
+// justamente para o que a câmera de perto existe.
+//
+// E os dois olham para +Z, como a gente. Estavam montados olhando para +X
+// enquanto o giro é calculado para +Z, então andavam de lado, feito caranguejo.
+
+/** Quadris, em coordenadas do próprio bicho. `fase` é o trote diagonal: a pata
+ *  dianteira esquerda sai junto com a traseira direita. */
+export const QUADRIS = [
+  { x: -0.085, y: 0.185, z: 0.15, fase: 0 },            // dianteira esquerda
+  { x: 0.085, y: 0.185, z: -0.15, fase: 0 },            // traseira direita
+  { x: 0.085, y: 0.185, z: 0.15, fase: Math.PI },       // dianteira direita
+  { x: -0.085, y: 0.185, z: -0.15, fase: Math.PI },     // traseira esquerda
+];
+
+/** Pata solta, pendurada abaixo da origem: a origem É o quadril, senão a pata
+ *  gira em torno do pé e o bicho parece pisar em bola. */
+const pata = (cor) => () => [P(0, -0.095, 0, 0.075, 0.19, 0.075, cor, 'natural')];
+
+/** Rebanho: corpo comprido, cabeça baixa de quem pasta. */
 function rebanho() {
-  const pelo = 0xe6dcc4, casco = 0x584a38;
+  const pelo = 0xe6dcc4;
   return [
-    P(0, 0.30, 0, 0.46, 0.26, 0.26, pelo, 'natural'),
-    P(0.30, 0.345, 0, 0.20, 0.19, 0.19, pelo, 'natural'),
-    P(0.405, 0.315, 0, 0.06, 0.09, 0.11, 0xc9a98d, 'natural'),   // focinho
-    P(0.30, 0.455, 0.075, 0.055, 0.06, 0.04, pelo, 'natural'),   // orelhas
-    P(0.30, 0.455, -0.075, 0.055, 0.06, 0.04, pelo, 'natural'),
-    P(0.15, 0.09, 0.085, 0.075, 0.19, 0.075, casco, 'natural'),
-    P(0.15, 0.09, -0.085, 0.075, 0.19, 0.075, casco, 'natural'),
-    P(-0.15, 0.09, 0.085, 0.075, 0.19, 0.075, casco, 'natural'),
-    P(-0.15, 0.09, -0.085, 0.075, 0.19, 0.075, casco, 'natural'),
-    P(-0.255, 0.36, 0, 0.045, 0.16, 0.045, pelo, 'natural', 0.5),
+    P(0, 0.30, 0, 0.26, 0.26, 0.46, pelo, 'natural'),
+    P(0, 0.345, 0.30, 0.19, 0.19, 0.20, pelo, 'natural'),
+    P(0, 0.315, 0.405, 0.11, 0.09, 0.06, 0xc9a98d, 'natural'),    // focinho
+    P(-0.075, 0.455, 0.30, 0.04, 0.06, 0.055, pelo, 'natural'),   // orelhas
+    P(0.075, 0.455, 0.30, 0.04, 0.06, 0.055, pelo, 'natural'),
+    P(0, 0.36, -0.255, 0.045, 0.16, 0.045, pelo, 'natural', -0.5),
   ];
 }
 
@@ -111,16 +128,12 @@ function rebanho() {
 function predador() {
   const pelo = 0x6e4436, escuro = 0x4a2c22;
   return [
-    P(0, 0.26, 0, 0.48, 0.19, 0.19, pelo, 'natural'),
-    P(0.30, 0.31, 0, 0.17, 0.16, 0.16, pelo, 'natural'),
-    P(0.41, 0.285, 0, 0.09, 0.09, 0.10, escuro, 'natural'),
-    CONE(0.28, 0.42, 0.055, 0.045, 0.10, 4, escuro, 'natural'),
-    CONE(0.28, 0.42, -0.055, 0.045, 0.10, 4, escuro, 'natural'),
-    P(0.16, 0.09, 0.07, 0.065, 0.19, 0.065, escuro, 'natural'),
-    P(0.16, 0.09, -0.07, 0.065, 0.19, 0.065, escuro, 'natural'),
-    P(-0.16, 0.09, 0.07, 0.065, 0.19, 0.065, escuro, 'natural'),
-    P(-0.16, 0.09, -0.07, 0.065, 0.19, 0.065, escuro, 'natural'),
-    P(-0.32, 0.32, 0, 0.05, 0.26, 0.05, pelo, 'natural', -1.1),
+    P(0, 0.26, 0, 0.19, 0.19, 0.48, pelo, 'natural'),
+    P(0, 0.31, 0.30, 0.16, 0.16, 0.17, pelo, 'natural'),
+    P(0, 0.285, 0.41, 0.10, 0.09, 0.09, escuro, 'natural'),
+    CONE(-0.055, 0.42, 0.28, 0.045, 0.10, 4, escuro, 'natural'),
+    CONE(0.055, 0.42, 0.28, 0.045, 0.10, 4, escuro, 'natural'),
+    P(0, 0.32, -0.32, 0.05, 0.26, 0.05, pelo, 'natural', 1.1),
   ];
 }
 
@@ -180,6 +193,7 @@ function espiga() {
 export const FIGURAS = {
   ...Object.fromEntries(Object.entries(HUMANOS).map(([k, f]) => [`humano:${k}`, f])),
   rebanho, predador, arvore, oca, moita, pedra, espiga, cerca,
+  'rebanho:pata': pata(0x584a38), 'predador:pata': pata(0x4a2c22),
 };
 
 /**

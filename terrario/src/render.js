@@ -9,7 +9,7 @@
 import * as THREE from 'three';
 import { N, T, TERRENOS } from './mundo.js';
 import { CHAVES_VOCACAO } from './tribos.js';
-import { montarFigura } from './figuras.js';
+import { montarFigura, QUADRIS } from './figuras.js';
 
 const CAIXA = new THREE.BoxGeometry(1, 1, 1);
 const ALTURA_MIN = 0.35;
@@ -18,6 +18,7 @@ const COR_MAR = 0x397f91;
 const TETOS = {
   arvore: 2600, moita: 1100, pedra: 800, espiga: 1400, oca: 200, cerca: 900,
   rebanho: 240, predador: 70, humano: 260,
+  'rebanho:pata': 240 * 4, 'predador:pata': 70 * 4,
 };
 
 export class Render {
@@ -27,6 +28,12 @@ export class Render {
     this.cor = new THREE.Color();
     this._tinta = new THREE.Color();
     this.aux = new THREE.Object3D();
+    // YXZ em tudo: a guinada é no mundo, a inclinação e o balanço são no eixo já
+    // girado da figura. Na ordem padrão, XYZ, quem está virado para o lado
+    // balança para a frente em vez de para o lado — e, pior, bastava uma figura
+    // pedir YXZ para todas as seguintes herdarem a ordem, porque o Object3D é
+    // reaproveitado. Uma ordem só, declarada aqui, e acabou a surpresa.
+    this.aux.rotation.order = 'YXZ';
     this.tempo = 0;
     this.relogioCenario = 0;
     this.assinaturaCercas = '';
@@ -75,7 +82,8 @@ export class Render {
 
     // ---------- figuras ----------
     for (const k of CHAVES_VOCACAO) this.criarFigura(`humano:${k}`, TETOS.humano);
-    for (const k of ['rebanho', 'predador', 'oca', 'cerca', 'arvore', 'moita', 'pedra', 'espiga']) {
+    for (const k of ['rebanho', 'rebanho:pata', 'predador', 'predador:pata',
+                     'oca', 'cerca', 'arvore', 'moita', 'pedra', 'espiga']) {
       this.criarFigura(k, TETOS[k]);
     }
     this.refazerCenario();
@@ -260,7 +268,8 @@ export class Render {
 
   atualizarSeres(sim, dt = 0) {
     this.tempo += dt;
-    const nomes = [...CHAVES_VOCACAO.map((k) => `humano:${k}`), 'rebanho', 'predador', 'oca'];
+    const nomes = [...CHAVES_VOCACAO.map((k) => `humano:${k}`), 'oca',
+                   'rebanho', 'rebanho:pata', 'predador', 'predador:pata'];
     this.abrirLote(nomes);
 
     for (const h of sim.humanos) {
@@ -282,26 +291,50 @@ export class Render {
       this.por(`humano:${h.dom in FIG_HUMANO ? h.dom : 'lavrador'}`, this.cor);
     }
 
+    // O rebanho tem três estados que dá para ler de longe: andando (trote e
+    // corpo no prumo), pastando (focinho no chão, quase parado) e magro (anda
+    // sem pastar, e é assim que se vê o pasto acabando antes de o bicho morrer).
     for (const r of sim.rebanhos) {
       if (!r.viva) continue;
-      const entrada = this.escalaEntrada(r);
-      const anda = r.alvo ? Math.sin(this.tempo * 7.5 + r.x * 2) : Math.sin(this.tempo * 1.8 + r.y);
-      const base = (r.domesticado ? 1 : 0.92) * entrada;
-      this.aux.position.set(r.x, this.alturaEm(r.x, r.y) + Math.abs(anda) * (r.alvo ? 0.055 : 0.012), r.y);
-      this.aux.rotation.set(0, r.alvo ? Math.atan2(r.alvo.x - r.x, r.alvo.y - r.y) : giroParado(r), anda * 0.045);
-      this.aux.scale.set(base, base * (1 + Math.abs(anda) * 0.025), base);
+      const anda = !!r.alvo;
+      // Bicho um pouco menor que o tile. Em tamanho cheio, um curral lotado —
+      // e lotado é o normal, três cabeças por pessoa — vira um tapete branco
+      // sem chão à vista; com 0,84 lê-se rebanho apertado, que é o que é.
+      const base = (r.domesticado ? 0.84 : 0.78) * this.escalaEntrada(r);
+      const giro = anda ? Math.atan2(r.alvo.x - r.x, r.alvo.y - r.y) : giroParado(r);
+      const passo = this.tempo * (anda ? 8.4 : 1.5) + r.x * 2.1 + r.y * 1.7;
+      const balanco = Math.sin(passo);
+      const amplitude = anda ? 0.52 : 0.05;
+      // focinho no chão quando não está indo a lugar nenhum: é o desenho de
+      // "comendo", e o que faz um pasto cheio parecer pasto e não estacionamento
+      const focinho = anda ? 0 : 0.30;
+      const chao = this.alturaEm(r.x, r.y);
+      this.aux.position.set(r.x, chao + Math.abs(balanco) * (anda ? 0.045 : 0.006), r.y);
+      this.aux.rotation.set(focinho, giro, balanco * (anda ? 0.05 : 0.015));
+      this.aux.scale.setScalar(base);
       this.por('rebanho');
+      this.porPatas('rebanho:pata', r.x, chao, r.y, giro, base, passo, amplitude);
     }
 
+    // A fera anda em três marchas: parada, rondando e em cima da presa. A
+    // terceira é a que interessa ver chegando na cerca do curral.
     for (const p of sim.predadores) {
       if (!p.viva) continue;
       const mira = p.presa || p.alvo;
-      const entrada = this.escalaEntrada(p);
-      const corrida = mira ? Math.sin(this.tempo * 11 + p.x) : 0;
-      this.aux.position.set(p.x, this.alturaEm(p.x, p.y) + Math.abs(corrida) * 0.065, p.y);
-      this.aux.rotation.set(0, mira ? Math.atan2(mira.x - p.x, mira.y - p.y) : giroParado(p), corrida * 0.055);
-      this.aux.scale.set(entrada * (1 + Math.abs(corrida) * 0.025), entrada * (1 - Math.abs(corrida) * 0.045), entrada);
+      const caca = !!p.presa;
+      const base = this.escalaEntrada(p);
+      const giro = mira ? Math.atan2(mira.x - p.x, mira.y - p.y) : giroParado(p);
+      const passo = this.tempo * (caca ? 13 : mira ? 8 : 1.2) + p.x * 1.9 + p.y * 2.3;
+      const balanco = Math.sin(passo);
+      const amplitude = caca ? 0.72 : mira ? 0.46 : 0.05;
+      const chao = this.alturaEm(p.x, p.y);
+      // no galope o corpo sobe e encolhe junto com a passada: é o que dá a
+      // leitura de esforço que separa a fera rondando da fera atacando
+      this.aux.position.set(p.x, chao + Math.abs(balanco) * (caca ? 0.085 : 0.03), p.y);
+      this.aux.rotation.set(balanco * (caca ? 0.10 : 0.03), giro, 0);
+      this.aux.scale.set(base, base * (1 - Math.abs(balanco) * (caca ? 0.05 : 0.015)), base);
       this.por('predador');
+      this.porPatas('predador:pata', p.x, chao, p.y, giro, base, passo, amplitude);
     }
 
     for (const t of sim.tribos) {
@@ -325,6 +358,24 @@ export class Render {
     this.assinaturaCercas = '';
       this.refazerCenario();
       this.refazerCercas(sim);
+    }
+  }
+
+  /**
+   * As quatro patas de um bicho, cada uma girando no próprio quadril e em trote
+   * diagonal — dianteira esquerda junto com traseira direita. É o motivo de o
+   * bicho ser duas figuras e não uma: dentro de uma instância só não há como
+   * mover parte da malha, e o rebanho inteiro deslizava de perna dura.
+   */
+  porPatas(nome, x, chao, z, giro, escala, passo, amplitude) {
+    const cg = Math.cos(giro), sg = Math.sin(giro);
+    for (const q of QUADRIS) {
+      this.aux.position.set(x + (q.x * cg + q.z * sg) * escala,
+                            chao + q.y * escala,
+                            z + (-q.x * sg + q.z * cg) * escala);
+      this.aux.rotation.set(Math.sin(passo + q.fase) * amplitude, giro, 0);
+      this.aux.scale.setScalar(escala);
+      this.por(nome);
     }
   }
 

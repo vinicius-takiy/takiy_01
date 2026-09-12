@@ -263,6 +263,50 @@ const madeira = await pagina.evaluate(() => {
 checar('a mata pintada vira madeira na tribo', madeira.lenha > 0 || madeira.ocas > 0,
        `${madeira.lenha.toFixed(0)} de lenha, ${madeira.ocas} ocas`);
 
+// --- bichos com pata: quatro por bicho, em trote, e olhando para onde andam ---
+const patas1 = await pagina.evaluate(() => {
+  const { sim, render } = window.__terrario;
+  const f = render.figuras.get('rebanho:pata').natural;
+  return { vivos: sim.rebanhos.filter((r) => r.viva).length, patas: f.count,
+           matriz: Array.from(f.instanceMatrix.array.slice(0, 48)) };
+});
+await pagina.waitForTimeout(400);
+const patas2 = await pagina.evaluate(() => {
+  const f = window.__terrario.render.figuras.get('rebanho:pata').natural;
+  return Array.from(f.instanceMatrix.array.slice(0, 48));
+});
+checar('cada bicho anda com quatro patas', patas1.patas === patas1.vivos * 4,
+       `${patas1.patas} patas para ${patas1.vivos} bichos`);
+checar('a pata se mexe entre um quadro e outro',
+       patas1.matriz.some((v, i) => Math.abs(v - patas2[i]) > 0.0005));
+
+// --- painéis que encolhem: a tela é o jogo ---
+const naTela = (sel) => pagina.locator(sel).isVisible();
+await pagina.locator('#dobrarEstado').click();
+checar('a barra de estado encolhe', await pagina.locator('#estado.fechada').count() === 1);
+await pagina.locator('#dobrarEstado').click();
+await pagina.locator('#dobrarPaleta').click();
+checar('a paleta encolhe e some com os pincéis', !(await naTela('#grupos')));
+checar('encolhida, a paleta ainda diz qual é a ferramenta', await naTela('#ferramentaNome'));
+await pagina.locator('#dobrarPaleta').click();
+
+await pagina.locator('#modoLimpo').click();
+const limpo = { paleta: await naTela('#paleta'), cronica: await naTela('#cronica'),
+                estado: await naTela('#estado'), tempo: await naTela('#tempo') };
+checar('o modo limpo esconde os painéis', !limpo.paleta && !limpo.cronica && !limpo.estado,
+       `paleta ${limpo.paleta}, crônica ${limpo.cronica}, estado ${limpo.estado}`);
+checar('o modo limpo mantém o controle de tempo', limpo.tempo);
+await foto('modo-limpo');
+await pagina.locator('#modoLimpo').click();
+checar('o modo limpo devolve os painéis', await naTela('#paleta') && await naTela('#cronica'));
+
+// o botão de modo divide a barra com as velocidades e não pode virar uma delas
+await pagina.locator('#tempo button[data-vel="16"]').click();
+await pagina.locator('#modoLimpo').click();
+await pagina.locator('#modoLimpo').click();
+checar('esconder painéis não mexe na velocidade',
+       await pagina.locator('#tempo button[data-vel="16"].on').count() === 1);
+
 // --- curral e guarda: a cerca fecha uma volta e o mourão pisa no chão ---
 // O surgimento espontâneo é assunto do teste de mundo; aqui o que se verifica é
 // que a cerca chega à tela inteira e na altura certa. Figura enterrada um metro
@@ -284,12 +328,15 @@ const curral = await pagina.evaluate(() => {
     const x = a[k * 16 + 12], y = a[k * 16 + 13], z = a[k * 16 + 14];
     piorDesvio = Math.max(piorDesvio, Math.abs(y - render.alturaEm(x, z)));
   }
-  return { mouroes: t.cercas.length, desenhados: malha.count, piorDesvio,
+  // a malha guarda a cerca de TODAS as tribos, não só a desta: mais de uma
+  // pode ter curral a esta altura, e comparar com uma só dá falso vermelho
+  const mouroes = sim.tribos.reduce((n, o) => n + o.cercas.length, 0);
+  return { mouroes, desteAqui: t.cercas.length, desenhados: malha.count, piorDesvio,
            raio: t.curral.raio, gado: t.capacidadeCurral,
            guarda: render.figuras.get('humano:guarda').natural.count };
 });
-checar('a tribo cerca um curral', curral && curral.mouroes > 8,
-       curral ? `${curral.mouroes} mourões, raio ${curral.raio.toFixed(1)}, cabem ${curral.gado}` : 'sem tribo');
+checar('a tribo cerca um curral', curral && curral.desteAqui > 8,
+       curral ? `${curral.desteAqui} mourões, raio ${curral.raio.toFixed(1)}, cabem ${curral.gado}` : 'sem tribo');
 checar('a cerca inteira chega à tela', curral && curral.desenhados === curral.mouroes,
        curral ? `${curral.desenhados} de ${curral.mouroes}` : '');
 checar('o mourão pisa no topo do tile', curral && curral.piorDesvio < 0.01,

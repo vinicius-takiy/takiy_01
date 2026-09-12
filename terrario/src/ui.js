@@ -61,20 +61,36 @@ export class Interface {
       this.raio = Number(e.target.value);
       el('raioOut').textContent = String(this.raio);
     };
-    for (const b of document.querySelectorAll('#tempo button')) {
+    // [data-vel] e não "#tempo button": o botão de modo limpo mora na mesma
+    // barra e não é uma velocidade — sem o filtro ele apagava o 1× ao ser tocado
+    for (const b of document.querySelectorAll('#tempo button[data-vel]')) {
       b.onclick = () => {
-        for (const o of document.querySelectorAll('#tempo button')) o.classList.toggle('on', o === b);
+        for (const o of document.querySelectorAll('#tempo button[data-vel]')) o.classList.toggle('on', o === b);
         aoTrocarVelocidade(Number(b.dataset.vel));
       };
     }
     el('enquadrar').onclick = aoEnquadrar;
     el('recomecar').onclick = aoRecomecar;
     el('ilhaPronta').onclick = aoIlhaPronta;
-    el('dobrar').onclick = () => {
-      const c = el('cronica');
-      c.classList.toggle('fechada');
-      el('dobrar').textContent = c.classList.contains('fechada') ? '+' : '—';
+    // Todo painel grande encolhe com o mesmo botão e o mesmo gesto. Num
+    // telefone deitado, crônica, paleta e barra de estado juntas comem metade
+    // da tela — e a tela é o jogo.
+    for (const [botao, painel] of [['dobrar', 'cronica'], ['dobrarEstado', 'estado'],
+                                   ['dobrarPaleta', 'paleta']]) {
+      el(botao).onclick = () => {
+        const fechado = el(painel).classList.toggle('fechada');
+        el(botao).textContent = fechado ? '+' : '—';
+      };
+    }
+    // Modo limpo: some com tudo de uma vez e deixa só o controle de tempo, que
+    // é o único que se usa quando a intenção é olhar o mundo andar.
+    el('modoLimpo').onclick = () => {
+      const limpo = el('ui').classList.toggle('limpo');
+      el('modoLimpo').classList.toggle('on', limpo);
+      el('modoLimpo').setAttribute('aria-label', limpo ? 'Mostrar os painéis' : 'Esconder os painéis');
+      el('modoLimpo').title = limpo ? 'Mostrar os painéis' : 'Esconder os painéis';
     };
+    el('fecharInspetor').onclick = () => this.limparInspetor();
     el('comecar').onclick = () => { el('abertura').hidden = true; aoComecar(); };
     this.escolher('humano');
   }

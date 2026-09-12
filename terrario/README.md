@@ -139,6 +139,41 @@ uma tribo que não conseguiu aliança ainda assim segurar a fronteira.
 - **Relógio** no canto: pausa, 1×, 4×, 16×. Um ano de mundo são quatro segundos
   em 1×.
 
+### A tela é o jogo
+
+Num telefone deitado, crônica, paleta e barra de estado juntas comiam metade do
+mundo. Todo painel grande agora encolhe com o mesmo botão e o mesmo gesto: um
+**—** que fecha, um **+** que devolve. Vale para a barra de estado (fica só o
+ano), para a crônica (fica só o título) e para a paleta (somem os pincéis e fica
+a ferramenta ativa, para você saber o que está pintando). O inspetor tem **×**.
+
+E o botão de cantos, à esquerda do relógio, é o **modo limpo**: some com todos
+os painéis de uma vez e deixa o mundo inteiro na tela. Fica só o relógio, que é
+o único controle que se usa quando a intenção é olhar. Tocar de novo devolve
+tudo como estava — inclusive a velocidade, que ele não encosta.
+
+## Bicho com pata
+
+Rebanho e fera são montados em duas figuras, corpo e pata, e cada uma das quatro
+patas gira no próprio quadril, em **trote diagonal** — dianteira esquerda junto
+com traseira direita. Uma malha só por bicho não tem como mover parte de si, e o
+rebanho inteiro deslizava pelo chão de perna dura. De longe não se via; de perto,
+que é exatamente para o que a câmera de perto existe, era a primeira coisa.
+
+Dá para ler o que o bicho está fazendo sem clicar em nada:
+
+| O que se vê | O que é |
+|---|---|
+| Focinho no chão, quase parado | Pastando |
+| Trote com o corpo no prumo | Indo a algum lugar — atrás de capim, ou de volta ao curral |
+| Galope, corpo subindo e encolhendo na passada | Fera em cima da presa |
+| Passo curto e cabeça erguida | Fera rondando |
+
+E os dois passaram a olhar para onde andam. Estavam montados olhando para +X
+enquanto o giro é calculado para +Z, então o rebanho inteiro andava de lado,
+feito caranguejo — noventa graus de erro que ninguém vê num bloco branco a
+quarenta tiles de distância e que salta aos olhos assim que a câmera desce.
+
 ## Como está feito
 
 Sem build, sem `node_modules` para jogar, sem download em tempo de execução:

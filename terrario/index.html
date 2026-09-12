@@ -127,6 +127,25 @@
   #inspetor dt{opacity:.55}
   #inspetor dd{margin:0;color:var(--claro);font-variant-numeric:tabular-nums}
 
+  /* ---- dobrar painel e modo limpo ---- */
+  /* Um gesto só em todo canto da tela: um "—" que encolhe, um "+" que devolve.
+     Painel que não se encolhe é o que faz o jogo de tela cheia caber em meia. */
+  .dobrar{background:none;border:none;color:var(--tinta);opacity:.55;font:inherit;font-size:13px;
+    line-height:1;cursor:pointer;padding:0 9px;pointer-events:auto;
+    transition:opacity .18s,transform .18s}
+  .dobrar:hover{opacity:.95}
+  .dobrar:active{opacity:1;transform:scale(.88)}
+  #estado .dobrar{border-left:1px solid var(--linha);min-width:28px}
+  #estado.fechada div:nth-child(n+2){display:none}
+  #inspetor h3 .dobrar{margin-left:auto;padding:0 1px;font-size:15px}
+  #paleta.fechada #grupos{display:none}
+  #paleta.fechada #ajustes{border-top:none}
+  #tempo button.modo{min-width:40px;padding:9px 11px;display:grid;place-items:center}
+  #tempo button.modo svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.9;
+    stroke-linecap:round;stroke-linejoin:round;display:block}
+  /* modo limpo: sobra o mundo e o controle de tempo, que é o que se usa olhando */
+  #ui.limpo #estado,#ui.limpo #cronica,#ui.limpo #fita,#ui.limpo #paleta,#ui.limpo #inspetor{display:none}
+
   /* ---- telas ---- */
   .tela{position:fixed;inset:0;z-index:20;pointer-events:auto;display:flex;flex-direction:column;
     align-items:center;justify-content:center;padding:max(18px,var(--sat)) max(22px,var(--sar)) max(18px,var(--sab)) max(22px,var(--sal));text-align:center;
@@ -185,9 +204,11 @@
     <div><b id="vTribos">0</b><span>Tribos</span></div>
     <div><b id="vBichos">0</b><span>Bichos</span></div>
     <div><b id="vTec">—</b><span>Técnica</span></div>
+    <button class="dobrar" id="dobrarEstado" aria-label="Encolher a barra de estado">—</button>
   </div>
 
   <div class="painel" id="tempo">
+    <button class="modo" id="modoLimpo" aria-label="Esconder os painéis" title="Esconder os painéis"><svg viewBox="0 0 24 24"><path d="M9 4H5.8A1.8 1.8 0 0 0 4 5.8V9M15 4h3.2A1.8 1.8 0 0 1 20 5.8V9M9 20H5.8A1.8 1.8 0 0 1 4 18.2V15M15 20h3.2a1.8 1.8 0 0 0 1.8-1.8V15"/></svg></button>
     <button data-vel="0">❚❚</button>
     <button data-vel="1" class="on">1×</button>
     <button data-vel="4">4×</button>
@@ -201,7 +222,7 @@
 
   <div id="fita"></div>
 
-  <div class="painel" id="inspetor"><h3><b></b><span></span></h3><dl></dl></div>
+  <div class="painel" id="inspetor"><h3><b></b><span></span><button class="dobrar" id="fecharInspetor" aria-label="Fechar o painel">×</button></h3><dl></dl></div>
 
   <div id="paleta">
     <div class="painel paleta-painel">
@@ -214,6 +235,7 @@
         <button id="enquadrar">Ver tudo</button>
         <button id="recomecar">Mundo pelado</button>
         <button id="ilhaPronta">Ilha pronta</button>
+        <button class="dobrar" id="dobrarPaleta" aria-label="Encolher a paleta">—</button>
       </div>
     </div>
   </div>
