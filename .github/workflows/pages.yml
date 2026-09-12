@@ -20,6 +20,7 @@ on:
       - 'castle-defense/**'
       - 'web-prototype/**'
       - 'frontline/**'
+      - 'terrario/**'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -65,7 +66,9 @@ jobs:
           cp -r castle-defense _site/castle-defense
           cp -r web-prototype _site/web-prototype
           cp -r frontline _site/frontline
+          cp -r terrario _site/terrario
           rm -rf _site/frontline/teste _site/frontline/package.json
+          rm -rf _site/terrario/teste _site/terrario/package.json _site/terrario/fotos
           echo "Publicando:"; find _site -type f | sort
 
       - name: Configurar o Pages

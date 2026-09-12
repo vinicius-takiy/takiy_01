@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#12140f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Terrário">
+<meta name="description" content="Simulador de mundo: pinte terreno, solte seres e veja civilizações surgirem sozinhas.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>Terrário</title>
+<style>
+  :root{
+    --fundo:#12140f; --painel:rgba(18,20,15,.82); --linha:rgba(214,206,178,.22);
+    --tinta:#d6cea2; --claro:#f2eddb; --dim:#9a9787;
+    --musgo:#7fa356; --terra:#b8894a; --agua:#4f8fb0; --sangue:#c4553f; --ouro:#e0b344;
+    --sat:env(safe-area-inset-top); --sar:env(safe-area-inset-right);
+    --sab:env(safe-area-inset-bottom); --sal:env(safe-area-inset-left);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;margin:0;overflow:hidden;background:var(--fundo);color:var(--tinta)}
+  body{font:500 13px/1.4 ui-sans-serif,-apple-system,"Segoe UI",Roboto,sans-serif;
+    touch-action:none;-webkit-user-select:none;user-select:none;overscroll-behavior:none}
+  canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+
+  #ui{position:fixed;inset:0;pointer-events:none;z-index:10;display:flex;flex-direction:column}
+  .painel{background:var(--painel);border:1px solid var(--linha);border-radius:8px;
+    backdrop-filter:blur(10px);pointer-events:auto}
+
+  /* ---- barra de estado ---- */
+  #estado{position:absolute;left:calc(10px + var(--sal));top:calc(10px + var(--sat));
+    display:flex;gap:0;overflow:hidden}
+  #estado div{padding:7px 11px;border-right:1px solid var(--linha);text-align:center;min-width:62px}
+  #estado div:last-child{border:none}
+  #estado b{display:block;font-size:16px;color:var(--claro);font-variant-numeric:tabular-nums;line-height:1.15}
+  #estado span{font-size:9px;letter-spacing:.14em;text-transform:uppercase;opacity:.55}
+
+  /* ---- tempo ---- */
+  #tempo{position:absolute;right:calc(10px + var(--sar));top:calc(10px + var(--sat));display:flex;overflow:hidden}
+  #tempo button{background:none;border:none;border-right:1px solid var(--linha);color:var(--tinta);
+    padding:9px 12px;font:inherit;font-size:12px;cursor:pointer}
+  #tempo button:last-child{border:none}
+  #tempo button.on{background:rgba(224,179,68,.22);color:var(--claro)}
+
+  /* ---- crônica ---- */
+  #cronica{position:absolute;right:calc(10px + var(--sar));top:calc(56px + var(--sat));
+    width:min(300px,46vw);max-height:38vh;display:flex;flex-direction:column;overflow:hidden}
+  #cronica h2{margin:0;padding:7px 11px;font-size:9px;letter-spacing:.16em;text-transform:uppercase;
+    opacity:.55;border-bottom:1px solid var(--linha);display:flex;justify-content:space-between;align-items:center}
+  #cronica h2 button{background:none;border:none;color:var(--tinta);opacity:.7;font:inherit;cursor:pointer;padding:0 2px}
+  #linhas{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:4px 0}
+  #linhas p{margin:0;padding:4px 11px;font-size:11.5px;line-height:1.35;display:flex;gap:7px}
+  #linhas i{font-style:normal;opacity:.45;font-variant-numeric:tabular-nums;flex:none;min-width:34px}
+  #linhas em{font-style:normal;flex:1}
+  #linhas p b{width:6px;height:6px;border-radius:50%;flex:none;margin-top:5px}
+  #cronica.fechada #linhas{display:none}
+
+  /* ---- paleta ---- */
+  #paleta{margin-top:auto;padding:0 calc(8px + var(--sar)) calc(8px + var(--sab)) calc(8px + var(--sal))}
+  #grupos{display:flex;gap:5px;padding:5px;overflow-x:auto;-webkit-overflow-scrolling:touch;align-items:stretch}
+  .pincel{flex:none;pointer-events:auto;background:rgba(0,0,0,.25);border:1px solid var(--linha);
+    border-radius:6px;color:var(--tinta);padding:5px 7px 4px;min-width:52px;cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;gap:3px;font:inherit}
+  .pincel .amostra{width:17px;height:17px;border-radius:4px;border:1px solid rgba(0,0,0,.35)}
+  .pincel .rot{font-size:9px;letter-spacing:.04em;line-height:1.1;text-align:center;opacity:.8}
+  .pincel.on{border-color:var(--ouro);background:rgba(224,179,68,.2)}
+  .pincel.on .rot{opacity:1;color:var(--claro)}
+  .divisor{flex:none;width:1px;background:var(--linha);margin:4px 2px}
+  #ajustes{display:flex;align-items:center;gap:9px;padding:0 9px 6px;font-size:10.5px}
+  #ajustes input{flex:1;accent-color:var(--ouro)}
+  #ajustes output{min-width:42px;text-align:right;opacity:.7;font-variant-numeric:tabular-nums}
+  #ajustes button{background:none;border:1px solid var(--linha);border-radius:5px;color:var(--tinta);
+    padding:4px 9px;font:inherit;font-size:11px;cursor:pointer;pointer-events:auto}
+
+  /* ---- inspetor ---- */
+  #inspetor{position:absolute;left:calc(10px + var(--sal));bottom:calc(96px + var(--sab));
+    width:min(260px,64vw);padding:9px 11px;display:none}
+  #inspetor.on{display:block}
+  #inspetor h3{margin:0 0 5px;font-size:13px;color:var(--claro);display:flex;align-items:center;gap:6px}
+  #inspetor h3 b{width:9px;height:9px;border-radius:2px;flex:none}
+  #inspetor dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:2px 9px;font-size:11.5px}
+  #inspetor dt{opacity:.55}
+  #inspetor dd{margin:0;color:var(--claro);font-variant-numeric:tabular-nums}
+
+  /* ---- telas ---- */
+  .tela{position:fixed;inset:0;z-index:20;pointer-events:auto;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:15px;padding:26px;text-align:center;
+    background:linear-gradient(rgba(12,14,10,.93),rgba(12,14,10,.98))}
+  .tela[hidden]{display:none}
+  .tela h1{margin:0;font-size:31px;letter-spacing:.14em;text-transform:uppercase;color:var(--claro);font-weight:700}
+  .tela p{margin:0;max-width:48ch;opacity:.78;font-size:13.5px;line-height:1.6}
+  .tela .dica{opacity:.5;font-size:11.5px;max-width:44ch}
+  .acao{padding:13px 30px;font-size:12.5px;letter-spacing:.18em;text-transform:uppercase;font-weight:700;
+    background:var(--tinta);color:var(--fundo);border:none;border-radius:4px;cursor:pointer;pointer-events:auto}
+  #carregando{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;
+    background:var(--fundo);font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;opacity:.6}
+</style>
+</head>
+<body>
+<div id="carregando">Semeando o mundo…</div>
+
+<div id="ui">
+  <div class="painel" id="estado">
+    <div><b id="vAno">0</b><span>Ano</span></div>
+    <div><b id="vPop">0</b><span>Pessoas</span></div>
+    <div><b id="vTribos">0</b><span>Tribos</span></div>
+    <div><b id="vBichos">0</b><span>Bichos</span></div>
+    <div><b id="vTec">—</b><span>Técnica</span></div>
+  </div>
+
+  <div class="painel" id="tempo">
+    <button data-vel="0">❚❚</button>
+    <button data-vel="1" class="on">1×</button>
+    <button data-vel="4">4×</button>
+    <button data-vel="16">16×</button>
+  </div>
+
+  <div class="painel" id="cronica">
+    <h2><span>Crônica</span><button id="dobrar">—</button></h2>
+    <div id="linhas"></div>
+  </div>
+
+  <div class="painel" id="inspetor"><h3><b></b><span></span></h3><dl></dl></div>
+
+  <div id="paleta">
+    <div class="painel">
+      <div id="grupos"></div>
+      <div id="ajustes">
+        <label for="raio">Pincel</label>
+        <input type="range" id="raio" min="1" max="9" step="1" value="3">
+        <output id="raioOut">3</output>
+        <button id="enquadrar">Ver tudo</button>
+        <button id="recomecar">Novo mundo</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="tela" id="abertura">
+  <h1>Terrário</h1>
+  <p>Um mundo vazio e uma caixa de peças. Pinte terra fértil, solte um punhado de
+     humanos em cima e espere: eles forrageiam, começam a plantar, domesticam o
+     rebanho que estiver por perto, abrem minas, se multiplicam, se dividem em
+     tribos e acabam brigando ou se aliando por conta própria.</p>
+  <p class="dica">Um dedo pinta quando há pincel escolhido, e arrasta o mapa quando não há.
+     Dois dedos giram e aproximam. A crônica, à direita, é onde a história aparece.</p>
+  <button class="acao" id="comecar">Criar</button>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.min.js" } }
+</script>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>

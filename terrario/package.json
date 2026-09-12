@@ -1,0 +1,14 @@
+{
+  "name": "terrario",
+  "private": true,
+  "type": "module",
+  "description": "Simulador de mundo em three.js. O jogo não precisa deste arquivo: só os testes precisam.",
+  "scripts": {
+    "test": "node teste/fumaca.mjs && node teste/equilibrio.mjs 300 varias",
+    "test:tela": "node teste/fumaca.mjs",
+    "test:mundo": "node teste/equilibrio.mjs 300 varias",
+    "test:fotos": "node teste/fumaca.mjs --fotos fotos",
+    "servir": "npx http-server -p 8081 -c-1 ."
+  },
+  "devDependencies": { "playwright": "^1.56.1" }
+}

@@ -1,6 +1,6 @@
 # takiy_01
 
-Protótipos de jogo para celular. Três jogos rodam no navegador; existe também o
+Protótipos de jogo para celular. Quatro jogos rodam no navegador; existe também o
 scaffold vazio de um projeto Unity, mantido como referência histórica.
 
 O objetivo declarado do repositório não é publicar um jogo: é **explorar até onde
@@ -32,12 +32,18 @@ elas valem mais do que a conveniência de qualquer mudança isolada.
 
 ## Verificar antes de entregar
 
-O `frontline/` tem teste de fumaça que joga sozinho num Chromium do tamanho de um
-iPhone. Rode-o depois de qualquer mudança lá:
+Cada jogo com testes tem os seus. Rode-os depois de qualquer mudança:
 
 ```bash
-cd frontline && npm test
+cd frontline && npm test   # 21 verificações de tela
+cd terrario  && npm test   # tela + 300 anos de mundo em 5 sementes
 ```
+
+No `terrario/`, o teste que manda é o `test:mundo`: ele roda a simulação **sem
+tela** e afirma que o mundo resultante se sustenta. Mexeu em regra de agente, de
+tribo ou de terreno, rode-o — quase todo defeito desse jogo é invisível olhando
+a tela por um minuto. E mantenha a simulação livre de `three` e de
+`Math.random`: sem determinismo pela semente, o teste mede ruído.
 
 Se mexer no visual, rode `npm run test:fotos` e **olhe as telas** — o teste passa
 com o jogo feio, e já pegou um fuzil ocupando um terço da tela que nenhuma
@@ -51,6 +57,7 @@ nele.
 
 | Pasta | O que é | Tem teste? |
 |---|---|---|
+| `terrario/` | Terrário — simulador de mundo com tribos, agricultura, pecuária, mineração, guerra e aliança | sim, dois |
 | `frontline/` | Linha de Frente — FPS de trincheira em three.js, e laboratório de esquemas de controle no toque | sim |
 | `web-prototype/` | Sniper 300m — três contratos, balística com queda e vento | não |
 | `castle-defense/` | Muralha dos Rabiscos — defesa de muralha 2D em estilo caderno | não |
