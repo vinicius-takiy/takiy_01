@@ -310,7 +310,10 @@ export class Rebanho {
       if (this.magro > 6) { this.viva = false; return; }
     } else this.magro = 0;
 
-    if (this.descanso <= 0 && this.saciado > 0.5 && sim.rebanhos.length < sim.tetoRebanho) {
+    // criação não cresce sem quem cuide: três cabeças por pessoa é o teto
+    const cabeExcesso = this.domesticado && this.tribo && this.tribo.cabecas > this.tribo.pop * 3;
+    if (this.descanso <= 0 && this.saciado > 0.5 && !cabeExcesso
+        && sim.rebanhos.length < sim.tetoRebanho) {
       this.descanso = 2.5 + sim.sorte() * 3;
       sim.nascerRebanho(this);
     }
@@ -333,7 +336,11 @@ export class Rebanho {
 
     if (!this.alvo || Math.hypot(this.alvo.x - this.x, this.alvo.y - this.y) < 0.5) {
       const ancora = this.domesticado && this.tribo ? this.tribo : this;
-      const raio = this.domesticado ? 5 : 9;
+      // o raio do pasto acompanha o tamanho do rebanho: preso em cinco tiles,
+      // cento e vinte cabeças viram uma parede branca em cima da aldeia
+      const raio = this.domesticado && this.tribo
+        ? Math.min(16, 3 + Math.sqrt(this.tribo.cabecas) * 1.1)
+        : 9;
       for (let k = 0; k < 6; k++) {
         const a = sim.sorte() * Math.PI * 2, d = sim.sorte() * raio;
         const cx = this.domesticado && this.tribo ? this.tribo.cx : this.x;

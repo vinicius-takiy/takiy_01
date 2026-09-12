@@ -1,7 +1,11 @@
 # Terrário
 
-Um jogo de criador. O mundo começa vazio: você pinta o terreno, solta seres em
-cima e o resto acontece sozinho. Ninguém dá ordem a ninguém.
+Um jogo de criador. **O mundo nasce pelado** — terra nua, areia e pedra, e mais
+nada. Mato, terra fértil, minério e bicho são todos coisa sua. Você atribui, e o
+resto acontece sozinho: ninguém dá ordem a ninguém.
+
+Quem preferir começar de um mundo já formado tem o botão **Ilha pronta**, que
+gera biomas como antes.
 
 **Jogar:** `https://vinicius-takiy.github.io/takiy_01/terrario/`
 (ou `npm run servir` e abrir `http://IP-DO-PC:8081` no celular)
@@ -13,6 +17,7 @@ com o que tem por perto — e o que está por perto é o que você pôs lá.
 
 | Você faz | O que acontece |
 |---|---|
+| Pinta pedra ou montanha | O veio de minério vem junto. Num mundo pelado não existe minério que você não tenha posto |
 | Solta humanos num lugar qualquer | Forrageiam; se forem três ou mais perto uns dos outros, fundam uma tribo |
 | Pinta terra fértil embaixo deles | Alguém para de forragear e começa a arar. Nasce a lavoura, e a tribo cresce |
 | Solta rebanho dentro do território | A tribo cerca um pasto e domestica os bichos; a comida deixa de depender de caçada |
@@ -55,6 +60,25 @@ solta. Arrastar o mapa também solta.
 Aproximando bastante dá para ver as pessoas indo e voltando, cada uma com a
 ferramenta do seu dom, balançando enquanto trabalham.
 
+## Tudo tem forma
+
+Nada é cápsula nem esfera. Cada coisa do mundo é um boneco de bloco montado em
+`src/figuras.js`:
+
+- **Gente** com pernas, tronco, braços e cabeça, mais o traço da vocação:
+  chapéu de palha e enxada, capuz e lança com aljava, fardo nas costas e
+  marreta, capacete com lanterna e picareta, cocar de penas e cajado.
+- **Rebanho** de quatro patas, corpo comprido, focinho e rabo; **fera** mais
+  baixa e esticada, com orelhas em ponta e cauda erguida.
+- **Natureza** que aparece conforme você pinta: árvore com tronco e três
+  andares de copa, moita no campo, lajedo na pedra — e feixe de trigo que só
+  brota na roça quando ela amadurece, então dá para ver a colheita chegando.
+- **Oca** com porta e telhado de seis águas, e um mastro na cor da tribo.
+
+Cada figura vira duas malhas instanciadas: uma tingida pela cor da tribo (a
+roupa) e outra com cor de verdade (pele, madeira, folha, metal). Com uma malha
+só, a pele saía pintada da cor da tribo — foi assim que isto começou.
+
 A **crônica**, no canto direito, é onde tudo isso vira história. Ela não é
 enfeite: você não vê um humano decidir plantar, você lê "Ocre começa a plantar".
 
@@ -81,6 +105,7 @@ então depois da primeira visita abre offline.
 | `src/agentes.js` | Humano, rebanho e fera. A ordem das decisões do humano **é** o jogo |
 | `src/tribos.js` | Território, cisão, diplomacia, comércio e a tabela de vocações |
 | `src/sim.js` | O relógio: tica agentes, forma tribos, resolve fronteiras, escreve a crônica |
+| `src/figuras.js` | Biblioteca de bonecos de bloco: gente, bicho, mato, oca |
 | `src/render.js` | Malhas instanciadas — a grade inteira é um objeto só |
 | `src/camera.js` | Câmera orbital e a regra de um dedo/dois dedos |
 | `src/ui.js` | Paleta, painel, crônica e inspetor |
@@ -128,7 +153,9 @@ resultante e já pegou, entre outros:
   uma região esgotada para recomeçar longe.
 - Não há madeira, barco nem pesca, e a ilha é uma só: o mar é cenário, não
   caminho.
-- De perto se vê quem é quem e para onde vai, mas não há animação de interação
-  — ninguém abraça, luta corpo a corpo ou entrega comida na mão do outro.
+- De perto se vê quem é quem e para onde vai, mas as figuras são rígidas: elas
+  giram e balançam ao trabalhar, e não movem pernas nem braços. Também não há
+  animação de interação — ninguém luta corpo a corpo nem entrega comida na mão
+  do outro.
 - Os números de quadros medidos no teste vêm de renderização por software; não
   servem para estimar desempenho no aparelho.

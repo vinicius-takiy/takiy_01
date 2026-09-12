@@ -17,6 +17,7 @@ export const PINCEIS = [
   { divisor: true },
   { id: 'fertil',   nome: 'Terra fértil', tipo: 'terreno', terreno: T.FERTIL },
   { id: 'campo',    nome: 'Campo',        tipo: 'terreno', terreno: T.GRAMA },
+  { id: 'terra',    nome: 'Terra nua',    tipo: 'terreno', terreno: T.TERRA },
   { id: 'floresta', nome: 'Floresta',     tipo: 'terreno', terreno: T.FLORESTA },
   { id: 'agua',     nome: 'Água',         tipo: 'terreno', terreno: T.AGUA },
   { id: 'areia',    nome: 'Areia',        tipo: 'terreno', terreno: T.AREIA },
@@ -27,7 +28,7 @@ export const PINCEIS = [
 ];
 
 export class Interface {
-  constructor({ aoTrocarVelocidade, aoEnquadrar, aoRecomecar, aoComecar, aoSeguir }) {
+  constructor({ aoTrocarVelocidade, aoEnquadrar, aoRecomecar, aoIlhaPronta, aoComecar, aoSeguir }) {
     this.aoSeguir = aoSeguir;
     this.seguindo = null;
     this.fixado = null;
@@ -66,6 +67,7 @@ export class Interface {
     }
     el('enquadrar').onclick = aoEnquadrar;
     el('recomecar').onclick = aoRecomecar;
+    el('ilhaPronta').onclick = aoIlhaPronta;
     el('dobrar').onclick = () => {
       const c = el('cronica');
       c.classList.toggle('fechada');

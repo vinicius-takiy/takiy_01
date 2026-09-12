@@ -50,6 +50,7 @@ const iface = new Interface({
   aoTrocarVelocidade: (v) => { velocidade = v; },
   aoEnquadrar: () => cam.enquadrarTudo(),
   aoRecomecar: () => novoMundo(),
+  aoIlhaPronta: () => novoMundo(undefined, false),
   aoComecar: () => { rodando = true; },
   aoSeguir: (t) => cam.seguir(t),
 });
@@ -66,9 +67,9 @@ const cam = new Camera(camera, tela, {
   },
 });
 
-function novoMundo(semente = (Math.random() * 65535) | 0) {
+function novoMundo(semente = (Math.random() * 65535) | 0, pelado = true) {
   if (render) render.descartar();
-  sim = new Simulacao(semente);
+  sim = new Simulacao(semente, { pelado });
   render = new Render(cena, sim.mundo);
   iface.ultimaCronica = 0;
   document.getElementById('linhas').innerHTML = '';

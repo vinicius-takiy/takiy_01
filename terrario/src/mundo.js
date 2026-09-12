@@ -8,7 +8,7 @@ export const NIVEL_MAR = 0.28;
 
 export const T = {
   AGUA: 0, AREIA: 1, GRAMA: 2, FERTIL: 3, FLORESTA: 4,
-  ROCHA: 5, MONTANHA: 6, PLANTACAO: 7, PASTO: 8,
+  ROCHA: 5, MONTANHA: 6, PLANTACAO: 7, PASTO: 8, TERRA: 9,
 };
 
 /** Nome, cor e regras de cada terreno. A cor é o que o jogador lê no mapa. */
@@ -22,10 +22,12 @@ export const TERRENOS = {
   [T.MONTANHA]:  { nome: 'Montanha',    cor: 0x8e8b84, andavel: false, forragem: 0.00 },
   [T.PLANTACAO]: { nome: 'Plantação',   cor: 0xb99a3e, andavel: true,  forragem: 0.06 },
   [T.PASTO]:     { nome: 'Pasto',       cor: 0x87a054, andavel: true,  forragem: 0.28 },
+  // terra nua: onde o mundo pelado começa. Quase não alimenta ninguém.
+  [T.TERRA]:     { nome: 'Terra nua',   cor: 0x7a6647, andavel: true,  forragem: 0.03 },
 };
 
 export class Mundo {
-  constructor(semente = 1) {
+  constructor(semente = 1, pelado = false) {
     this.n = N;
     const t = N * N;
     this.terreno   = new Uint8Array(t);
@@ -37,7 +39,7 @@ export class Mundo {
     this.base      = new Uint8Array(t);     // terreno original, para onde a terra volta
     this.vigor     = new Float32Array(t).fill(1); // fertilidade restante, 0..1
     this.sujo      = new Set();             // tiles que o render precisa refazer
-    this.gerar(semente);
+    this.gerar(semente, pelado);
   }
 
   idx(x, y) { return y * N + x; }
@@ -97,7 +99,11 @@ export class Mundo {
     };
   }
 
-  gerar(semente) {
+  /**
+   * @param pelado Só relevo, areia e pedra: sem mata, sem terra fértil e sem
+   *   veio de minério. É o mundo em que a natureza também é obra do jogador.
+   */
+  gerar(semente, pelado = false) {
     const r = mulberry(semente ^ 0x5f3a);
     const relevoDe = this.campoDeRuido(semente);
     const umidadeDe = this.campoDeRuido(semente * 7919 + 13);
@@ -121,6 +127,7 @@ export class Mundo {
         else if (h < NIVEL_MAR + 0.045) tipo = T.AREIA;
         else if (h > 0.74) tipo = T.MONTANHA;
         else if (h > 0.66) tipo = T.ROCHA;
+        else if (pelado) tipo = T.TERRA;
         else if (umid > 0.56) tipo = T.FLORESTA;
         else if (umid > 0.46) tipo = T.FERTIL;
         else tipo = T.GRAMA;
@@ -129,7 +136,7 @@ export class Mundo {
         this.base[i] = tipo;
         this.comida[i] = TERRENOS[tipo].forragem;
         this.altura[i] = this.alturaDe(i, tipo);
-        if ((tipo === T.MONTANHA || tipo === T.ROCHA) && r() > 0.55) {
+        if (!pelado && (tipo === T.MONTANHA || tipo === T.ROCHA) && r() > 0.55) {
           this.minerio[i] = 1 + Math.floor(r() * 3);
         }
       }

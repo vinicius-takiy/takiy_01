@@ -19,10 +19,10 @@ const CELA = 8;                // lado da célula do índice espacial, em tiles
 const LIMITE_CISAO = 34;       // acima disto a tribo tende a se partir em duas
 
 export class Simulacao {
-  constructor(semente = Date.now() & 0xffff) {
+  constructor(semente = Date.now() & 0xffff, { pelado = false } = {}) {
     reiniciarIds();
     this.sorte = mulberry(semente);
-    this.mundo = new Mundo(semente);
+    this.mundo = new Mundo(semente, pelado);
     this.humanos = [];
     this.rebanhos = [];
     this.predadores = [];
@@ -451,6 +451,13 @@ export class Simulacao {
           const i = mundo.idx(x, y);
           mundo.base[i] = pincel.terreno;
           mundo.vigor[i] = 1;
+          // pedra pintada pelo jogador vem com veio: num mundo pelado o minério
+          // também tem que ser coisa que ele põe, senão mineração nunca acontece
+          if (pincel.terreno === T.ROCHA || pincel.terreno === T.MONTANHA) {
+            mundo.minerio[i] = this.sorte() > 0.45 ? 1 + Math.floor(this.sorte() * 3) : 0;
+          } else if (mundo.minerio[i]) {
+            mundo.minerio[i] = 0;
+          }
           mundo.definir(i, pincel.terreno);
         }
       }
