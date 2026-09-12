@@ -47,6 +47,7 @@ export class Tribo {
     this.temPasto = false;
     this.temMina = false;
     this.cabecas = 0;              // animais domesticados
+    this.temCosta = false;         // território encosta em água: dá para pescar
     this.curral = null;            // {x, y, raio} — o pasto cercado
     this.cercas = [];              // tiles de mourão, na volta do curral
     this.rebanhosProximos = 0;     // selvagens pastando no território
@@ -311,6 +312,7 @@ export const VOCACOES = {
   lider:      { nome: 'Líder',      cor: 0xe0b344, arar: 0.8, colher: 0.85, minerar: 0.8, cacar: 0.8, lutar: 1.15 },
   guarda:     { nome: 'Guarda',     cor: 0xb8574a, lutar: 1.9, enfrentar: 1.9, cercar: 1.2, arar: 0.7, colher: 0.8, minerar: 0.7 },
   pastor:     { nome: 'Pastor',     cor: 0x8fb0a0, arrebanhar: 1.9, pastorear: 1.8, recolher: 1.5, cacar: 0.7, minerar: 0.7, lutar: 0.85 },
+  pescador:   { nome: 'Pescador',   cor: 0x5f97b0, pescar: 2.1, forragear: 1.15, arar: 0.8, minerar: 0.7, lutar: 0.85 },
 };
 
 export const CHAVES_VOCACAO = Object.keys(VOCACOES);
@@ -338,6 +340,11 @@ function fatiaDePastor(tribo) {
   return tribo.curral ? 0.13 : 0.01;
 }
 
+/** Pescador só onde há margem. Numa tribo de sertão é uma boca a mais. */
+function fatiaDePescador(tribo) {
+  return tribo.temCosta ? 0.14 : 0.01;
+}
+
 export function rende(h, obra) {
   const v = VOCACOES[h.dom];
   return (v && v[obra]) || 1;
@@ -357,7 +364,8 @@ export function sortearVocacao(sorte, tribo, pai, mae) {
   for (const k of CHAVES_VOCACAO) tem[k] = 0;
   for (const m of tribo.membros) if (m.dom) tem[m.dom]++;
 
-  const alvo = { ...MISTURA_ALVO, guarda: fatiaDeGuarda(tribo), pastor: fatiaDePastor(tribo) };
+  const alvo = { ...MISTURA_ALVO, guarda: fatiaDeGuarda(tribo), pastor: fatiaDePastor(tribo),
+                 pescador: fatiaDePescador(tribo) };
   let faltaMais = null, maiorFalta = -Infinity;
   for (const k of CHAVES_VOCACAO) {
     const falta = alvo[k] * tribo.pop - tem[k];

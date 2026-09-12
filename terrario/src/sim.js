@@ -4,7 +4,7 @@
 // mundo se sustenta.
 
 import { Mundo, N, T, TERRENOS, mulberry } from './mundo.js';
-import { Humano, Rebanho, Predador, ANO, MADEIRA_OCA } from './agentes.js';
+import { Humano, Rebanho, Predador, Peixe, Jacare, ANO, MADEIRA_OCA } from './agentes.js';
 import { Tribo, encontro, comerciar, encontrarSitioDeOca, reiniciarIds, TECNOLOGIAS, MADEIRA_CERCA,
          VOCACOES, CHAVES_VOCACAO, rende, sortearVocacao, temLider } from './tribos.js';
 
@@ -16,6 +16,15 @@ const TETO_HUMANOS = 900;
 // satura qualquer teto que se dê a ele — então o teto é a régua.
 const TETO_REBANHO = 200;
 const TETO_PREDADOR = 60;
+const TETO_JACARE = 40;
+/**
+ * Capacidade da água, em peixe por tile. Não é um teto de segurança como o de
+ * humano: é a densidade que a água sustenta, e ela acompanha o mapa que o
+ * jogador pintou — um mar grande dá cardume grande, um açude dá cinco peixes.
+ * A 0,30 o cardume batia no limite em vinte anos e ficava lá, que é a mesma
+ * cara de "encostou no teto do código" que a população humana já teve.
+ */
+const PEIXE_POR_TILE = 0.10;
 const PASSO_TRIBOS = 1.0;      // segundos de simulação entre revisões de tribo
 const CELA = 8;                // lado da célula do índice espacial, em tiles
 const LIMITE_CISAO = 34;       // acima disto a tribo tende a se partir em duas
@@ -29,6 +38,8 @@ export class Simulacao {
     this.humanos = [];
     this.rebanhos = [];
     this.predadores = [];
+    this.peixes = [];
+    this.jacares = [];
     this.tribos = [];
     this.porId = new Map();
     this.cronicas = [];
@@ -42,9 +53,25 @@ export class Simulacao {
     this.mortesEmGuerra = 0;
     this.ferasAbatidasNaCerca = 0;
     this.guardasMortos = 0;
+    this.afogados = 0;
+    this.pescados = 0;
   }
 
   get ano() { return Math.floor(this.tempo / ANO); }
+
+  /** Quanto peixe a água deste mundo comporta. Conta uma vez: o mapa muda pouco
+   *  e varrer 6400 tiles a cada desova sairia caro à toa. */
+  get tetoPeixe() {
+    if (this._tetoPeixe === undefined) this.recontarAgua();
+    return this._tetoPeixe;
+  }
+
+  recontarAgua() {
+    let n = 0;
+    for (let i = 0; i < this.mundo.terreno.length; i++) if (this.mundo.terreno[i] === T.AGUA) n++;
+    this.tilesDeAgua = n;
+    this._tetoPeixe = Math.min(600, Math.round(n * PEIXE_POR_TILE));
+  }
   tribo(id) { return this.porId.get(id); }
 
   // ------------------------------------------------------------- crônica
@@ -152,6 +179,8 @@ export class Simulacao {
     for (const h of this.humanos) if (h.viva) h.atualizar(dt, this);
     for (const r of this.rebanhos) if (r.viva) r.atualizar(dt, this);
     for (const p of this.predadores) if (p.viva) p.atualizar(dt, this);
+    for (const p of this.peixes) if (p.viva) p.atualizar(dt, this);
+    for (const j of this.jacares) if (j.viva) j.atualizar(dt, this);
 
     this.recolherMortos();
 
@@ -173,13 +202,68 @@ export class Simulacao {
       if (h.causa === 'predador') this.mortesPorPredador++;
       if (h.causa === 'guerra') this.mortesEmGuerra++;
       if (h.causa === 'fera') { this.mortesPorPredador++; this.guardasMortos++; }
+      if (h.causa === 'afogado') this.afogados++;
     }
     if (this.humanos.some((h) => !h.viva)) this.humanos = this.humanos.filter((h) => h.viva);
     if (this.rebanhos.some((r) => !r.viva)) {
-      for (const r of this.rebanhos) if (!r.viva && r.domesticado && r.tribo) r.tribo.cabecas--;
+      for (const r of this.rebanhos) {
+        if (r.viva) continue;
+        if (r.causa === 'afogado') this.afogados++;
+        if (r.domesticado && r.tribo) r.tribo.cabecas--;
+      }
       this.rebanhos = this.rebanhos.filter((r) => r.viva);
     }
     if (this.predadores.some((p) => !p.viva)) this.predadores = this.predadores.filter((p) => p.viva);
+    if (this.peixes.some((p) => !p.viva)) this.peixes = this.peixes.filter((p) => p.viva);
+    if (this.jacares.some((j) => !j.viva)) this.jacares = this.jacares.filter((j) => j.viva);
+  }
+
+  // ------------------------------------------------------------- água
+  cardumeAoRedor(p, raio = 6) {
+    let n = 0;
+    for (const o of this.peixes) {
+      if (o === p || !o.viva) continue;
+      if (Math.hypot(o.x - p.x, o.y - p.y) <= raio && ++n >= 2) return n;
+    }
+    return n;
+  }
+
+  peixePerto(x, y, raio) {
+    let melhor = null, md = raio;
+    for (const p of this.peixes) {
+      if (!p.viva) continue;
+      const d = Math.hypot(p.x - x, p.y - y);
+      if (d < md) { md = d; melhor = p; }
+    }
+    return melhor;
+  }
+
+  /** Bicho de terra que caiu na água. É a refeição grande do jacaré. */
+  afogadoPerto(x, y, raio) {
+    let melhor = null, md = raio;
+    for (const r of this.rebanhos) {
+      if (!r.viva || !this.mundo.ehAgua(Math.round(r.x), Math.round(r.y))) continue;
+      const d = Math.hypot(r.x - x, r.y - y);
+      if (d < md) { md = d; melhor = r; }
+    }
+    return melhor;
+  }
+
+  abatidoNaAgua(alvo) {
+    alvo.viva = false;
+    if (alvo.causa === undefined) alvo.causa = 'jacare';
+  }
+
+  nascerPeixe(mae) {
+    const p = new Peixe(mae.x + (this.sorte() - 0.5), mae.y + (this.sorte() - 0.5), this.sorte);
+    if (!this.mundo.ehAgua(Math.round(p.x), Math.round(p.y))) { p.x = mae.x; p.y = mae.y; }
+    this.peixes.push(p);
+  }
+
+  nascerJacare(pai) {
+    if (this.jacares.length >= Math.min(TETO_JACARE, 2 + this.peixes.length / 20)) return;
+    const j = new Jacare(pai.x, pai.y, this.sorte);
+    this.jacares.push(j);
   }
 
   // --------------------------------------------------------------- tribos
@@ -267,9 +351,13 @@ export class Simulacao {
     //     lavoura, e é o que autoriza arar mais — antes disso a expansão só
     //     acontecia com a tribo já gorda, que é justamente o que ela nunca fica.
     for (const t of this.tribos) {
-      let roças = 0;
-      for (const i of t.territorio) if (this.mundo.terreno[i] === T.PLANTACAO) roças++;
+      let roças = 0, costa = false;
+      for (const i of t.territorio) {
+        if (this.mundo.terreno[i] === T.PLANTACAO) roças++;
+        if (!costa && this.mundo.naMargem(i % N, (i / N) | 0)) costa = true;
+      }
       t.plantios = roças;
+      t.temCosta = costa;
     }
 
     // 4. fronteiras
@@ -388,9 +476,12 @@ export class Simulacao {
           presa.viva = false;
           this.depositar(h, 2.6);
         } else {
-          // escapou: dispara para longe de quem caçou
+          // escapou: dispara para longe de quem caçou, e em pânico — o que
+          // significa que a água deixa de ser parede. É daí que sai a cena de
+          // bicho fugindo para dentro do rio e não voltando.
           const a = Math.atan2(presa.y - h.y, presa.x - h.x);
           presa.alvo = { x: Math.round(presa.x + Math.cos(a) * 9), y: Math.round(presa.y + Math.sin(a) * 9) };
+          presa.panico = 0.9;
         }
         break;
       }
@@ -447,6 +538,19 @@ export class Simulacao {
         bicho.tribo = t;
         t.cabecas++;
         this.cronica(`${t.nome} recolhe o primeiro rebanho ao curral`, t, 'pecuaria', true);
+        break;
+      }
+      case 'pescar': {
+        const peixe = this.peixePerto(h.x, h.y, 5);
+        if (!peixe) break;
+        // Sem rede, pescar erra muito. A técnica melhora, e o pescador é quem
+        // faz disso ofício — senão qualquer um na margem esvazia o cardume.
+        if (this.sorte() < (0.34 + (t ? t.tecnologia * 0.10 : 0)) * rende(h, 'pescar')) {
+          peixe.viva = false;
+          this.pescados++;
+          this.depositar(h, 2.2 * (1 + (t ? t.tecnologia * 0.2 : 0)));
+          if (t) this.cronica(`${t.nome} come do rio`, t, 'pesca', true);
+        }
         break;
       }
       case 'vigiar': {
@@ -630,6 +734,8 @@ export class Simulacao {
           mundo.definir(i, pincel.terreno);
         }
       }
+      // pintou terreno: a conta de água mudou, e com ela o teto do cardume
+      this._tetoPeixe = undefined;
       return;
     }
     if (pincel.tipo === 'ser') {
@@ -637,7 +743,10 @@ export class Simulacao {
       for (let k = 0; k < quantos; k++) {
         const a = this.sorte() * Math.PI * 2, d = this.sorte() * raio;
         const x = cx + Math.cos(a) * d, y = cy + Math.sin(a) * d;
-        if (!mundo.andavel(Math.round(x), Math.round(y))) continue;
+        // peixe e jacaré só caem na água; o resto, só em chão firme
+        const cabe = pincel.aquatico ? mundo.ehAgua(Math.round(x), Math.round(y))
+                                     : mundo.andavel(Math.round(x), Math.round(y));
+        if (!cabe) continue;
         this.soltar(pincel.ser, x, y);
       }
       return;
@@ -658,7 +767,7 @@ export class Simulacao {
       // guarda não vem do balde do jogador: ele nasce da tribo que já tem cerca
       // ou fronteira quente. Soltar guarda num bando de cinco é pôr uma boca a
       // mais sem nada para vigiar.
-      const balde = CHAVES_VOCACAO.filter((k) => k !== 'guarda' && k !== 'pastor');
+      const balde = CHAVES_VOCACAO.filter((k) => k !== 'guarda' && k !== 'pastor' && k !== 'pescador');
       h.dom = balde[(this.sorte() * balde.length) | 0];
       this.humanos.push(h);
     } else if (especie === 'rebanho') {
@@ -667,6 +776,12 @@ export class Simulacao {
     } else if (especie === 'predador') {
       if (this.predadores.length >= TETO_PREDADOR) return;
       this.predadores.push(new Predador(x, y, this.sorte));
+    } else if (especie === 'peixe') {
+      if (this.peixes.length >= this.tetoPeixe) return;
+      this.peixes.push(new Peixe(x, y, this.sorte));
+    } else if (especie === 'jacare') {
+      if (this.jacares.length >= TETO_JACARE) return;
+      this.jacares.push(new Jacare(x, y, this.sorte));
     }
   }
 
@@ -677,6 +792,11 @@ export class Simulacao {
       humanos: this.humanos.length,
       rebanhos: this.rebanhos.length,
       predadores: this.predadores.length,
+      peixes: this.peixes.length,
+      jacares: this.jacares.length,
+      pescando: this.tribos.filter((t) => t.temCosta).length,
+      pescados: this.pescados,
+      afogados: this.afogados,
       tribos: this.tribos.length,
       comTecnologia: this.tribos.filter((t) => t.tecnologia > 0).length,
       plantando: this.tribos.filter((t) => t.temPlantacao).length,

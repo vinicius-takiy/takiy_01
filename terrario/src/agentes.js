@@ -35,6 +35,7 @@ const OBRA = {
   cacar:     { dur: 0.45 },
   arar:      { dur: 0.45 },
   cercar:    { dur: 0.5 },
+  pescar:    { dur: 0.3 },
   arrebanhar:{ dur: 0.3 },
   recolher:  { dur: 0.2 },
   vigiar:    { dur: 0.4 },
@@ -86,6 +87,22 @@ export class Humano {
 
     if (this.idade > this.expectativa) return this.morrer('velhice');
     if (this.fome >= 1) return this.morrer('fome');
+
+    // Dentro d'água. Acontece quando o jogador pinta água debaixo de gente, e
+    // sem isto a pessoa ficava presa para sempre num tile que `mover` recusa —
+    // viva, sem tarefa possível, contando como população para todo o resto.
+    // Gente nada melhor que boi, mas não indefinidamente.
+    if (sim.mundo.ehAgua(Math.round(this.x), Math.round(this.y))) {
+      this.nadando = (this.nadando || 0) + anos;
+      if (this.nadando > 0.9) return this.morrer('afogado');
+      this.alvo = null; this.obra = null;
+      this.largarBicho();
+      const saida = this.margemMaisPerto(sim);
+      if (saida) mover(this, saida, VEL * 0.55 * dt, sim.mundo,
+                       (x, y) => sim.mundo.andavel(x, y) || sim.mundo.ehAgua(x, y));
+      return;
+    }
+    this.nadando = 0;
 
     // Fome no limite larga o que estiver fazendo. `escolherTarefa` só roda com o
     // agente parado, então numa viagem longa dava para morrer de fome a caminho
@@ -267,6 +284,10 @@ export class Humano {
   buscarComida(sim) {
     const { mundo } = sim;
     const t = this.tribo;
+    // O pescador vai ao rio antes de olhar a roça. É o ofício dele, e é o que
+    // faz uma tribo de beira d'água comer do rio em vez de só ter margem no
+    // mapa: sem esta linha a pesca era um acaso de quem passava perto.
+    if (t && t.temCosta && this.dom === 'pescador' && this.pescaria(sim)) return true;
     if (t) {
       if (t.temPlantacao && this.acharTile(sim, (i) => mundo.terreno[i] === T.PLANTACAO && mundo.crescer[i] >= 1, true)) {
         this.alvo.obra = 'colher';
@@ -276,6 +297,8 @@ export class Humano {
         this.alvo.obra = 'pastorear';
         return true;
       }
+      // Margem com peixe também serve a quem não é pescador, com menos vontade.
+      if (t.temCosta && sim.sorte() < 0.28 && this.pescaria(sim)) return true;
     }
     // caçador vai atrás de bicho antes de catar mato; é o que faz um bando de
     // caçadores esgotar o rebanho enquanto um de lavradores nem encosta nele
@@ -300,6 +323,25 @@ export class Humano {
       return true;
     }
     return false;
+  }
+
+  /**
+   * Acha um lugar de pesca: um peixe ao alcance de exploração e uma margem
+   * pisável coladinha nele. O raio é o de exploração, não o de busca — a aldeia
+   * fica no meio do território e a margem, na borda. Procurando peixe a onze
+   * tiles de quem decide, ninguém enxergava o rio de casa e cem anos de tribo
+   * costeira davam zero peixe pescado.
+   */
+  pescaria(sim) {
+    const peixe = sim.peixePerto(this.x, this.y, RAIO_EXPLORAR);
+    if (!peixe) return false;
+    const achou = this.acharTile(sim, (i) => {
+      const x = i % sim.mundo.n, y = (i / sim.mundo.n) | 0;
+      return sim.mundo.naMargem(x, y) && Math.hypot(x - peixe.x, y - peixe.y) < 4.5;
+    }, false, RAIO_EXPLORAR);
+    if (!achou) return false;
+    this.alvo.obra = 'pescar';
+    return true;
   }
 
   /**
@@ -331,6 +373,20 @@ export class Humano {
     if (!melhor) return false;
     this.alvo = { x: melhor.x, y: melhor.y, obra: null };
     return true;
+  }
+
+  /** Chão firme mais próximo, para quem caiu na água. */
+  margemMaisPerto(sim) {
+    const cx = Math.round(this.x), cy = Math.round(this.y);
+    for (let raio = 1; raio <= 8; raio++) {
+      for (let dy = -raio; dy <= raio; dy++) {
+        for (let dx = -raio; dx <= raio; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== raio) continue;
+          if (sim.mundo.andavel(cx + dx, cy + dy)) return { x: cx + dx, y: cy + dy };
+        }
+      }
+    }
+    return null;
   }
 
   inimigoPerto(sim) {
@@ -400,6 +456,8 @@ export class Rebanho {
     this.expectativa = 12 + sorte() * 6;
     this.domesticado = false;
     this.conduzido = null;         // humano que está tocando este bicho
+    this.panico = 0;               // anos de susto; em pânico o bicho entra na água
+    this.afogando = 0;
     this.tribo = null;
     this.alvo = null;
     this.descanso = 2 + sorte() * 3;
@@ -414,6 +472,30 @@ export class Rebanho {
 
     const { mundo } = sim;
     const i = mundo.idx(Math.round(this.x), Math.round(this.y));
+    this.panico = Math.max(0, this.panico - anos);
+
+    // Dentro d'água. Bicho de terra não entra por vontade — entra fugindo — e
+    // uma vez lá dentro tem pouco tempo: ou acha a margem, ou se afoga, ou o
+    // jacaré chega antes. É o que dá preço a empurrar rebanho para o rio.
+    if (mundo.terreno[i] === T.AGUA) {
+      this.afogando += anos;
+      if (this.afogando > 0.6) { this.viva = false; this.causa = 'afogado'; return; }
+      if (!this.saida || !mundo.andavel(this.saida.x, this.saida.y)) {
+        this.saida = null;
+        for (let raio = 1; raio <= 6 && !this.saida; raio++) {
+          for (let dy = -raio; dy <= raio && !this.saida; dy++) {
+            for (let dx = -raio; dx <= raio; dx++) {
+              const x = Math.round(this.x) + dx, y = Math.round(this.y) + dy;
+              if (mundo.andavel(x, y)) { this.saida = { x, y }; break; }
+            }
+          }
+        }
+      }
+      if (this.saida) mover(this, this.saida, 0.75 * dt, mundo, (x, y) => mundo.andavel(x, y) || mundo.ehAgua(x, y));
+      return;
+    }
+    this.afogando = 0;
+    this.saida = null;
 
     // Bicho não se domestica sozinho. Antes bastava passar por território com
     // pasto e ele virava criação — rebanho selvagem entrando no curral por
@@ -524,7 +606,10 @@ export class Rebanho {
         if (mundo.andavel(x, y)) { this.alvo = { x, y }; break; }
       }
     }
-    if (this.alvo) mover(this, this.alvo, 1.1 * dt, mundo);
+    // em pânico a água deixa de ser parede: é assim que o bicho fugindo acaba
+    // no rio, e é de propósito
+    const passavel = this.panico > 0 ? (x, y) => mundo.andavel(x, y) || mundo.ehAgua(x, y) : null;
+    if (this.alvo) mover(this, this.alvo, 1.1 * dt, mundo, passavel);
   }
 }
 
@@ -574,6 +659,8 @@ export class Predador {
         // Sem esta desistência a fera trava perseguindo presa do outro lado da
         // água: `mover` recusa o passo, ela não anda mais e morre de fome parada.
         // Era isto que extinguia o predador em toda partida, não o equilíbrio.
+        // presa perseguida entra em pânico, e bicho em pânico atravessa água
+        if (this.presa.panico !== undefined) this.presa.panico = 0.9;
         const antes = this.x + this.y;
         mover(this, this.presa, VEL_FERA * dt, sim.mundo);
         if (Math.abs(this.x + this.y - antes) < 1e-6) {
@@ -599,13 +686,164 @@ export class Predador {
   }
 }
 
-function mover(ag, alvo, passo, mundo) {
+/** `passavel` decide o que é chão para este bicho. Peixe e jacaré andam onde o
+ *  resto se afoga, e bicho em pânico entra na água que normalmente recusa. */
+function mover(ag, alvo, passo, mundo, passavel = null) {
   const dx = alvo.x - ag.x, dy = alvo.y - ag.y;
   const d = Math.hypot(dx, dy);
   if (d < 1e-4) return;
   const nx = ag.x + (dx / d) * passo, ny = ag.y + (dy / d) * passo;
-  if (mundo.andavel(Math.round(nx), Math.round(ny))) { ag.x = nx; ag.y = ny; }
+  const ok = passavel ? passavel(Math.round(nx), Math.round(ny)) : mundo.andavel(Math.round(nx), Math.round(ny));
+  if (ok) { ag.x = nx; ag.y = ny; }
   else ag.alvo = null;
+}
+
+const naAgua = (mundo) => (x, y) => mundo.ehAgua(x, y);
+
+// ------------------------------------------------------------------- água
+const VEL_PEIXE = 1.6;
+/** Quanto plâncton um peixe come por ano. Baixo de propósito: peixe voraz
+ *  raspa o mar e o cardume desaba junto, o mesmo colapso da fera com a presa. */
+const PLANCTON = 0.12;
+const VEL_JACARE = 2.6;
+
+/**
+ * Peixe. Existe para dar à água o que a terra tem: uma cadeia. Sem ele a água
+ * era só um lugar por onde não se anda, e uma tribo na costa não tinha nada a
+ * ganhar por estar ali.
+ */
+export class Peixe {
+  constructor(x, y, sorte = Math.random) {
+    this.x = x; this.y = y;
+    this.idade = sorte() * 3;
+    this.expectativa = 6 + sorte() * 5;
+    this.descanso = 1 + sorte() * 2;
+    this.alvo = null;
+    this.viva = true;
+  }
+
+  atualizar(dt, sim) {
+    const anos = dt / ANO;
+    this.idade += anos;
+    this.descanso = Math.max(0, this.descanso - anos);
+    if (this.idade > this.expectativa) { this.viva = false; return; }
+
+    const { mundo } = sim;
+    const i = mundo.idx(Math.round(this.x), Math.round(this.y));
+    // come plâncton do tile, mesma mecânica do pasto em terra
+    const apetite = anos * PLANCTON;
+    const comeu = Math.min(mundo.comida[i], apetite);
+    mundo.comida[i] -= comeu;
+    const fracao = apetite > 0 ? comeu / apetite : 1;
+    const memoria = Math.min(1, anos * 0.8);
+    this.saciado = (this.saciado ?? 0.7) * (1 - memoria) + fracao * memoria;
+    if (this.saciado < 0.25) {
+      this.magro = (this.magro || 0) + anos;
+      if (this.magro > 4) { this.viva = false; return; }
+    } else this.magro = 0;
+
+    // Peixe solto não desova, mesma regra da manada em terra: cardume é o que
+    // se multiplica. Sem isso um peixe perdido num poço enche o mapa sozinho.
+    if (this.descanso <= 0 && this.saciado > 0.5 && sim.peixes.length < sim.tetoPeixe
+        && sim.cardumeAoRedor(this) >= 2) {
+      this.descanso = 2.4 + sim.sorte() * 2.6;
+      sim.nascerPeixe(this);
+    }
+
+    if (!this.alvo || Math.hypot(this.alvo.x - this.x, this.alvo.y - this.y) < 0.5) {
+      // nada junto do cardume, e só onde há água
+      let n = 0, sx = 0, sy = 0;
+      for (const o of sim.peixes) {
+        if (o === this || !o.viva) continue;
+        if (Math.hypot(o.x - this.x, o.y - this.y) > 7) continue;
+        sx += o.x; sy += o.y; n++;
+        if (n > 8) break;
+      }
+      const cx = n ? (sx / n + this.x) / 2 : this.x;
+      const cy = n ? (sy / n + this.y) / 2 : this.y;
+      // com fome o cardume se desfaz e cada um procura água farta: é o que
+      // espalha o peixe em vez de deixá-lo morrer em cima de um trecho raspado
+      const largura = this.saciado < 0.4 ? 9 : (n ? 4 : 7);
+      let melhorNota = -1;
+      for (let k = 0; k < 8; k++) {
+        const a = sim.sorte() * Math.PI * 2, d = sim.sorte() * largura;
+        const x = Math.round(cx + Math.cos(a) * d), y = Math.round(cy + Math.sin(a) * d);
+        if (!mundo.ehAgua(x, y)) continue;
+        const nota = mundo.comida[mundo.idx(x, y)];
+        if (nota > melhorNota) { melhorNota = nota; this.alvo = { x, y }; }
+      }
+    }
+    if (this.alvo) mover(this, this.alvo, VEL_PEIXE * dt, mundo, naAgua(mundo));
+  }
+}
+
+/**
+ * Jacaré. Predador de água: vive de peixe e pega o que cair lá dentro. É o que
+ * transforma "entrar na água" numa decisão com preço, em vez de num lugar
+ * aonde simplesmente não se vai.
+ */
+export class Jacare {
+  constructor(x, y, sorte = Math.random) {
+    this.x = x; this.y = y;
+    this.idade = sorte() * 3;
+    this.expectativa = 16 + sorte() * 8;
+    // metabolismo lento de propósito: jacaré que precisa comer toda hora limpa
+    // o cardume e morre junto, o mesmo colapso que a fera de terra já deu
+    this.fome = sorte() * 0.4;
+    this.alvo = null;
+    this.presa = null;
+    this.fartas = 0;
+    this.viva = true;
+  }
+
+  atualizar(dt, sim) {
+    const anos = dt / ANO;
+    this.idade += anos;
+    // Metabolismo de jacaré: oito anos até a fome matar. Com 0,22 ao ano ele
+    // tinha quatro anos e meio, e como o cardume anda junto — deixando quase
+    // todo o mar vazio — o que estivesse longe do cardume morria antes de
+    // achá-lo. Extinção no ano 104, toda partida.
+    this.fome += anos * 0.12;
+    if (this.idade > this.expectativa || this.fome >= 1) { this.viva = false; return; }
+
+    const { mundo } = sim;
+    if (this.presa && !this.presa.viva) { this.presa = null; this.alvo = null; }
+
+    if (!this.presa && this.fome > 0.35) {
+      // o que caiu na água vem antes do peixe: é a refeição grande
+      this.presa = sim.afogadoPerto(this.x, this.y, 7) || sim.peixePerto(this.x, this.y, 16);
+    }
+
+    if (this.presa) {
+      const d = Math.hypot(this.presa.x - this.x, this.presa.y - this.y);
+      if (d < 0.9) {
+        const grande = this.presa instanceof Peixe ? 0 : 1;
+        sim.abatidoNaAgua(this.presa);
+        this.fome = Math.max(0, this.fome - (grande ? 0.85 : 0.4));
+        this.fartas += grande ? 2 : 1;
+        // Três refeições, não cinco. Uma delas sustenta o jacaré por três anos,
+        // então cinco eram dezesseis anos — quase a vida inteira dele — e a
+        // espécie vivia de dois ou três indivíduos, morrendo por azar.
+        if (this.fartas >= 3 && this.idade > 3) { this.fartas = 0; sim.nascerJacare(this); }
+        this.presa = null;
+      } else {
+        const antes = this.x + this.y;
+        mover(this, this.presa, VEL_JACARE * dt, mundo, naAgua(mundo));
+        // presa em terra firme: o jacaré não sai atrás, desiste
+        if (Math.abs(this.x + this.y - antes) < 1e-6) { this.presa = null; this.alvo = null; }
+      }
+      return;
+    }
+
+    if (!this.alvo || Math.hypot(this.alvo.x - this.x, this.alvo.y - this.y) < 0.6) {
+      for (let k = 0; k < 8; k++) {
+        const a = sim.sorte() * Math.PI * 2, d = 2 + sim.sorte() * 7;
+        const x = Math.round(this.x + Math.cos(a) * d), y = Math.round(this.y + Math.sin(a) * d);
+        if (mundo.ehAgua(x, y)) { this.alvo = { x, y }; break; }
+      }
+    }
+    if (this.alvo) mover(this, this.alvo, VEL_JACARE * 0.45 * dt, mundo, naAgua(mundo));
+  }
 }
 
 export { OBRA };

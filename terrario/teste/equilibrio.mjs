@@ -46,12 +46,21 @@ function rodar(semente) {
   for (let k = 0; k < 10; k++) sim.soltar('humano', berco.x + (sim.sorte() - .5) * 5, berco.y + (sim.sorte() - .5) * 5);
   for (let k = 0; k < 40; k++) sim.soltar('rebanho', berco.x + (sim.sorte() - .5) * 26, berco.y + (sim.sorte() - .5) * 26);
   for (let k = 0; k < 3; k++) sim.soltar('predador', berco.x + (sim.sorte() - .5) * 40, berco.y + (sim.sorte() - .5) * 40);
+  // Água povoada, senão a costa é cenário: sem peixe não há pesca, e sem pesca
+  // metade do que se afirma sobre tribo de beira d'água não é medido.
+  let soltos = 0;
+  for (let t = 0; t < 4000 && soltos < 60; t++) {
+    const x = Math.round(sim.sorte() * (sim.mundo.n - 1)), y = Math.round(sim.sorte() * (sim.mundo.n - 1));
+    if (!sim.mundo.ehAgua(x, y)) continue;
+    sim.soltar(soltos % 20 === 19 ? 'jacare' : 'peixe', x, y);
+    soltos++;
+  }
 
   // Picos medidos a cada tique: amostrar de vinte em vinte anos deixa passar
   // exatamente o que interessa quando o mundo colapsa entre duas amostras.
   const pico = { humanos: 0, tribos: 0, plantando: 0, pastoreando: 0, minerando: 0,
                  guerras: 0, aliancas: 0, maiorTribo: 0, predadores: 0, tec: 0,
-                 currais: 0, guardas: 0, gado: 0 };
+                 currais: 0, guardas: 0, gado: 0, peixes: 0, jacares: 0, pescados: 0 };
   const linha = [];
   const dt = 1 / 12;
   const passos = Math.ceil((anos * ANO) / dt);
@@ -92,6 +101,10 @@ function avaliar({ pico, fim }) {
     ['o rebanho selvagem sobrevive', fim.rebanhos > 0, `${fim.rebanhos}`],
     ['o predador não se extingue', fim.predadores > 0, `${fim.predadores}`],
     ['o predador não vira praga', pico.predadores <= 60, `pico ${pico.predadores}`],
+    ['o cardume não some da água', fim.peixes > 0, `${fim.peixes} peixes`],
+    ['o jacaré não se extingue nem vira praga', fim.jacares > 0 && pico.jacares <= 40,
+      `${fim.jacares} de pico ${pico.jacares}`],
+    ['alguém come do rio', fim.pescados > 0, `${fim.pescados} peixes pescados`],
   ];
 }
 
@@ -133,6 +146,8 @@ console.log('\npicos  — pessoas', r.pico.humanos, '· tribos', r.pico.tribos, 
             '· predadores', r.pico.predadores, '· guerras', r.pico.guerras, '· alianças', r.pico.aliancas,
             '· tec', TEC[r.pico.tec]);
 console.log('mortes — fome', r.fim.mortesPorFome, '· fera', r.fim.mortesPorPredador, '· guerra', r.fim.mortesEmGuerra);
+console.log('água   — peixes', r.fim.peixes, '· jacarés', r.fim.jacares, '· pescados', r.fim.pescados,
+            '· bichos afogados', r.fim.afogados, '· tribos com margem', r.fim.pescando);
 
 if (verCronica) {
   console.log('\ncrônica:');

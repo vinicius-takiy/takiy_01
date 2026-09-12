@@ -68,6 +68,14 @@ const HUMANOS = {
     P(-0.232, 0.40, 0.09, 0.028, 0.56, 0.028, MADEIRA, 'natural', 0, 0, -0.22),
     P(-0.30, 0.66, 0.09, 0.30, 0.045, 0.045, 0x6f7480, 'natural', 0, 0, 0.42),
   ],
+  pescador: () => [
+    ...esqueletoHumano(),
+    P(0, 0.752, 0, 0.30, 0.028, 0.30, PALHA, 'natural'),           // chapéu de palha largo
+    P(0, 0.772, 0, 0.17, 0.05, 0.17, PALHA, 'natural'),
+    P(0.235, 0.52, 0.05, 0.024, 1.00, 0.024, MADEIRA, 'natural', 0, 0, 0.22),  // vara
+    P(0.40, 0.92, 0.05, 0.012, 0.34, 0.012, 0xd8d2c4, 'natural'),  // linha
+    P(-0.20, 0.31, -0.11, 0.15, 0.13, 0.11, 0x7a6a45, 'natural'),  // cesto
+  ],
   pastor: () => [
     ...esqueletoHumano(),
     P(0, 0.745, 0, 0.20, 0.06, 0.20, 0xb6a077, 'natural'),         // touca de lã
@@ -178,6 +186,32 @@ function pedra() {
   ];
 }
 
+/** Peixe: corpo curto e cauda em leque. Nada logo abaixo da lâmina. */
+function peixe() {
+  const escama = 0x7fb6c4, barriga = 0xcfe4e6;
+  return [
+    P(0, 0, 0, 0.16, 0.11, 0.30, escama, 'natural'),
+    P(0, -0.035, 0.02, 0.11, 0.05, 0.24, barriga, 'natural'),
+    P(0, 0, -0.20, 0.02, 0.13, 0.11, escama, 'natural'),           // cauda
+    P(0, 0.08, 0.01, 0.02, 0.07, 0.12, escama, 'natural'),         // dorsal
+  ];
+}
+
+/** Jacaré: comprido, baixo, focinho longo e cristas nas costas. */
+function jacare() {
+  const couro = 0x4f6b45, escuro = 0x39492f;
+  return [
+    P(0, 0, 0, 0.20, 0.11, 0.52, couro, 'natural'),
+    P(0, 0.005, 0.36, 0.13, 0.08, 0.26, couro, 'natural'),         // focinho
+    P(0, 0.055, 0.20, 0.055, 0.045, 0.055, 0xd8c98a, 'natural'),   // olhos
+    P(-0.075, 0.06, 0.22, 0.04, 0.04, 0.04, escuro, 'natural'),
+    P(0.075, 0.06, 0.22, 0.04, 0.04, 0.04, escuro, 'natural'),
+    CONE(0, 0.09, 0.02, 0.05, 0.09, 4, escuro, 'natural'),         // crista
+    CONE(0, 0.09, -0.14, 0.05, 0.09, 4, escuro, 'natural'),
+    P(0, -0.01, -0.42, 0.09, 0.075, 0.34, couro, 'natural'),       // cauda
+  ];
+}
+
 /** Mourão de cerca: dois postes e duas travessas. O topo de um deles leva a cor
  *  da tribo — é o que faz dois currais vizinhos não virarem a mesma cerca. */
 function cerca() {
@@ -200,7 +234,7 @@ function espiga() {
 
 export const FIGURAS = {
   ...Object.fromEntries(Object.entries(HUMANOS).map(([k, f]) => [`humano:${k}`, f])),
-  rebanho, predador, arvore, oca, moita, pedra, espiga, cerca,
+  rebanho, predador, arvore, oca, moita, pedra, espiga, cerca, peixe, jacare,
   'rebanho:pata': pata(0x584a38), 'predador:pata': pata(0x4a2c22),
 };
 

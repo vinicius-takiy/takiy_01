@@ -320,6 +320,60 @@ checar('cada bicho anda com quatro patas', patas1.vivos > 0 && patas1.patas === 
 checar('a pata se mexe entre um quadro e outro',
        patas1.matriz.some((v, i) => Math.abs(v - patas2[i]) > 0.0005));
 
+// --- água: lâmina no nível da terra, peixe dentro dela, jacaré em cena ---
+// O defeito era este: o tile de água ficava meio metro abaixo da margem e lia
+// como um buraco quadrado de parede azul, não como um lago.
+const agua = await pagina.evaluate(() => {
+  const { sim, render } = window.__terrario;
+  const m = sim.mundo;
+  // longe da aldeia de propósito: pintar água em cima da tribo afoga a tribo, e
+  // aí as checagens seguintes reprovam por falta de gente, não por defeito
+  const t0 = sim.tribos[0];
+  const cx = t0 ? Math.max(6, Math.min(m.n - 7, Math.round(t0.cx) + 22)) : 14;
+  const cy = t0 ? Math.max(6, Math.min(m.n - 7, Math.round(t0.cy) + 22)) : 14;
+  sim.pintar(cx, cy, 4, { tipo: 'terreno', terreno: 0 });    // T.AGUA
+  render.aplicarSujos();
+  // Degrau medido tile a tile na beirada, não contra uma margem cinco tiles
+  // adiante: o relevo muda sozinho nessa distância e a medida vira ruído.
+  let soma = 0, pares = 0;
+  for (let y = cy - 8; y <= cy + 8 && pares < 60; y++) {
+    for (let x = cx - 8; x <= cx + 8 && pares < 60; x++) {
+      if (!m.ehAgua(x, y)) continue;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        if (!m.andavel(x + dx, y + dy)) continue;
+        soma += Math.abs(render.alturaDaLamina(m.idx(x, y)) - render.alturaColuna(m.idx(x + dx, y + dy)));
+        pares++;
+        break;
+      }
+    }
+  }
+  const antesPeixe = sim.peixes.length;
+  sim.pintar(cx, cy, 3, { tipo: 'ser', ser: 'peixe', quantos: 10, aquatico: true });
+  sim.pintar(cx, cy, 2, { tipo: 'ser', ser: 'jacare', quantos: 2, aquatico: true });
+  // peixe fora d'água é o erro clássico deste pincel
+  const encalhados = sim.peixes.filter((p) => !m.ehAgua(Math.round(p.x), Math.round(p.y))).length;
+  render.atualizarSeres(sim, 0.016);
+  return {
+    laminas: render.lamina.count,
+    degrau: pares ? soma / pares : 99,
+    pares,
+    peixes: sim.peixes.length - antesPeixe,
+    encalhados,
+    peixesEmCena: render.figuras.get('peixe').natural.count,
+    jacaresEmCena: render.figuras.get('jacare').natural.count,
+  };
+});
+checar('água pintada ganha lâmina desenhada', agua.laminas > 20, `${agua.laminas} tiles de lâmina`);
+checar('a lâmina fica no nível da margem, não no fundo de um buraco',
+       agua.pares > 5 && agua.degrau < 0.30,
+       `degrau médio de ${agua.degrau.toFixed(2)} em ${agua.pares} pontos de beirada`);
+checar('o pincel de peixe só solta dentro da água',
+       agua.peixes > 0 && agua.encalhados === 0, `${agua.peixes} soltos, ${agua.encalhados} encalhados`);
+checar('peixe e jacaré aparecem em cena',
+       agua.peixesEmCena > 0 && agua.jacaresEmCena > 0,
+       `${agua.peixesEmCena} peixes, ${agua.jacaresEmCena} jacarés`);
+await foto('agua');
+
 // --- painéis que encolhem: a tela é o jogo ---
 const naTela = (sel) => pagina.locator(sel).isVisible();
 await pagina.locator('#dobrarEstado').click();

@@ -46,9 +46,11 @@ cheio de lavrador atravessa a seca com o celeiro cheio.
 | **Líder** | Não faz nada melhor com as mãos. Muda a tribo: técnica 22% mais barata, aliança bem mais provável, guerra menos, e a tribo demora mais para rachar | Usa adorno de cabeça |
 | **Guarda** | Quase o dobro em combate, e é o único que enfrenta a fera na cerca. Planta e colhe mal | Lança e escudo na cor da tribo |
 | **Pastor** | Vai buscar bicho solto e traz tocando; tira quase o dobro do rebanho. Caça e minera mal | Cajado de gancho e bornal |
+| **Pescador** | Duas vezes melhor na margem, e vai ao rio antes de olhar a roça. Ara e minera mal | Chapéu de palha largo, vara e cesto |
 
-Guarda e pastor são os dois dons que **não** saem do balde do jogador: o pastor
-só existe onde há cerca (13% da gente), e o guarda, onde há cerca para rondar ou fronteira em
+Guarda, pastor e pescador **não** saem do balde do jogador: o pastor só existe
+onde há cerca (13% da gente), o pescador só onde o território encosta em água
+(14%), e o guarda, onde há cerca para rondar ou fronteira em
 guerra — 10% da gente, 16% com as duas coisas. Soltar um guarda num bando de
 cinco é pôr uma boca a mais sem nada para vigiar.
 
@@ -108,6 +110,47 @@ trava de abrigo, a maioria passou a morrer de velhice, perto dos setenta.
 
 A **crônica**, no canto direito, é onde tudo isso vira história. Ela não é
 enfeite: você não vê um humano decidir plantar, você lê "Ocre começa a plantar".
+
+## Água viva
+
+A água era um lugar por onde não se anda. Pior: **era um buraco**. O leito caía
+para o fundo do mar independentemente do relevo, então um lago pintado no alto
+de um planalto virava um poço quadrado de parede azul meio metro abaixo da
+margem — e o mar aberto deixava um barranco de praia à vista em toda a volta da
+ilha.
+
+Duas correções e uma malha nova. O leito passou a acompanhar o relevo (uma
+depressão rasa, não um poço), e cada tile de água ganhou uma **lâmina
+translúcida** desenhada à parte, na altura da terra em volta. À parte porque o
+chão é uma malha instanciada só, com material opaco: não dá para deixar alguns
+tiles transparentes ali. O mar aberto subiu para a mesma conta, e a linha da
+praia virou uma só.
+
+Com a água parecendo água, deu para pôr vida dentro dela:
+
+| Bicho | O que faz |
+|---|---|
+| **Peixe** | Anda em cardume, come plâncton, e só desova com dois vizinhos por perto — mesma regra da manada em terra |
+| **Jacaré** | Predador de água. Vive de peixe e pega o que cair lá dentro. Metabolismo de oito anos sem comer, porque o cardume anda junto e deixa quase todo o mar vazio |
+
+E deu para pescar. A margem com peixe é comida que não custa roça nem rebanho —
+é o que faz valer a pena instalar uma tribo na costa em vez de só ter praia no
+mapa. Quem procura é o **pescador**, e ele procura no raio de exploração, não no
+de busca: a aldeia fica no meio do território e a margem, na borda. Medindo a
+onze tiles de quem decide, ninguém enxergava o rio de casa e cem anos de tribo
+costeira davam **zero** peixe pescado.
+
+O cardume tem capacidade por área — 0,10 peixe por tile de água. Não é teto de
+segurança como o de humano: é a densidade que a água sustenta, e ela acompanha o
+mapa que você pintou. Um mar grande dá cardume grande; um açude dá cinco peixes.
+A 0,30 o cardume batia no limite em vinte anos e ficava lá, com a mesma cara de
+"encostou no teto do código" que a população humana já teve.
+
+**Bicho de terra que cai na água** tem pouco tempo: ou acha a margem, ou se
+afoga, ou o jacaré chega antes. Ele não entra por vontade — entra em pânico,
+fugindo de caçador ou de fera, e é só nesse estado que a água deixa de ser
+parede para ele. É raro de propósito: em quatrocentos anos de teste, um bicho
+afogado. Precisa de água do lado da caçada.
 
 ## A ordem do assentamento
 
@@ -289,6 +332,19 @@ resultante e já pegou, entre outros:
   almoço a pé;
 - colapso predador-presa de manual: feras dobrando a cada dois abates, limpando
   o mundo em dezenove anos e morrendo junto.
+
+## Na fila
+
+Coisas pedidas que ainda não estão aqui, para não empilhar sistema sobre uma
+simulação que já tem seus buracos:
+
+- **Chuva e trovão.** Raio caindo, floresta pegando fogo, o fogo se alastrando
+  se não chover, e alcançando tribo que morar dentro da mata.
+- **Aprendizado.** A tribo lembrar do que a queimou e mudar de comportamento,
+  com o líder conduzindo — inteligência como atributo, não só diplomacia.
+- **Solo que soma.** Pintar floresta em terra fértil dando mata rica e rápida, e
+  em terra nua dando vegetação pobre; e ter que apagar antes de trocar, em vez
+  de o pincel sobrescrever.
 
 ## Limites conhecidos
 

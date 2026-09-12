@@ -13,7 +13,11 @@ export const T = {
 
 /** Nome, cor e regras de cada terreno. A cor é o que o jogador lê no mapa. */
 export const TERRENOS = {
-  [T.AGUA]:      { nome: 'Água',        cor: 0x2f5f7a, andavel: false, forragem: 0.00 },
+  // A água tem forragem: é o plâncton, e é o que segura o cardume. Sem um
+  // recurso finito na água o peixe só encontrava o teto do código — 57 viravam
+  // 600 em vinte anos e ficavam lá. Terra firme não alcança: `acharTile` recusa
+  // tile não andável, então isto não vira comida de graça para quem anda.
+  [T.AGUA]:      { nome: 'Água',        cor: 0x2f5f7a, andavel: false, forragem: 0.12 },
   [T.AREIA]:     { nome: 'Areia',       cor: 0xc9b98a, andavel: true,  forragem: 0.02 },
   [T.GRAMA]:     { nome: 'Campo',       cor: 0x6f8f4a, andavel: true,  forragem: 0.22 },
   [T.FERTIL]:    { nome: 'Terra fértil',cor: 0x6b5334, andavel: true,  forragem: 0.26 },
@@ -64,8 +68,28 @@ export class Mundo {
     const base = this.relevo[i];
     if (tipo === T.MONTANHA) return base + 1.6;
     if (tipo === T.ROCHA) return base + 0.45;
-    if (tipo === T.AGUA) return Math.min(base, NIVEL_MAR - 0.22);
+    // O leito acompanha o relevo em vez de cair para o fundo do mar. Antes um
+    // lago pintado no alto de um planalto virava um poço quadrado de meio metro
+    // com parede azul — o "bloco vazio". Agora é uma depressão rasa, e a lâmina
+    // d'água (desenhada à parte) fica quase no nível da terra em volta.
+    if (tipo === T.AGUA) return base - 0.30;
     return base;
+  }
+
+  /**
+   * Altura da lâmina d'água neste tile. Sai do relevo cru, não da altura já
+   * rebaixada do leito: é isso que faz o lago encostar na margem em vez de
+   * ficar no fundo de um buraco.
+   */
+  superficieDaAgua(i) { return this.relevo[i] - 0.07; }
+
+  ehAgua(x, y) { return this.dentro(x, y) && this.terreno[this.idx(x, y)] === T.AGUA; }
+
+  /** Tem água encostada neste tile? É o que define margem — onde se pesca e
+   *  onde o jacaré alcança. */
+  naMargem(x, y) {
+    return this.ehAgua(x + 1, y) || this.ehAgua(x - 1, y)
+        || this.ehAgua(x, y + 1) || this.ehAgua(x, y - 1);
   }
 
   /**

@@ -7,18 +7,21 @@
 // madeira, folha) — com uma malha só, a pele saía pintada da cor da tribo.
 
 import * as THREE from 'three';
-import { N, T, TERRENOS } from './mundo.js';
+import { N, T, TERRENOS, NIVEL_MAR } from './mundo.js';
 import { CHAVES_VOCACAO } from './tribos.js';
 import { montarFigura, QUADRIS } from './figuras.js';
 
 const CAIXA = new THREE.BoxGeometry(1, 1, 1);
 const ALTURA_MIN = 0.35;
 const COR_MAR = 0x397f91;
+/** Altura do mar aberto, na mesma conta da lâmina dos tiles: relevo do nível do
+ *  mar, menos a mesma folga. Assim a linha da praia é uma só. */
+const NIVEL_LAMINA = Math.max(ALTURA_MIN, 0.5 + (NIVEL_MAR - 0.07) * 1.5);
 
 const TETOS = {
   arvore: 2600, moita: 1100, pedra: 800, espiga: 1400, oca: 200, cerca: 900,
   rebanho: 240, predador: 70, humano: 260,
-  'rebanho:pata': 240 * 4, 'predador:pata': 70 * 4,
+  'rebanho:pata': 240 * 4, 'predador:pata': 70 * 4, peixe: 600, jacare: 40,
 };
 
 export class Render {
@@ -57,6 +60,25 @@ export class Render {
     this.chao.instanceMatrix.needsUpdate = true;
     this.chao.instanceColor.needsUpdate = true;
 
+    // ---------- lâmina d'água ----------
+    // Uma placa translúcida por tile de água, na altura da terra em volta. O
+    // chão é uma malha instanciada só, com um material opaco: não dá para
+    // deixar alguns tiles transparentes ali. Daí a segunda malha — é ela que
+    // faz um lago parecer lago em vez de um buraco quadrado de parede azul.
+    this.lamina = new THREE.InstancedMesh(
+      new THREE.PlaneGeometry(1, 1),
+      new THREE.MeshPhongMaterial({ color: 0x4d97ab, transparent: true, opacity: 0.72,
+                                    shininess: 80, specular: 0xbfe6de,
+                                    side: THREE.DoubleSide, depthWrite: false }),
+      N * N,
+    );
+    this.lamina.geometry.rotateX(-Math.PI / 2);
+    this.lamina.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.lamina.frustumCulled = false;
+    this.lamina.renderOrder = 1;
+    this.lamina.count = 0;
+    cena.add(this.lamina);
+
     // ---------- mar ----------
     // bem maior que a ilha: um plano do tamanho dela mostra a própria borda
     this.mar = new THREE.Mesh(
@@ -65,7 +87,9 @@ export class Render {
                                     shininess: 75, specular: 0xb7e1d8 }),
     );
     this.mar.rotation.x = -Math.PI / 2;
-    this.mar.position.set(N / 2, 0.4, N / 2);
+    // O mar tem que encostar na areia. A 0,4 sobrava meio metro de barranco de
+    // praia à vista em toda a volta da ilha, e a costa lia como corte de bolo.
+    this.mar.position.set(N / 2, NIVEL_LAMINA, N / 2);
     cena.add(this.mar);
 
     // Uma segunda pele quase invisível quebra o plano perfeito do mar e produz
@@ -83,10 +107,11 @@ export class Render {
     // ---------- figuras ----------
     for (const k of CHAVES_VOCACAO) this.criarFigura(`humano:${k}`, TETOS.humano);
     for (const k of ['rebanho', 'rebanho:pata', 'predador', 'predador:pata',
-                     'oca', 'cerca', 'arvore', 'moita', 'pedra', 'espiga']) {
+                     'peixe', 'jacare', 'oca', 'cerca', 'arvore', 'moita', 'pedra', 'espiga']) {
       this.criarFigura(k, TETOS[k]);
     }
     this.refazerCenario();
+    this.refazerAgua();
 
     // ---------- destaque do pincel ----------
     this.alvoPincel = new THREE.Mesh(
@@ -164,6 +189,26 @@ export class Render {
     return this.alturaColuna(this.mundo.idx(xi, yi));
   }
 
+  /** Onde fica a superfície da água deste tile, na mesma escala do chão. */
+  alturaDaLamina(i) { return Math.max(ALTURA_MIN, 0.5 + this.mundo.superficieDaAgua(i) * 1.5); }
+
+  /** Redesenha a lâmina de todos os tiles de água. Roda quando o mapa muda, não
+   *  por quadro: água pintada é evento raro. */
+  refazerAgua() {
+    const { mundo } = this;
+    let n = 0;
+    for (let i = 0; i < N * N; i++) {
+      if (mundo.terreno[i] !== T.AGUA) continue;
+      this.aux.position.set(i % N, this.alturaDaLamina(i), (i / N) | 0);
+      this.aux.rotation.set(0, 0, 0);
+      this.aux.scale.setScalar(1);
+      this.aux.updateMatrix();
+      this.lamina.setMatrixAt(n++, this.aux.matrix);
+    }
+    this.lamina.count = n;
+    this.lamina.instanceMatrix.needsUpdate = true;
+  }
+
   /** Cor do tile, sem o dono. A água sai plana e igual à do mar aberto: com o
    *  sombreado de relevo, o quadrado da grade aparecia como um losango claro. */
   corDoTile(i) {
@@ -206,6 +251,7 @@ export class Render {
     if (!mundo.sujo.size) return false;
     for (const i of mundo.sujo) this.escreverTile(i);
     mundo.sujo.clear();
+    this.refazerAgua();
     this.chao.instanceMatrix.needsUpdate = true;
     this.chao.instanceColor.needsUpdate = true;
     this.refazerCenario();
@@ -269,7 +315,7 @@ export class Render {
   atualizarSeres(sim, dt = 0) {
     this.tempo += dt;
     const nomes = [...CHAVES_VOCACAO.map((k) => `humano:${k}`), 'oca',
-                   'rebanho', 'rebanho:pata', 'predador', 'predador:pata'];
+                   'rebanho', 'rebanho:pata', 'predador', 'predador:pata', 'peixe', 'jacare'];
     this.abrirLote(nomes);
 
     for (const h of sim.humanos) {
@@ -335,6 +381,32 @@ export class Render {
       this.aux.scale.set(base, base * (1 - Math.abs(balanco) * (caca ? 0.05 : 0.015)), base);
       this.por('predador');
       this.porPatas('predador:pata', p.x, chao, p.y, giro, base, passo, amplitude);
+    }
+
+    // Bicho de água anda na lâmina, não no leito: desenhar no chão do tile
+    // deixaria o peixe enterrado no fundo, invisível sob a água translúcida.
+    for (const p of sim.peixes) {
+      if (!p.viva) continue;
+      const i = this.mundo.dentro(Math.round(p.x), Math.round(p.y))
+        ? this.mundo.idx(Math.round(p.x), Math.round(p.y)) : 0;
+      const nada = Math.sin(this.tempo * 7 + p.x * 3 + p.y);
+      this.aux.position.set(p.x, this.alturaDaLamina(i) - 0.10 + nada * 0.02, p.y);
+      this.aux.rotation.set(0, p.alvo ? Math.atan2(p.alvo.x - p.x, p.alvo.y - p.y) : giroParado(p), nada * 0.25);
+      this.aux.scale.setScalar(this.escalaEntrada(p));
+      this.por('peixe');
+    }
+
+    for (const j of sim.jacares) {
+      if (!j.viva) continue;
+      const i = this.mundo.dentro(Math.round(j.x), Math.round(j.y))
+        ? this.mundo.idx(Math.round(j.x), Math.round(j.y)) : 0;
+      const mira = j.presa || j.alvo;
+      // quase submerso; só o dorso e os olhos ficam acima da lâmina
+      const rasteja = mira ? Math.sin(this.tempo * 5 + j.x) : Math.sin(this.tempo * 1.1 + j.y);
+      this.aux.position.set(j.x, this.alturaDaLamina(i) - 0.05, j.y);
+      this.aux.rotation.set(0, mira ? Math.atan2(mira.x - j.x, mira.y - j.y) : giroParado(j), rasteja * 0.05);
+      this.aux.scale.setScalar(this.escalaEntrada(j));
+      this.por('jacare');
     }
 
     for (const t of sim.tribos) {

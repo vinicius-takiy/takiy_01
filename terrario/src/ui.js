@@ -14,6 +14,10 @@ export const PINCEIS = [
   { id: 'humano',   nome: 'Humano',  tipo: 'ser', ser: 'humano', quantos: 3, cor: 0xf2eddb },
   { id: 'rebanho',  nome: 'Rebanho', tipo: 'ser', ser: 'rebanho', quantos: 4, cor: 0xc9b48c },
   { id: 'fera',     nome: 'Fera',    tipo: 'ser', ser: 'predador', quantos: 1, cor: 0x9a4436 },
+  // Aquáticos só caem em tile de água — `aquatico` é o que a simulação lê para
+  // não deixar peixe encalhado no campo.
+  { id: 'peixe',    nome: 'Peixe',   tipo: 'ser', ser: 'peixe', quantos: 6, cor: 0x7fb6c4, aquatico: true },
+  { id: 'jacare',   nome: 'Jacaré',  tipo: 'ser', ser: 'jacare', quantos: 1, cor: 0x4f6b45, aquatico: true },
   { divisor: true },
   { id: 'fertil',   nome: 'Terra fértil', tipo: 'terreno', terreno: T.FERTIL },
   { id: 'campo',    nome: 'Campo',        tipo: 'terreno', terreno: T.GRAMA },
@@ -224,7 +228,7 @@ export class Interface {
     // abreviado de propósito: por extenso isto virava três linhas e o painel
     // crescia até cobrir a fita de tribos
     const CURTO = { lavrador: 'lav', cacador: 'caç', construtor: 'con', minerador: 'min',
-                    lider: 'líd', guarda: 'gua', pastor: 'pas' };
+                    lider: 'líd', guarda: 'gua', pastor: 'pas', pescador: 'pes' };
     const gente = CHAVES_VOCACAO.filter((k) => conta[k])
       .map((k) => `${conta[k]} ${CURTO[k]}`).join(' · ');
     dl.innerHTML = linhas([
@@ -261,6 +265,8 @@ function icone(id) {
     areia: '<circle cx="8" cy="9" r="1"/><circle cx="16" cy="7" r="1"/><circle cx="14" cy="15" r="1"/><path d="M4 19c5-2 11-2 16 0"/>',
     rocha: '<path d="m5 17 2-8 5-4 6 5 1 7-5 2-6-1Z"/><path d="m7 9 5 3 6-2"/>',
     montanha: '<path d="m3 19 7-13 3 5 2-3 6 11Z"/><path d="m8 10 2 2 2-2 1 1"/>',
+    peixe: '<path d="M4 12c3-4 8-5 12-3l4-3-1 6 1 6-4-3c-4 2-9 1-12-3Z"/><circle cx="9" cy="11" r=".9"/>',
+    jacare: '<path d="M3 14h10l4-3 4 1-3 3 3 1-4 1-4-1H4Z"/><path d="M8 12v-1m3 1v-1"/>',
     apagar: '<path d="m6 7 11 11m1-11L7 18"/><circle cx="12" cy="12" r="9"/>',
   };
   return `<svg viewBox="0 0 24 24" aria-hidden="true">${caminhos[id] || ''}</svg>`;
