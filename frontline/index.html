@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#1a1c14">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Linha de Frente">
+<meta name="description" content="FPS de trincheira em three.js, feito para testar esquemas de controle no toque.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>Linha de Frente</title>
+<style>
+  :root{
+    --khaki:#c8bd93; --amber:#e8b33c; --blood:#b8392c; --mud:#1a1c14;
+    --ink:#0c0d09; --line:rgba(200,189,147,.28);
+    --sat:env(safe-area-inset-top); --sar:env(safe-area-inset-right);
+    --sab:env(safe-area-inset-bottom); --sal:env(safe-area-inset-left);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;margin:0;overflow:hidden;background:var(--mud);color:var(--khaki)}
+  body{
+    font:500 14px/1.35 ui-sans-serif,-apple-system,"Segoe UI",Roboto,sans-serif;
+    touch-action:none;-webkit-user-select:none;user-select:none;overscroll-behavior:none;
+  }
+  canvas{display:block;position:fixed;inset:0;width:100%;height:100%}
+
+  /* ---- camadas ---- */
+  #ui{position:fixed;inset:0;pointer-events:none;z-index:10}
+  .zone{position:absolute;pointer-events:auto}
+
+  /* ---- HUD ---- */
+  #hud{position:absolute;inset:0;opacity:0;transition:opacity .3s}
+  #hud.on{opacity:1}
+  .panel{
+    position:absolute;padding:6px 10px;background:rgba(12,13,9,.55);
+    border:1px solid var(--line);border-radius:4px;backdrop-filter:blur(6px);
+    font-variant-numeric:tabular-nums;letter-spacing:.04em
+  }
+  #vida{left:calc(14px + var(--sal));top:calc(12px + var(--sat));width:150px;padding:8px 10px}
+  #vidaBarra{height:7px;background:rgba(0,0,0,.5);border-radius:2px;overflow:hidden;margin-top:5px}
+  #vidaFill{height:100%;width:100%;background:var(--khaki);transition:width .18s,background .18s}
+  #vida.ferido #vidaFill{background:var(--blood)}
+  .rot{font-size:10px;text-transform:uppercase;letter-spacing:.16em;opacity:.65}
+
+  #municao{right:calc(14px + var(--sar));top:calc(12px + var(--sat));text-align:right;min-width:112px}
+  #balas{font-size:26px;font-weight:700;color:#fff;line-height:1.05}
+  #balas small{font-size:13px;font-weight:500;color:var(--khaki);opacity:.75}
+  #recarregando{color:var(--amber);font-size:11px;letter-spacing:.14em;text-transform:uppercase;height:14px}
+
+  #objetivo{left:50%;transform:translateX(-50%);top:calc(12px + var(--sat));text-align:center;max-width:60vw}
+  #objTxt{font-size:12px;letter-spacing:.08em}
+  #objSub{font-size:10px;opacity:.6;letter-spacing:.14em;text-transform:uppercase}
+
+  /* ---- mira ---- */
+  #mira{position:absolute;left:50%;top:50%;width:34px;height:34px;transform:translate(-50%,-50%);opacity:.92}
+  #mira i{position:absolute;background:#fff;box-shadow:0 0 2px rgba(0,0,0,.9);display:block}
+  #mira .h{width:8px;height:2px;top:16px} #mira .v{width:2px;height:8px;left:16px}
+  #mira .l{left:0} #mira .r{right:0} #mira .t{top:0} #mira .b{bottom:0}
+  #mira .dot{width:2px;height:2px;left:16px;top:16px;border-radius:50%;background:var(--amber)}
+  #mira.alvo i{background:var(--blood)}
+  #marca{position:absolute;left:50%;top:50%;width:34px;height:34px;transform:translate(-50%,-50%) rotate(45deg);opacity:0}
+  #marca i{position:absolute;width:2px;height:9px;background:#fff}
+  #marca .a{left:0;top:0}#marca .b{right:0;top:0}#marca .c{left:0;bottom:0}#marca .d{right:0;bottom:0}
+  #marca.hit{animation:pop .22s ease-out}
+  #marca.morte i{background:var(--blood)}
+  @keyframes pop{0%{opacity:1;transform:translate(-50%,-50%) rotate(45deg) scale(.6)}100%{opacity:0;transform:translate(-50%,-50%) rotate(45deg) scale(1.25)}}
+
+  #dano{position:absolute;inset:0;opacity:0;pointer-events:none;
+    background:radial-gradient(ellipse at center,transparent 42%,rgba(150,20,12,.75) 100%);transition:opacity .25s}
+  #bussola{position:absolute;left:50%;top:50%;width:110px;height:110px;transform:translate(-50%,-50%);opacity:0;transition:opacity .2s}
+  #bussola svg{width:100%;height:100%}
+
+  /* ---- controles ---- */
+  #stick{left:calc(18px + var(--sal));bottom:calc(18px + var(--sab));width:190px;height:190px}
+  #stickBase{position:absolute;width:118px;height:118px;border:1.5px solid var(--line);border-radius:50%;
+    opacity:0;transition:opacity .12s;background:rgba(12,13,9,.3)}
+  #stickKnob{position:absolute;width:52px;height:52px;border-radius:50%;background:rgba(200,189,147,.35);
+    border:1.5px solid rgba(200,189,147,.7);opacity:0;transition:opacity .12s}
+  #stick.on #stickBase,#stick.on #stickKnob{opacity:1}
+  #olhar{right:0;top:0;width:62%;height:100%}
+
+  .btn{
+    position:absolute;pointer-events:auto;border:1.5px solid var(--line);border-radius:50%;
+    background:rgba(12,13,9,.42);color:var(--khaki);display:flex;align-items:center;justify-content:center;
+    text-align:center;font-size:10px;letter-spacing:.1em;text-transform:uppercase;backdrop-filter:blur(4px)
+  }
+  .btn.press{background:rgba(232,179,60,.3);border-color:var(--amber);color:#fff}
+  #atirar{right:calc(20px + var(--sar));bottom:calc(20px + var(--sab));width:104px;height:104px;font-size:12px}
+  #mirar{right:calc(136px + var(--sar));bottom:calc(28px + var(--sab));width:74px;height:74px}
+  #recarregar{right:calc(30px + var(--sar));bottom:calc(136px + var(--sab));width:66px;height:66px}
+  #agachar{right:calc(122px + var(--sar));bottom:calc(116px + var(--sab));width:60px;height:60px}
+
+  #cfgAbrir{position:absolute;pointer-events:auto;left:50%;transform:translateX(-50%);
+    bottom:calc(4px + var(--sab));width:36px;height:36px;opacity:.35;border:none;background:none;color:var(--khaki)}
+
+  /* ---- telas ---- */
+  .tela{position:absolute;inset:0;pointer-events:auto;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;
+    background:linear-gradient(rgba(12,13,9,.9),rgba(12,13,9,.97))}
+  .tela[hidden]{display:none}
+  .tela h1{margin:0;font-size:30px;letter-spacing:.2em;text-transform:uppercase;color:#fff;font-weight:700}
+  .tela h2{margin:0;font-size:20px;letter-spacing:.16em;text-transform:uppercase;color:var(--amber);font-weight:700}
+  .tela p{margin:0;max-width:44ch;opacity:.75;font-size:13px;line-height:1.5}
+  .acao{padding:13px 30px;font-size:13px;letter-spacing:.18em;text-transform:uppercase;font-weight:700;
+    background:var(--khaki);color:var(--ink);border:none;border-radius:3px;cursor:pointer}
+  .acao.sec{background:none;color:var(--khaki);border:1px solid var(--line)}
+  .linha{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+
+  /* ---- config ---- */
+  #cfg{align-items:stretch;justify-content:flex-start;overflow-y:auto;-webkit-overflow-scrolling:touch;gap:0}
+  #cfg .wrap{width:100%;max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:16px;
+    text-align:left;
+    padding:calc(16px + var(--sat)) calc(16px + var(--sar)) calc(20px + var(--sab)) calc(16px + var(--sal))}
+  #cfg .wrap > h2{text-align:center}
+  fieldset{border:1px solid var(--line);border-radius:5px;padding:12px;margin:0}
+  legend{font-size:10px;letter-spacing:.18em;text-transform:uppercase;opacity:.7;padding:0 6px}
+  .opt{display:flex;gap:10px;padding:9px 4px;align-items:flex-start;cursor:pointer;border-radius:4px}
+  .opt input{margin:2px 0 0;accent-color:var(--amber);width:17px;height:17px;flex:none}
+  .opt b{display:block;font-weight:600;color:#fff;font-size:13px}
+  .opt span{display:block;font-size:11px;opacity:.62;line-height:1.45;margin-top:2px}
+  .slider{display:flex;align-items:center;gap:10px;padding:8px 4px;font-size:12px}
+  .slider input{flex:1;accent-color:var(--amber)}
+  .slider output{min-width:34px;text-align:right;font-variant-numeric:tabular-nums;opacity:.8}
+  .tog{display:flex;justify-content:space-between;align-items:center;padding:9px 4px;font-size:13px;cursor:pointer}
+  .tog input{accent-color:var(--amber);width:17px;height:17px}
+
+  #girar{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;
+    flex-direction:column;gap:12px;background:var(--mud);text-align:center;padding:30px}
+  @media (orientation:portrait){#girar{display:flex}}
+  #carregando{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;
+    background:var(--mud);font-size:11px;letter-spacing:.22em;text-transform:uppercase;opacity:.7}
+</style>
+</head>
+<body>
+<div id="carregando">Preparando o setor…</div>
+<div id="girar"><strong style="font-size:16px;letter-spacing:.14em">GIRE O CELULAR</strong>
+  <span style="opacity:.6;font-size:12px">Linha de Frente é jogado na horizontal.</span></div>
+
+<div id="ui">
+  <!-- HUD -->
+  <div id="hud">
+    <div id="dano"></div>
+    <div id="mira"><i class="h l"></i><i class="h r"></i><i class="v t"></i><i class="v b"></i><i class="dot"></i></div>
+    <div id="marca"><i class="a"></i><i class="b"></i><i class="c"></i><i class="d"></i></div>
+    <div id="bussola"><svg viewBox="0 0 100 100"></svg></div>
+    <div class="panel" id="vida"><div class="rot">Condição</div><div id="vidaBarra"><div id="vidaFill"></div></div></div>
+    <div class="panel" id="objetivo"><div id="objTxt">—</div><div id="objSub">objetivo</div></div>
+    <div class="panel" id="municao"><div class="rot">Garand</div><div id="balas">8<small>/48</small></div><div id="recarregando"></div></div>
+  </div>
+
+  <!-- controles -->
+  <div class="zone" id="olhar"></div>
+  <div class="zone" id="stick"><div id="stickBase"></div><div id="stickKnob"></div></div>
+  <button class="btn" id="atirar">Atirar</button>
+  <button class="btn" id="mirar">Mira</button>
+  <button class="btn" id="recarregar">Recarga</button>
+  <button class="btn" id="agachar">Agachar</button>
+  <button id="cfgAbrir" aria-label="Configurações">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8">
+      <circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"/>
+    </svg>
+  </button>
+
+  <!-- telas -->
+  <div class="tela" id="menu">
+    <h1>Linha de Frente</h1>
+    <p><b>Fatia 1 — laboratório de controle.</b> Um setor de trincheira, oito soldados, um bunker no fim.
+       O que está em teste aqui não é o jogo: é se dá pra jogar FPS no toque.
+       Troque o esquema de controle a qualquer momento pela engrenagem.</p>
+    <div class="linha">
+      <button class="acao" id="jogar">Avançar</button>
+      <button class="acao sec" id="menuCfg">Controles</button>
+    </div>
+    <p style="font-size:11px;opacity:.45">No PC: WASD move, mouse mira (clique na tela), botão esquerdo atira,
+       direito mira, R recarrega, Ctrl agacha.</p>
+  </div>
+
+  <div class="tela" id="fim" hidden>
+    <h2 id="fimTitulo">Setor tomado</h2>
+    <p id="fimTexto"></p>
+    <div class="panel" id="fimStats" style="position:static;text-align:left;font-size:12px;line-height:1.9"></div>
+    <div class="linha">
+      <button class="acao" id="denovo">De novo</button>
+      <button class="acao sec" id="fimCfg">Ajustar controles</button>
+    </div>
+  </div>
+
+  <div class="tela" id="cfg" hidden><div class="wrap">
+    <h2 style="font-size:15px">Controles</h2>
+    <fieldset><legend>Esquema</legend><div id="esquemas"></div></fieldset>
+    <fieldset><legend>Ajuste fino</legend>
+      <div class="slider"><label for="sens">Sensibilidade</label><input type="range" id="sens" min="0.4" max="3" step="0.1"><output id="sensOut"></output></div>
+      <div class="slider"><label for="assist">Assistência de mira</label><input type="range" id="assist" min="0" max="3" step="1"><output id="assistOut"></output></div>
+      <label class="tog"><span>Auto-fogo com alvo na mira</span><input type="checkbox" id="autofogo"></label>
+      <label class="tog"><span>Inverter eixo vertical</span><input type="checkbox" id="invY"></label>
+      <label class="tog"><span>Layout canhoto</span><input type="checkbox" id="canhoto"></label>
+      <label class="tog"><span>Som</span><input type="checkbox" id="som"></label>
+    </fieldset>
+    <button class="acao" id="cfgFechar">Voltar</button>
+    <p style="font-size:11px;opacity:.45;text-align:center">As escolhas ficam salvas neste aparelho.</p>
+  </div></div>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.min.js" } }
+</script>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>

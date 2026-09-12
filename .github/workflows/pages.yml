@@ -11,11 +11,15 @@ name: Publicar jogos no Pages
 
 on:
   push:
-    branches: [claude/sniper-game-mobile-simulator-dw4abz]
+    branches:
+      - main
+      - claude/sniper-game-mobile-simulator-dw4abz
+      - claude/mobile-shooter-game-499bxe
     paths:
       - 'index.html'
       - 'castle-defense/**'
       - 'web-prototype/**'
+      - 'frontline/**'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -60,6 +64,8 @@ jobs:
           cp index.html .nojekyll _site/
           cp -r castle-defense _site/castle-defense
           cp -r web-prototype _site/web-prototype
+          cp -r frontline _site/frontline
+          rm -rf _site/frontline/teste _site/frontline/package.json
           echo "Publicando:"; find _site -type f | sort
 
       - name: Configurar o Pages

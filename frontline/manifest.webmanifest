@@ -1,0 +1,16 @@
+{
+  "name": "Linha de Frente",
+  "short_name": "Linha de Frente",
+  "description": "FPS de trincheira em three.js, feito para testar esquemas de controle no toque.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#1a1c14",
+  "theme_color": "#1a1c14",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -1,0 +1,45 @@
+# Roda o teste de fumaça do Linha de Frente. O jogo em si não tem build: este
+# workflow existe só para pegar regressão antes de alguém abrir no celular.
+name: Teste do Linha de Frente
+
+on:
+  push:
+    paths:
+      - 'frontline/**'
+      - '.github/workflows/frontline.yml'
+  pull_request:
+    paths:
+      - 'frontline/**'
+  workflow_dispatch:
+
+jobs:
+  fumaca:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontline
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Instalar o Playwright
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      - name: Sintaxe dos módulos
+        run: for f in src/*.js; do node --check "$f"; done
+
+      - name: Teste de fumaça
+        run: npm run test:fotos
+
+      - name: Guardar as telas
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: telas-do-jogo
+          path: frontline/fotos/
+          if-no-files-found: ignore

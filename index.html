@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Jogos · takiy_01</title>
-<meta name="description" content="Dois protótipos de jogo para celular, feitos em HTML: um simulador de sniper e uma defesa de muralha.">
+<meta name="description" content="Três protótipos de jogo para celular, feitos em HTML: um FPS de trincheira, um simulador de sniper e uma defesa de muralha.">
 <meta name="theme-color" content="#16181d">
 <style>
   :root{
     --bg:#16181d; --card:#1e2128; --line:#2e323b; --ink:#eceadf; --dim:#9a978c;
-    --amber:#f2b632; --slime:#7fc97f;
+    --amber:#f2b632; --slime:#7fc97f; --khaki:#c8bd93;
   }
   *{box-sizing:border-box}
   html,body{margin:0;background:var(--bg);color:var(--ink);
@@ -33,7 +33,7 @@
   .tags{margin:12px 0 0;display:flex;flex-wrap:wrap;gap:6px}
   .tag{font-size:12px;color:var(--dim);border:1px solid var(--line);border-radius:999px;padding:3px 9px}
   .tag.on{color:var(--accent);border-color:var(--accent)}
-  #sniper{--accent:var(--amber)} #muralha{--accent:var(--slime)}
+  #sniper{--accent:var(--amber)} #muralha{--accent:var(--slime)} #frente{--accent:var(--khaki)}
   footer{margin-top:38px;padding-top:18px;border-top:1px solid var(--line);color:var(--dim);font-size:14px}
   footer a{color:var(--ink)}
   code{background:var(--card);border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-size:13px}
@@ -43,11 +43,18 @@
 <main>
   <header>
     <p class="eyebrow">Protótipos jogáveis</p>
-    <h1>Dois jogos que rodam no navegador do celular</h1>
+    <h1>Três jogos que rodam no navegador do celular</h1>
     <p class="lede">Sem instalar nada, sem loja de apps. Abra no iPhone ou Android e gire a tela quando o jogo pedir.</p>
   </header>
 
   <ul>
+    <li>
+      <a class="game" id="frente" href="frontline/">
+        <span class="row"><h2>Linha de Frente</h2><span class="go">Jogar →</span></span>
+        <p class="desc">FPS de trincheira em 3D: um setor, oito soldados e um bunker no fim. É também um laboratório de controle — três esquemas de toque trocáveis no meio da partida, e um placar no fim para comparar qual deles o seu polegar aguenta.</p>
+        <p class="tags"><span class="tag">Paisagem</span><span class="tag">3D · three.js</span><span class="tag on">Instalável como app</span></p>
+      </a>
+    </li>
     <li>
       <a class="game" id="muralha" href="castle-defense/">
         <span class="row"><h2>Muralha dos Rabiscos</h2><span class="go">Jogar →</span></span>
