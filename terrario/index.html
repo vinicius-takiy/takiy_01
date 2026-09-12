@@ -74,13 +74,25 @@
   #ajustes button{background:none;border:1px solid var(--linha);border-radius:5px;color:var(--tinta);
     padding:4px 9px;font:inherit;font-size:11px;cursor:pointer;pointer-events:auto}
 
+  /* ---- fita de tribos ---- */
+  #fita{position:absolute;left:calc(10px + var(--sal));top:calc(58px + var(--sat));
+    display:flex;gap:5px;max-width:min(58vw,520px);overflow-x:auto;-webkit-overflow-scrolling:touch;
+    pointer-events:auto;padding-bottom:2px}
+  #fita button{flex:none;pointer-events:auto;background:var(--painel);border:1px solid var(--linha);
+    border-radius:999px;color:var(--tinta);padding:4px 10px 4px 7px;font:inherit;font-size:11px;
+    cursor:pointer;display:flex;align-items:center;gap:6px;backdrop-filter:blur(10px)}
+  #fita button b{width:9px;height:9px;border-radius:50%;flex:none}
+  #fita button i{font-style:normal;opacity:.6;font-variant-numeric:tabular-nums}
+  #fita button.on{border-color:var(--ouro);color:var(--claro)}
+  #fita button.guerra{box-shadow:inset 0 0 0 1px rgba(196,85,63,.7)}
+
   /* ---- inspetor ---- */
   #inspetor{position:absolute;left:calc(10px + var(--sal));bottom:calc(96px + var(--sab));
-    width:min(260px,64vw);padding:9px 11px;display:none}
+    width:min(222px,50vw);padding:8px 10px;display:none;opacity:.94}
   #inspetor.on{display:block}
-  #inspetor h3{margin:0 0 5px;font-size:13px;color:var(--claro);display:flex;align-items:center;gap:6px}
+  #inspetor h3{margin:0 0 4px;font-size:12px;color:var(--claro);display:flex;align-items:center;gap:6px}
   #inspetor h3 b{width:9px;height:9px;border-radius:2px;flex:none}
-  #inspetor dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:2px 9px;font-size:11.5px}
+  #inspetor dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:1px 8px;font-size:10.8px}
   #inspetor dt{opacity:.55}
   #inspetor dd{margin:0;color:var(--claro);font-variant-numeric:tabular-nums}
 
@@ -121,6 +133,8 @@
     <h2><span>Crônica</span><button id="dobrar">—</button></h2>
     <div id="linhas"></div>
   </div>
+
+  <div id="fita"></div>
 
   <div class="painel" id="inspetor"><h3><b></b><span></span></h3><dl></dl></div>
 

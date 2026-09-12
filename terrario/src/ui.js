@@ -5,7 +5,7 @@
 // despercebida, e o jogo vira um protetor de tela.
 
 import { T, TERRENOS } from './mundo.js';
-import { TECNOLOGIAS } from './tribos.js';
+import { TECNOLOGIAS, VOCACOES, CHAVES_VOCACAO } from './tribos.js';
 
 const el = (id) => document.getElementById(id);
 
@@ -27,7 +27,10 @@ export const PINCEIS = [
 ];
 
 export class Interface {
-  constructor({ aoTrocarVelocidade, aoEnquadrar, aoRecomecar, aoComecar }) {
+  constructor({ aoTrocarVelocidade, aoEnquadrar, aoRecomecar, aoComecar, aoSeguir }) {
+    this.aoSeguir = aoSeguir;
+    this.seguindo = null;
+    this.fixado = null;
     this.pincel = null;
     this.raio = 3;
     this.ultimaCronica = 0;
@@ -79,6 +82,57 @@ export class Interface {
     }
   }
 
+  /**
+   * Fita de tribos. É o atalho para o que o jogador quer de verdade num jogo
+   * assim: escolher uma e acompanhar de perto em vez de olhar o mapa inteiro.
+   */
+  atualizarFita(sim) {
+    const fita = el('fita');
+    const vivas = sim.tribos.filter((t) => t.viva && t.pop).slice(0, 14);
+    // Só refaz a lista quando o CONJUNTO de tribos muda. Refazer a cada mudança
+    // de população fazia o chip escapar debaixo do dedo a cada quadro.
+    const chave = vivas.map((t) => t.id).join(',');
+    if (chave !== this._chaveFita) {
+      this._chaveFita = chave;
+      fita.innerHTML = '';
+      this._chips = new Map();
+      for (const t of vivas) {
+        const b = document.createElement('button');
+        b.innerHTML = `<b style="background:#${t.cor.toString(16).padStart(6, '0')}"></b><span></span><i></i>`;
+        b.querySelector('span').textContent = t.nome;
+        b.onclick = () => {
+          const mesmo = this.seguindo === t.id;
+          this.seguindo = mesmo ? null : t.id;
+          this.fixado = this.seguindo;
+          if (mesmo) this.limparInspetor();
+          this.aoSeguir(mesmo ? null : t);
+          this.pintarChips();
+        };
+        fita.appendChild(b);
+        this._chips.set(t.id, b);
+      }
+    }
+    for (const t of vivas) {
+      const b = this._chips.get(t.id);
+      if (!b) continue;
+      b.querySelector('i').textContent = String(t.pop);
+      b.classList.toggle('guerra', [...t.relacoes.values()].includes('guerra'));
+    }
+    this.pintarChips();
+
+    // o painel fixado se atualiza sozinho enquanto a tribo é seguida
+    if (this.fixado !== null) {
+      const t = sim.tribo(this.fixado);
+      if (t && t.viva && t.pop) this.mostrarTribo(sim, t);
+      else { this.fixado = null; this.seguindo = null; this.limparInspetor(); }
+    }
+  }
+
+  pintarChips() {
+    if (!this._chips) return;
+    for (const [id, b] of this._chips) b.classList.toggle('on', this.seguindo === id);
+  }
+
   atualizarEstado(sim) {
     const r = sim.resumo();
     el('vAno').textContent = String(r.ano);
@@ -118,20 +172,11 @@ export class Interface {
     const dl = caixa.querySelector('dl');
 
     if (t) {
-      titulo.querySelector('b').style.background = '#' + t.cor.toString(16).padStart(6, '0');
-      titulo.querySelector('span').textContent = `Tribo ${t.nome}`;
-      const rel = [...t.relacoes.entries()].filter(([, r]) => r !== 'neutro');
-      dl.innerHTML = linhas([
-        ['Pessoas', t.pop],
-        ['Celeiro', `${t.celeiro.toFixed(0)} (${t.porHabitante.toFixed(1)} por cabeça)`],
-        ['Técnica', TECNOLOGIAS[t.tecnologia]],
-        ['Roças', t.plantios],
-        ['Gado', t.cabecas],
-        ['Ocas', t.ocas.length],
-        ['Situação', t.faminta ? 'passando fome' : t.farta ? 'com fartura' : 'em pé'],
-        ['Vizinhas', rel.length ? rel.map(([id, r]) => `${sim.tribo(id)?.nome || '?'} (${r})`).join(', ') : 'nenhuma'],
-      ]);
-    } else {
+      this.mostrarTribo(sim, t);
+      this.fixado = t.id;
+      return;
+    }
+    {
       titulo.querySelector('b').style.background = '#' + TERRENOS[sim.mundo.terreno[i]].cor.toString(16).padStart(6, '0');
       titulo.querySelector('span').textContent = TERRENOS[sim.mundo.terreno[i]].nome;
       dl.innerHTML = linhas([
@@ -144,7 +189,34 @@ export class Interface {
     caixa.classList.add('on');
   }
 
-  limparInspetor() { el('inspetor').classList.remove('on'); }
+  mostrarTribo(sim, t) {
+    const caixa = el('inspetor');
+    const titulo = caixa.querySelector('h3');
+    const dl = caixa.querySelector('dl');
+    titulo.querySelector('b').style.background = '#' + t.cor.toString(16).padStart(6, '0');
+    titulo.querySelector('span').textContent = `Tribo ${t.nome}`;
+    const rel = [...t.relacoes.entries()].filter(([, r]) => r !== 'neutro');
+    const conta = {};
+    for (const k of CHAVES_VOCACAO) conta[k] = 0;
+    for (const m of t.membros) if (m.viva) conta[m.dom] = (conta[m.dom] || 0) + 1;
+    const gente = CHAVES_VOCACAO.filter((k) => conta[k])
+      .map((k) => `${conta[k]} ${VOCACOES[k].nome.toLowerCase()}${conta[k] > 1 ? 'es' : ''}`)
+      .join(', ').replace(/lavradores/g, 'lavradores').replace(/lideres/g, 'líderes');
+    dl.innerHTML = linhas([
+      ['Pessoas', t.pop],
+      ['Gente', gente || '—'],
+      ['Celeiro', `${t.celeiro.toFixed(0)} (${t.porHabitante.toFixed(1)} por cabeça)`],
+      ['Técnica', TECNOLOGIAS[t.tecnologia] + (t.comLider ? ' · com líder' : '')],
+      ['Roças', t.plantios],
+      ['Gado', t.cabecas],
+      ['Ocas', t.ocas.length],
+      ['Situação', t.faminta ? 'passando fome' : t.farta ? 'com fartura' : 'em pé'],
+      ['Vizinhas', rel.length ? rel.map(([id, r]) => `${sim.tribo(id)?.nome || '?'} (${r})`).join(', ') : 'nenhuma'],
+    ]);
+    caixa.classList.add('on');
+  }
+
+  limparInspetor() { el('inspetor').classList.remove('on'); this.fixado = null; }
 }
 
 const linhas = (pares) => pares.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');

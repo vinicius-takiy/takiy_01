@@ -6,6 +6,7 @@
 // é essa a peça que precisa ficar de pé, não a lista de tarefas.
 
 import { T, TERRENOS } from './mundo.js';
+import { rende } from './tribos.js';
 
 /** Um ano de mundo em segundos de simulação. Toda taxa abaixo é por ano. */
 export const ANO = 4;
@@ -45,6 +46,7 @@ export class Humano {
     this.expectativa = 58 + sorte() * 22;
     this.fome = sorte() * 0.3;
     this.tribo = null;
+    this.dom = 'lavrador';         // vocação; quem define é a simulação
     this.alvo = null;              // {x, y, obra}
     this.obra = null;
     this.progresso = 0;
@@ -114,12 +116,13 @@ export class Humano {
     if (t.porHabitante < 3.6 && this.buscarComida(sim)) return;
 
     // 5. uma roça por pessoa é a meta; abrir lavoura não espera a tribo engordar
-    if (this.adulto && t.temPlantacao && t.plantios < t.pop && sim.sorte() < 0.5
+    if (this.adulto && t.temPlantacao && t.plantios < t.pop
+        && sim.sorte() < 0.5 * rende(this, 'arar')
         && this.acharFertil(sim)) { this.alvo.obra = 'arar'; return; }
 
     if (this.adulto && !t.faminta) {
-      if (t.temMina && sim.sorte() < 0.35 && this.acharVeio(sim)) { this.alvo.obra = 'minerar'; return; }
-      if (t.ocas.length < Math.ceil(t.pop / 3) && sim.sorte() < 0.3) {
+      if (t.temMina && sim.sorte() < 0.35 * rende(this, 'minerar') && this.acharVeio(sim)) { this.alvo.obra = 'minerar'; return; }
+      if (t.ocas.length < Math.ceil(t.pop / 3) && sim.sorte() < 0.3 * rende(this, 'construir')) {
         const s = sim.sitioDeOca(t);
         if (s) { this.alvo = { x: s.x, y: s.y, obra: 'construir' }; return; }
       }
@@ -152,6 +155,12 @@ export class Humano {
         this.alvo.obra = 'pastorear';
         return true;
       }
+    }
+    // caçador vai atrás de bicho antes de catar mato; é o que faz um bando de
+    // caçadores esgotar o rebanho enquanto um de lavradores nem encosta nele
+    if (this.dom === 'cacador') {
+      const bicho = sim.presaPerto(this.x, this.y, RAIO_BUSCA);
+      if (bicho) { this.alvo = { x: bicho.x, y: bicho.y, obra: 'cacar', presa: bicho }; return true; }
     }
     if (this.acharTile(sim, (i) => mundo.comida[i] > 0.12, false)) {
       this.alvo.obra = 'forragear';
@@ -390,10 +399,15 @@ export class Predador {
     }
 
     if (!this.alvo || Math.hypot(this.alvo.x - this.x, this.alvo.y - this.y) < 0.6) {
-      for (let k = 0; k < 6; k++) {
+      const evitaAldeia = this.fome < 0.6;
+      for (let k = 0; k < 8; k++) {
         const a = sim.sorte() * Math.PI * 2, d = 3 + sim.sorte() * 9;
         const x = Math.round(this.x + Math.cos(a) * d), y = Math.round(this.y + Math.sin(a) * d);
-        if (sim.mundo.andavel(x, y)) { this.alvo = { x, y }; break; }
+        if (!sim.mundo.andavel(x, y)) continue;
+        // com a barriga cheia a fera fica no mato; faminta, entra na aldeia
+        if (evitaAldeia && sim.mundo.dono[sim.mundo.idx(x, y)] !== -1 && k < 6) continue;
+        this.alvo = { x, y };
+        break;
       }
     }
     if (this.alvo) mover(this, this.alvo, VEL_FERA * 0.5 * dt, sim.mundo);

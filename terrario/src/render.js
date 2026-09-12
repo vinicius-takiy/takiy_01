@@ -4,6 +4,7 @@
 
 import * as THREE from 'three';
 import { N, T, TERRENOS, NIVEL_MAR } from './mundo.js';
+import { CHAVES_VOCACAO } from './tribos.js';
 
 const CAIXA = new THREE.BoxGeometry(1, 1, 1);
 const ALTURA_MIN = 0.35;
@@ -21,6 +22,7 @@ export class Render {
     this.cor = new THREE.Color();
     this._tinta = new THREE.Color();
     this.aux = new THREE.Object3D();
+    this.tempo = 0;
 
     // ---------- terreno ----------
     this.chao = new THREE.InstancedMesh(
@@ -64,7 +66,10 @@ export class Render {
     this.refazerArvores();
 
     // ---------- seres ----------
-    this.humanos = this.criarEspecie(corpoHumano(), 520);
+    // Uma malha por vocação. A cor continua sendo a tribo; o que muda é a
+    // silhueta — de perto é a ferramenta na mão que diz quem é quem.
+    this.porVocacao = {};
+    for (const k of CHAVES_VOCACAO) this.porVocacao[k] = this.criarEspecie(corpoHumano(k), 320);
     this.rebanhos = this.criarEspecie(corpoRebanho(), 260);
     this.predadores = this.criarEspecie(corpoPredador(), 70);
     this.ocas = this.criarEspecie(corpoOca(), 160);
@@ -79,6 +84,22 @@ export class Render {
     this.alvoPincel.renderOrder = 9;
     this.alvoPincel.visible = false;
     cena.add(this.alvoPincel);
+  }
+
+  /** Solta tudo o que este mundo pôs na cena. Quem lista as malhas é o render;
+   *  deixar essa lista do lado de fora quebrou o botão de novo mundo assim que
+   *  a malha de humanos virou cinco. */
+  descartar() {
+    for (const m of this.malhas()) {
+      this.cena.remove(m);
+      m.geometry?.dispose?.();
+      m.material?.dispose?.();
+    }
+  }
+
+  malhas() {
+    return [this.chao, this.mar, this.arvores, this.rebanhos, this.predadores,
+            this.ocas, this.alvoPincel, ...Object.values(this.porVocacao || {})];
   }
 
   criarEspecie(geo, teto) {
@@ -174,7 +195,8 @@ export class Render {
   }
 
   /** Uma passada por quadro em cima dos agentes vivos. */
-  atualizarSeres(sim) {
+  atualizarSeres(sim, dt = 0) {
+    this.tempo += dt;
     const { mundo } = this;
     const altura = (x, y) => {
       const xi = Math.round(x), yi = Math.round(y);
@@ -182,25 +204,37 @@ export class Render {
       return alturaColuna(mundo, mundo.idx(xi, yi)) - 1;
     };
 
-    let n = 0;
+    const contas = {};
+    for (const k of CHAVES_VOCACAO) contas[k] = 0;
     for (const h of sim.humanos) {
-      if (!h.viva || n >= 520) continue;
+      if (!h.viva) continue;
+      const malha = this.porVocacao[h.dom] || this.porVocacao.lavrador;
+      const k = h.dom in contas ? h.dom : 'lavrador';
+      if (contas[k] >= 320) continue;
       this.aux.position.set(h.x, altura(h.x, h.y), h.y);
       const s = h.adulto ? 1 : 0.62;
       this.aux.scale.set(s, s, s);
-      this.aux.rotation.set(0, 0, 0);
+      // Vira para onde vai e balança enquanto trabalha. De perto, um mundo de
+      // bonecos imóveis parece travado mesmo com a simulação rodando.
+      const giro = h.alvo ? Math.atan2(h.alvo.x - h.x, h.alvo.y - h.y) : this._giroParado(h);
+      const faina = h.obra ? Math.sin(this.tempo * 7 + h.x * 3) : 0;
+      this.aux.rotation.set(faina * 0.28, giro, 0);
+      this.aux.position.y += Math.abs(faina) * 0.05;
       this.aux.updateMatrix();
-      this.humanos.setMatrixAt(n, this.aux.matrix);
+      malha.setMatrixAt(contas[k], this.aux.matrix);
       this.cor.set(h.tribo ? h.tribo.cor : 0xdedede);
-      if (h.fome > 0.75) this.cor.lerp(new THREE.Color(0x1a1a1a), 0.45);
-      this.humanos.setColorAt(n, this.cor);
-      n++;
+      if (h.fome > 0.75) this.cor.lerp(this._tinta.set(0x1a1a1a), 0.45);
+      malha.setColorAt(contas[k], this.cor);
+      contas[k]++;
     }
-    this.humanos.count = n;
-    this.humanos.instanceMatrix.needsUpdate = true;
-    if (this.humanos.instanceColor) this.humanos.instanceColor.needsUpdate = true;
+    for (const k of CHAVES_VOCACAO) {
+      const m = this.porVocacao[k];
+      m.count = contas[k];
+      m.instanceMatrix.needsUpdate = true;
+      if (m.instanceColor) m.instanceColor.needsUpdate = true;
+    }
 
-    n = 0;
+    let n = 0;
     for (const r of sim.rebanhos) {
       if (!r.viva || n >= 260) continue;
       this.aux.position.set(r.x, altura(r.x, r.y), r.y);
@@ -258,6 +292,11 @@ export class Render {
   }
 }
 
+/** Ângulo estável para quem está parado: sem isto o boneco pula para o norte. */
+Render.prototype._giroParado = function (h) {
+  return ((h.x * 37 + h.y * 17) % 6.28);
+};
+
 /** Junta geometrias com uma cor fixa por peça, em vertexColors. */
 function fundir(geos, cores) {
   const pos = [], nor = [], cor = [], idx = [];
@@ -285,12 +324,43 @@ function fundir(geos, cores) {
 
 // As silhuetas são propositalmente distintas: de longe, num mapa colorido, o
 // que se lê é a forma, não a cor.
-function corpoHumano() {
+function corpoHumano(vocacao) {
   const corpo = new THREE.CylinderGeometry(0.16, 0.2, 0.5, 5);
   corpo.translate(0, 0.25, 0);
   const cabeca = new THREE.SphereGeometry(0.14, 6, 5);
   cabeca.translate(0, 0.6, 0);
-  return fundir([corpo, cabeca], [0xffffff, 0xe8c9a6]);
+  const pecas = [corpo, cabeca];
+  const cores = [0xffffff, 0xe8c9a6];
+
+  // a ferramenta é o que se lê de perto; a cor continua sendo a da tribo
+  if (vocacao === 'lavrador') {
+    const cabo = new THREE.BoxGeometry(0.035, 0.62, 0.035);
+    cabo.rotateZ(0.32); cabo.translate(0.22, 0.34, 0.1);
+    const lamina = new THREE.BoxGeometry(0.2, 0.05, 0.05);
+    lamina.translate(0.34, 0.62, 0.1);
+    pecas.push(cabo, lamina); cores.push(0x6b4a26, 0x8a8a80);
+  } else if (vocacao === 'cacador') {
+    const lanca = new THREE.BoxGeometry(0.03, 0.86, 0.03);
+    lanca.rotateZ(-0.16); lanca.translate(-0.22, 0.44, 0.08);
+    const ponta = new THREE.ConeGeometry(0.05, 0.16, 4);
+    ponta.translate(-0.29, 0.9, 0.08);
+    pecas.push(lanca, ponta); cores.push(0x6b4a26, 0xb9b2a2);
+  } else if (vocacao === 'construtor') {
+    const carga = new THREE.BoxGeometry(0.34, 0.16, 0.26);
+    carga.translate(0, 0.72, -0.06);
+    pecas.push(carga); cores.push(0x8a6a3c);
+  } else if (vocacao === 'minerador') {
+    const cabo = new THREE.BoxGeometry(0.032, 0.56, 0.032);
+    cabo.rotateZ(-0.4); cabo.translate(-0.2, 0.36, 0.1);
+    const bico = new THREE.BoxGeometry(0.3, 0.045, 0.045);
+    bico.rotateZ(0.35); bico.translate(-0.3, 0.6, 0.1);
+    pecas.push(cabo, bico); cores.push(0x6b4a26, 0x6f7480);
+  } else if (vocacao === 'lider') {
+    const adorno = new THREE.ConeGeometry(0.17, 0.3, 6);
+    adorno.translate(0, 0.82, 0);
+    pecas.push(adorno); cores.push(0xe0b344);
+  }
+  return fundir(pecas, cores);
 }
 function corpoRebanho() {
   const tronco = new THREE.BoxGeometry(0.5, 0.28, 0.28);

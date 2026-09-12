@@ -5,9 +5,10 @@
 
 import { Mundo, N, T, TERRENOS, mulberry } from './mundo.js';
 import { Humano, Rebanho, Predador, ANO } from './agentes.js';
-import { Tribo, encontro, comerciar, encontrarSitioDeOca, reiniciarIds, TECNOLOGIAS } from './tribos.js';
+import { Tribo, encontro, comerciar, encontrarSitioDeOca, reiniciarIds, TECNOLOGIAS,
+         VOCACOES, CHAVES_VOCACAO, rende, sortearVocacao, temLider } from './tribos.js';
 
-const TETO_HUMANOS = 500;
+const TETO_HUMANOS = 620;
 // 320 herbívoros numa ilha de 80x80 varrem a melhor forragem e matam os bandos
 // humanos de fome antes da primeira roça. Medido isolado, o rebanho sozinho
 // satura qualquer teto que se dê a ele — então o teto é a régua.
@@ -180,7 +181,7 @@ export class Simulacao {
     //     nunca existe uma segunda para fazer fronteira — some a guerra, some a
     //     aliança, e o mundo vira um organismo só crescendo até estourar.
     for (const t of [...this.tribos]) {
-      if (t.pop < LIMITE_CISAO || this.sorte() > 0.2) continue;
+      if (t.pop < LIMITE_CISAO * (t.comLider ? 1.5 : 1) || this.sorte() > 0.2) continue;
       const ordenados = [...t.membros].sort((a, b) =>
         Math.hypot(b.x - t.cx, b.y - t.cy) - Math.hypot(a.x - t.cx, a.y - t.cy));
       const saem = ordenados.slice(0, Math.floor(t.pop * 0.42)).filter((m) => m.adulto || this.sorte() < 0.5);
@@ -247,11 +248,18 @@ export class Simulacao {
       // só perto da aldeia: caçar em todo o território reivindicado extinguia a
       // fera no mundo inteiro assim que as tribos chegavam ao ferro
       const perto = t && Math.hypot(p.x - t.cx, p.y - t.cy) < t.raio * 0.5;
-      if (t && perto && t.pop >= 4 && this.sorte() < 0.05 * (1 + t.tecnologia)) {
+      // quem enfrenta a fera é caçador. Toda tribo abatendo, com a taxa antiga,
+      // extinguia a espécie no mundo inteiro assim que as aldeias se espalhavam.
+      const temCacador = t && t.membros.some((m) => m.dom === 'cacador' && m.adulto);
+      if (t && perto && temCacador && t.pop >= 4 && this.sorte() < 0.02 * (1 + t.tecnologia)) {
         p.viva = false;
         this.cronica(`${t.nome} abate uma fera`, t, 'cacada', true);
       }
     }
+
+    // 4c. o líder é o único que não trabalha melhor em nada — o que ele muda é
+    //     a tribo inteira: diplomacia, aprendizado e coesão.
+    for (const t of this.tribos) t.comLider = temLider(t);
 
     // 5. tecnologia
     for (const t of this.tribos) t.investirEmTecnologia((txt, tr, tipo) => this.cronica(txt, tr, tipo));
@@ -266,14 +274,15 @@ export class Simulacao {
   concluirObra(h, obra) {
     const { mundo } = this;
     const t = h.tribo;
-    const bonus = 1 + (t ? t.tecnologia * 0.32 : 0);
+    const tec = 1 + (t ? t.tecnologia * 0.32 : 0);
+    const bonus = tec * rende(h, obra);
     const i = mundo.idx(Math.round(h.x), Math.round(h.y));
 
     switch (obra) {
       case 'forragear': {
         const tirado = Math.min(mundo.comida[i], 0.35);
         mundo.comida[i] -= tirado;
-        this.depositar(h, tirado * 4.0);
+        this.depositar(h, tirado * 4.0 * rende(h, 'forragear'));
         break;
       }
       case 'colher': {
@@ -309,7 +318,7 @@ export class Simulacao {
         // dez pessoas dão ~28 caçadas por ano, e o mundo começa com 26 bichos.
         const presa = this.presaPerto(h.x, h.y, 3);
         if (!presa) break;
-        if (this.sorte() < 0.38 + (t ? t.tecnologia * 0.09 : 0)) {
+        if (this.sorte() < (0.38 + (t ? t.tecnologia * 0.09 : 0)) * rende(h, 'cacar')) {
           presa.viva = false;
           this.depositar(h, 2.6);
         } else {
@@ -367,7 +376,8 @@ export class Simulacao {
     const inimigo = this.maisPerto(h.x, h.y, 9, 'humanos',
       (o) => o.viva && o.tribo && o.tribo !== t && t.relacaoCom(o.tribo) === 'guerra');
     if (!inimigo) return;
-    const meu = t.forca, dele = inimigo.tribo.forca;
+    const meu = t.forca * rende(h, 'lutar');
+    const dele = inimigo.tribo.forca * rende(inimigo, 'lutar');
     const chance = meu / (meu + dele);
     const vitima = this.sorte() < chance ? inimigo : h;
     vitima.morrer('guerra');
@@ -384,6 +394,7 @@ export class Simulacao {
 
   nascer(a, b) {
     const bebe = new Humano(a.x + (this.sorte() - 0.5), a.y + (this.sorte() - 0.5), 0, this.sorte);
+    bebe.dom = sortearVocacao(this.sorte, a.tribo, a, b);
     bebe.tribo = a.tribo;
     a.tribo.membros.push(bebe);
     a.tribo.nascimentos++;
@@ -467,7 +478,9 @@ export class Simulacao {
   soltar(especie, x, y) {
     if (especie === 'humano') {
       if (this.humanos.length >= TETO_HUMANOS) return;
-      this.humanos.push(new Humano(x, y, 16 + this.sorte() * 10, this.sorte));
+      const h = new Humano(x, y, 16 + this.sorte() * 10, this.sorte);
+      h.dom = CHAVES_VOCACAO[(this.sorte() * CHAVES_VOCACAO.length) | 0];
+      this.humanos.push(h);
     } else if (especie === 'rebanho') {
       if (this.rebanhos.length >= TETO_REBANHO) return;
       this.rebanhos.push(new Rebanho(x, y, this.sorte));
@@ -496,6 +509,10 @@ export class Simulacao {
       mortesEmGuerra: this.mortesEmGuerra,
       maiorTribo: this.tribos.reduce((m, t) => Math.max(m, t.pop), 0),
       tecnologiaMaxima: TECNOLOGIAS[this.tribos.reduce((m, t) => Math.max(m, t.tecnologia), 0)],
+      vocacoes: CHAVES_VOCACAO.reduce((o, k) => {
+        o[k] = this.humanos.filter((h) => h.viva && h.dom === k).length;
+        return o;
+      }, {}),
     };
   }
 }

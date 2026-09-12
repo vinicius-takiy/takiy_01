@@ -21,6 +21,7 @@ export class Camera {
     this.azimute = -Math.PI / 4;
     this.elevacao = 0.92;
     this.pincelAtivo = false;
+    this.seguindo = null;          // tribo que a câmera acompanha
 
     this.ponteiros = new Map();
     this.pinca = null;
@@ -34,7 +35,10 @@ export class Camera {
     tela.addEventListener('pointercancel', (e) => this.soltar(e));
     tela.addEventListener('wheel', (e) => {
       e.preventDefault();
-      this.zoom(1 + Math.sign(e.deltaY) * 0.12);
+      // proporcional ao giro: um degrau fixo por evento faz o zoom de trackpad
+      // parecer travado e exige dez rolagens para chegar perto
+      const passo = Math.max(-0.6, Math.min(0.6, e.deltaY * 0.0015));
+      this.zoom(1 + passo);
     }, { passive: false });
     tela.addEventListener('contextmenu', (e) => e.preventDefault());
     this.aplicar();
@@ -110,6 +114,7 @@ export class Camera {
 
   /** Arrastar move o mundo debaixo do dedo, não a câmera: é o gesto esperado. */
   arrastar(dx, dy) {
+    this.seguindo = null;   // mexeu na câmera, parou de seguir
     const escala = this.distancia * 0.0016;
     const cos = Math.cos(this.azimute), sen = Math.sin(this.azimute);
     this.alvo.x -= (dx * cos - dy * sen) * escala;
@@ -120,7 +125,29 @@ export class Camera {
   }
 
   zoom(fator) {
-    this.distancia = clamp(this.distancia * fator, 12, 150);
+    // Abaixo de ~9 a câmera entra no terreno e só se veem faces de tile.
+    this.distancia = clamp(this.distancia * fator, 9, 150);
+    this.aplicar();
+  }
+
+  /** Chamado por quadro: persegue o centro da tribo sem teleportar a câmera. */
+  acompanhar(dt) {
+    if (!this.seguindo || !this.seguindo.viva || !this.seguindo.pop) { this.seguindo = null; return; }
+    const f = Math.min(1, dt * 3.5);
+    this.alvo.x += (this.seguindo.cx - this.alvo.x) * f;
+    this.alvo.z += (this.seguindo.cy - this.alvo.z) * f;
+    this.aplicar();
+  }
+
+  seguir(tribo) {
+    this.seguindo = tribo;
+    if (tribo) {
+      // salta para cima dela na hora: quem pede para seguir não quer esperar a
+      // câmera atravessar o mapa devagar
+      this.alvo.x = tribo.cx;
+      this.alvo.z = tribo.cy;
+      this.distancia = Math.min(this.distancia, 19);
+    }
     this.aplicar();
   }
 
@@ -136,6 +163,7 @@ export class Camera {
   }
 
   enquadrarTudo() {
+    this.seguindo = null;
     this.alvo.set(N / 2, 0, N / 2);
     this.distancia = 74;
     this.elevacao = 0.95;

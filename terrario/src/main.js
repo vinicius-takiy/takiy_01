@@ -51,6 +51,7 @@ const iface = new Interface({
   aoEnquadrar: () => cam.enquadrarTudo(),
   aoRecomecar: () => novoMundo(),
   aoComecar: () => { rodando = true; },
+  aoSeguir: (t) => cam.seguir(t),
 });
 
 const cam = new Camera(camera, tela, {
@@ -66,19 +67,16 @@ const cam = new Camera(camera, tela, {
 });
 
 function novoMundo(semente = (Math.random() * 65535) | 0) {
-  if (render) {
-    for (const m of [render.chao, render.arvores, render.humanos, render.rebanhos,
-                     render.predadores, render.ocas, render.mar, render.alvoPincel]) {
-      cena.remove(m);
-      m.geometry?.dispose?.();
-      m.material?.dispose?.();
-    }
-  }
+  if (render) render.descartar();
   sim = new Simulacao(semente);
   render = new Render(cena, sim.mundo);
   iface.ultimaCronica = 0;
   document.getElementById('linhas').innerHTML = '';
   iface.limparInspetor();
+  iface.seguindo = null;
+  iface._chaveFita = null;
+  document.getElementById('fita').innerHTML = '';
+  cam.seguir(null);
   cam.enquadrarTudo();
   window.__terrario = { sim, render, cam, iface };
 }
@@ -109,13 +107,15 @@ function quadro(agora) {
   }
 
   render.aplicarSujos();
-  render.atualizarSeres(sim);
+  render.atualizarSeres(sim, dt);
 
   // o território muda a cada revisão de tribo, não a cada quadro
   relogioDominios += dt;
   if (relogioDominios > 0.4) { relogioDominios = 0; render.pintarDominios(sim.tribos); }
 
+  cam.acompanhar(dt);
   iface.atualizarEstado(sim);
+  iface.atualizarFita(sim);
   iface.atualizarCronica(sim);
   renderer.render(cena, camera);
   publicar();

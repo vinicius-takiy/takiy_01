@@ -155,6 +155,40 @@ checar('arrastar sem pincel move o mapa',
        `andou ${Math.hypot(depoisCam.x - antesCam.x, depoisCam.z - antesCam.z).toFixed(1)}`);
 await foto('camera');
 
+// --- vocações e seguir tribo, que é o jeito de olhar de perto ---
+const vocs = await pagina.evaluate(() => window.__debug.vocacoes);
+const tipos = Object.entries(vocs || {}).filter(([, n]) => n > 0);
+checar('a gente nasce com vocações diferentes', tipos.length >= 3,
+       tipos.map(([k, n]) => `${k} ${n}`).join(', '));
+
+const temFita = await pagina.locator('#fita button').count();
+checar('a fita lista as tribos', temFita >= 1, `${temFita} tribos`);
+if (temFita) {
+  const antes = await pagina.evaluate(() => {
+    const c = window.__terrario.cam; return { d: c.distancia, x: c.alvo.x, z: c.alvo.z, segue: !!c.seguindo };
+  });
+  await pagina.locator('#fita button').first().click();
+  await pagina.waitForTimeout(1400);
+  const dep = await pagina.evaluate(() => {
+    const c = window.__terrario.cam;
+    return { d: c.distancia, x: c.alvo.x, z: c.alvo.z, segue: !!c.seguindo,
+             perto: c.seguindo ? Math.hypot(c.alvo.x - c.seguindo.cx, c.alvo.z - c.seguindo.cy) : 99 };
+  });
+  checar('tocar na tribo aproxima e acompanha', dep.segue && dep.d <= antes.d,
+         `${antes.d.toFixed(0)} → ${dep.d.toFixed(0)}`);
+  checar('a câmera chega em cima da tribo', dep.perto < 6, `${dep.perto.toFixed(1)} tiles do centro`);
+  checar('o painel da tribo fica preso enquanto segue',
+         await pagina.locator('#inspetor.on').count() === 1);
+  await foto('seguindo-tribo');
+  // zoom bem perto para conferir que dá para ver a gente
+  await pagina.mouse.move(422, 200);
+  for (let i = 0; i < 6; i++) { await pagina.mouse.wheel(0, -300); await pagina.waitForTimeout(80); }
+  await pagina.waitForTimeout(500);
+  const perto = await pagina.evaluate(() => window.__terrario.cam.distancia);
+  checar('dá para chegar perto da gente', perto < 14, `${perto.toFixed(0)} de distância`);
+  await foto('de-perto');
+}
+
 // --- novo mundo não quebra nada ---
 await pagina.locator('#recomecar').click();
 await pagina.waitForTimeout(900);

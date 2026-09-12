@@ -25,6 +25,36 @@ com o que tem por perto — e o que está por perto é o que você pôs lá.
 Tribo grande demais se divide sozinha, e é daí que vem a maioria das guerras:
 a tribo filha nasce colada na mãe.
 
+## Gente com vocação
+
+Cada pessoa nasce com um dom, e é ele que faz duas tribos com a mesma terra
+evoluírem diferente. Um bando cheio de caçador esgota o rebanho da região; um
+cheio de lavrador atravessa a seca com o celeiro cheio.
+
+| Dom | O que muda | Como aparece na tela |
+|---|---|---|
+| **Lavrador** | Ara e colhe muito melhor; abre roça com mais frequência | Carrega enxada |
+| **Caçador** | Acerta mais a caça, forrageia melhor, briga melhor. Vai atrás de bicho antes de catar mato | Carrega lança |
+| **Construtor** | Levanta oca e cerca pasto muito mais rápido | Carrega fardo nas costas |
+| **Minerador** | Rende o dobro na mina | Carrega picareta |
+| **Líder** | Não faz nada melhor com as mãos. Muda a tribo: técnica 22% mais barata, aliança bem mais provável, guerra menos, e a tribo demora mais para rachar | Usa adorno de cabeça |
+
+Quem nasce puxa a vocação de um dos pais em cerca de um terço das vezes; no
+resto, a tribo preenche a lacuna que tem. Herdar sempre engessaria a tribo numa
+vocação só; sortear sempre apagaria a identidade que se vê formando.
+
+## Acompanhar uma tribo de perto
+
+A fita de tribos, abaixo do painel de estado, lista quem existe com a cor, o
+nome e a população — e fica com a borda vermelha quando a tribo está em guerra.
+Tocar numa delas leva a câmera até lá e a mantém acompanhando enquanto a aldeia
+anda; o painel da esquerda passa a se atualizar sozinho, mostrando a composição
+de vocações, o celeiro, as roças, o gado e com quem ela briga. Tocar de novo
+solta. Arrastar o mapa também solta.
+
+Aproximando bastante dá para ver as pessoas indo e voltando, cada uma com a
+ferramenta do seu dom, balançando enquanto trabalham.
+
 A **crônica**, no canto direito, é onde tudo isso vira história. Ela não é
 enfeite: você não vê um humano decidir plantar, você lê "Ocre começa a plantar".
 
@@ -49,7 +79,7 @@ então depois da primeira visita abre offline.
 |---|---|
 | `src/mundo.js` | A grade em arrays tipados: terreno, relevo, forragem, vigor do solo, minério, dono |
 | `src/agentes.js` | Humano, rebanho e fera. A ordem das decisões do humano **é** o jogo |
-| `src/tribos.js` | Território, cisão, diplomacia e comércio |
+| `src/tribos.js` | Território, cisão, diplomacia, comércio e a tabela de vocações |
 | `src/sim.js` | O relógio: tica agentes, forma tribos, resolve fronteiras, escreve a crônica |
 | `src/render.js` | Malhas instanciadas — a grade inteira é um objeto só |
 | `src/camera.js` | Câmera orbital e a regra de um dedo/dois dedos |
@@ -96,5 +126,9 @@ resultante e já pegou, entre outros:
 - Não há salvamento: fechar a aba encerra o mundo.
 - Tribos não migram. Elas se dividem e a filha se afasta, mas ninguém abandona
   uma região esgotada para recomeçar longe.
+- Não há madeira, barco nem pesca, e a ilha é uma só: o mar é cenário, não
+  caminho.
+- De perto se vê quem é quem e para onde vai, mas não há animação de interação
+  — ninguém abraça, luta corpo a corpo ou entrega comida na mão do outro.
 - Os números de quadros medidos no teste vêm de renderização por software; não
   servem para estimar desempenho no aparelho.

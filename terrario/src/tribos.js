@@ -42,6 +42,7 @@ export class Tribo {
     this.cabecas = 0;              // animais domesticados
     this.rebanhosProximos = 0;     // selvagens pastando no território
     this.plantios = 0;             // roças de pé dentro do território
+    this.comLider = false;         // tem alguém com dom de liderança
     this.ocas = [];                // {x, y}
     this.viva = true;
     this.nascimentos = 0;
@@ -93,8 +94,9 @@ export class Tribo {
   investirEmTecnologia(cronica) {
     const prox = this.tecnologia + 1;
     if (prox >= TECNOLOGIAS.length) return false;
-    if (this.minerais < CUSTO_TEC[prox]) return false;
-    this.minerais -= CUSTO_TEC[prox];
+    const custo = CUSTO_TEC[prox] * (this.comLider ? 0.78 : 1);
+    if (this.minerais < custo) return false;
+    this.minerais -= custo;
     this.tecnologia = prox;
     cronica(`${this.nome} domina o ${TECNOLOGIAS[prox].toLowerCase()}`, this, 'tec');
     return true;
@@ -143,13 +145,14 @@ export function encontro(a, b, distancia, cronica, sorte) {
     return;
   }
 
-  if (atual === 'neutro' && espremidas && !(a.farta && b.farta) && sorte() < 0.035) {
+  const diplomacia = (a.comLider ? 1.7 : 1) * (b.comLider ? 1.7 : 1);
+  if (atual === 'neutro' && espremidas && !(a.farta && b.farta) && sorte() < 0.035 / diplomacia) {
     a.definirRelacao(b, 'guerra');
     cronica(`${a.nome} e ${b.nome} disputam a mesma terra`, a, 'guerra');
     return;
   }
 
-  if (atual === 'neutro' && a.farta && b.farta && a.aliadas < 3 && b.aliadas < 3 && sorte() < 0.02) {
+  if (atual === 'neutro' && a.farta && b.farta && a.aliadas < 3 && b.aliadas < 3 && sorte() < 0.02 * diplomacia) {
     a.definirRelacao(b, 'aliada');
     cronica(`${a.nome} e ${b.nome} selam aliança`, a, 'alianca');
   }
@@ -186,3 +189,56 @@ export function encontrarSitioDeOca(mundo, tribo, sorte) {
 }
 
 export function reiniciarIds() { proximoId = 0; }
+
+// ---------------------------------------------------------------- vocações
+/**
+ * O que cada pessoa faz melhor. Multiplicadores por obra; o que não estiver na
+ * tabela vale 1. É o que faz duas tribos com a mesma terra evoluírem diferente:
+ * um bando cheio de caçador esgota o rebanho, um cheio de lavrador atravessa a
+ * seca com o celeiro cheio.
+ */
+export const VOCACOES = {
+  lavrador:   { nome: 'Lavrador',   cor: 0x9ad06a, arar: 1.6, colher: 1.5, pastorear: 1.15, cacar: 0.8, minerar: 0.8 },
+  cacador:    { nome: 'Caçador',    cor: 0xd08a4a, cacar: 1.8, forragear: 1.35, lutar: 1.3, arar: 0.8, minerar: 0.85 },
+  construtor: { nome: 'Construtor', cor: 0xd9cb72, construir: 1.9, cercar: 1.7, minerar: 1.15, cacar: 0.85 },
+  minerador:  { nome: 'Minerador',  cor: 0x9aa8c0, minerar: 2.0, cercar: 0.9, arar: 0.85, cacar: 0.85 },
+  lider:      { nome: 'Líder',      cor: 0xe0b344, arar: 0.8, colher: 0.85, minerar: 0.8, cacar: 0.8, lutar: 1.15 },
+};
+
+export const CHAVES_VOCACAO = Object.keys(VOCACOES);
+
+/** Mistura que uma tribo tende a buscar. A soma não precisa dar 1. */
+const MISTURA_ALVO = { lavrador: 0.36, cacador: 0.20, construtor: 0.16, minerador: 0.16, lider: 0.06 };
+
+export function rende(h, obra) {
+  const v = VOCACOES[h.dom];
+  return (v && v[obra]) || 1;
+}
+
+/**
+ * Vocação de quem nasce: puxa dos pais, senão preenche a lacuna da tribo.
+ * Herdar sempre engessa a tribo numa vocação só; sortear sempre apaga a
+ * identidade que o jogador vê se formando.
+ */
+export function sortearVocacao(sorte, tribo, pai, mae) {
+  if (pai && sorte() < 0.32) return pai.dom;
+  if (mae && sorte() < 0.32) return mae.dom;
+  if (!tribo || !tribo.pop) return CHAVES_VOCACAO[(sorte() * CHAVES_VOCACAO.length) | 0];
+
+  const tem = {};
+  for (const k of CHAVES_VOCACAO) tem[k] = 0;
+  for (const m of tribo.membros) if (m.dom) tem[m.dom]++;
+
+  let faltaMais = null, maiorFalta = -Infinity;
+  for (const k of CHAVES_VOCACAO) {
+    const falta = MISTURA_ALVO[k] * tribo.pop - tem[k];
+    if (falta > maiorFalta) { maiorFalta = falta; faltaMais = k; }
+  }
+  // um pouco de acaso, senão toda tribo converge para a mesma composição
+  return sorte() < 0.75 ? faltaMais : CHAVES_VOCACAO[(sorte() * CHAVES_VOCACAO.length) | 0];
+}
+
+/** Tribo com líder negocia melhor, aprende mais rápido e demora mais a rachar. */
+export function temLider(tribo) {
+  return tribo.membros.some((m) => m.dom === 'lider' && m.adulto);
+}
