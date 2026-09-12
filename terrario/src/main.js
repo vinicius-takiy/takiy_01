@@ -4,7 +4,7 @@
 
 import * as THREE from 'three';
 import { Simulacao } from './sim.js';
-import { N, T } from './mundo.js';
+import { N, T, TERRENOS } from './mundo.js';
 import { Render } from './render.js';
 import { Camera } from './camera.js';
 import { Interface } from './ui.js';
@@ -15,8 +15,10 @@ const MAX_PASSOS = 40;         // teto por quadro, para 16× não travar o toque
 // ---------- cena ----------
 const tela = document.createElement('canvas');
 document.body.insertBefore(tela, document.body.firstChild);
-const renderer = new THREE.WebGLRenderer({ canvas: tela, antialias: window.devicePixelRatio < 2 });
+const renderer = new THREE.WebGLRenderer({ canvas: tela, antialias: window.devicePixelRatio < 2,
+                                            alpha: true, premultipliedAlpha: false });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.setClearColor(0x000000, 0);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -24,12 +26,12 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.1;
 
 const cena = new THREE.Scene();
-cena.background = new THREE.Color(0x0f1a24);
-cena.fog = new THREE.Fog(0x0f1a24, 90, 260);
+cena.background = null;
+cena.fog = new THREE.Fog(0x6faaa5, 92, 235);
 const camera = new THREE.PerspectiveCamera(48, 1, 0.5, 500);
 
-cena.add(new THREE.HemisphereLight(0xcfe0f0, 0x3a3524, 1.15));
-const sol = new THREE.DirectionalLight(0xfff0d0, 1.5);
+cena.add(new THREE.HemisphereLight(0xe8fff7, 0x56452e, 1.35));
+const sol = new THREE.DirectionalLight(0xffe6b0, 1.75);
 sol.position.set(N * 0.4, 80, N * 0.1);
 sol.target.position.set(N / 2, 0, N / 2);
 sol.castShadow = true;
@@ -59,6 +61,9 @@ const cam = new Camera(camera, tela, {
   aoPintar: (x, y) => {
     if (!sim || !iface.pincel) return;
     sim.pintar(x, y, iface.raio, iface.pincel);
+    const cor = iface.pincel.tipo === 'terreno'
+      ? TERRENOS[iface.pincel.terreno].cor : (iface.pincel.cor || 0xefc65b);
+    render.pulso(x, y, cor);
   },
   aoTocar: (x, y, clique) => {
     if (!sim) return;
@@ -109,6 +114,7 @@ function quadro(agora) {
 
   render.aplicarSujos();
   render.atualizarSeres(sim, dt);
+  render.atualizarEfeitos();
 
   // o território muda a cada revisão de tribo, não a cada quadro
   relogioDominios += dt;

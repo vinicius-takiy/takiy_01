@@ -1,11 +1,11 @@
 // Cache-first com versão no nome. O jogo é estático e pesa ~700 KB por causa do
 // three.js: depois da primeira visita, abre sem rede.
-const VERSAO = 'terrario-v1';
+const VERSAO = 'terrario-v2';
 const ARQUIVOS = [
   './', './index.html', './manifest.webmanifest',
   './vendor/three.module.min.js',
   './src/main.js', './src/sim.js', './src/mundo.js', './src/agentes.js',
-  './src/tribos.js', './src/render.js', './src/camera.js', './src/ui.js',
+  './src/tribos.js', './src/figuras.js', './src/render.js', './src/camera.js', './src/ui.js',
   './icons/icon-192.png', './icons/icon-512.png',
 ];
 
