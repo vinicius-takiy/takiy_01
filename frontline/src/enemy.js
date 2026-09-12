@@ -4,17 +4,9 @@
 
 import * as THREE from 'three';
 import { bloqueado, raioVsCaixa, raioVsEsfera } from './collision.js';
-
-const MAT = {
-  farda:   new THREE.MeshLambertMaterial({ color: 0x4f5a3c }),
-  capacete:new THREE.MeshLambertMaterial({ color: 0x353b2c }),
-  pele:    new THREE.MeshLambertMaterial({ color: 0xa87e5c }),
-  arma:    new THREE.MeshLambertMaterial({ color: 0x2e261c }),
-};
-const CAIXA = new THREE.BoxGeometry(1, 1, 1);
+import { criarSoldado, aplicarPose, POSES } from './corpo.js';
 
 const ALCANCE = 62;
-const MERGULHO = 0.66;        // quanto o corpo baixa ao se esconder
 
 /** Dificuldade única na fatia 1; vira tabela quando houver menu de dificuldade. */
 const AJUSTE = {
@@ -36,66 +28,68 @@ export const EXPOSTOS_AO_MESMO_TEMPO = 2;
 const sorteio = ([a, b]) => a + Math.random() * (b - a);
 
 export class Soldado {
-  /** @param {THREE.Vector3} pos @param {number} alturaCobertura */
+  /** @param {THREE.Vector3} pos @param {number} alturaCobertura altura da cobertura, para referência */
   constructor(pos, alturaCobertura, olhandoPara) {
-    this.grupo = new THREE.Group();
+    const { grupo, ossos } = criarSoldado();
+    this.grupo = grupo;
+    this.ossos = ossos;
     this.grupo.position.copy(pos);
     this.grupo.rotation.y = olhandoPara;
     this.base = pos.clone();
     this.alturaCobertura = alturaCobertura;
 
-    const add = (mat, x, y, z, sx, sy, sz) => {
-      const m = new THREE.Mesh(CAIXA, mat);
-      m.position.set(x, y, z);
-      m.scale.set(sx, sy, sz);
-      m.castShadow = true;
-      this.grupo.add(m);
-      return m;
-    };
-    add(MAT.farda, 0, 0.42, 0, 0.44, 0.84, 0.3);              // pernas
-    this.torso = add(MAT.farda, 0, 1.16, 0, 0.58, 0.66, 0.34);
-    add(MAT.farda, -0.38, 1.2, 0.05, 0.16, 0.5, 0.18);        // braços
-    add(MAT.farda, 0.38, 1.2, 0.05, 0.16, 0.5, 0.18);
-    add(MAT.pele, 0, 1.6, 0, 0.24, 0.26, 0.24);               // cabeça
-    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 5, 0, Math.PI * 2, 0, Math.PI / 2), MAT.capacete);
-    cap.position.set(0, 1.68, 0);
-    cap.castShadow = true;
-    this.grupo.add(cap);
-    this.arma = add(MAT.arma, 0.2, 1.22, -0.5, 0.07, 0.09, 1.05);
+    // boca do cano, presa à mão que segura a arma
     this.boca = new THREE.Object3D();
-    this.boca.position.set(0.2, 1.22, -1.05);
-    this.grupo.add(this.boca);
+    this.boca.position.set(0, -0.05, -0.76);
+    ossos.maoD.add(this.boca);
 
     this.vida = 100;
     this.estado = 'dormindo';
-    this.exposicao = 0;         // 0 escondido, 1 espiando
+    this.exposicao = 0;         // 0 agachado atrás da cobertura, 1 de pé mirando
     this.relogio = 0;
     this.tirosRestantes = 0;
     this.morto = false;
     this.tombo = 0;
+    this.flinch = 0;            // tranco ao levar tiro
     this._v = new THREE.Vector3();
+    this._w = new THREE.Vector3();
+    this.postura(0, 0);
+  }
+
+  /** Escreve a pose nos ossos e atualiza as matrizes, que os testes de tiro leem. */
+  postura(exposicao, pitchTorso) {
+    if (this.morto) {
+      aplicarPose(this.ossos, POSES.agachado, POSES.morto, Math.min(1, this.tombo * 1.6));
+    } else {
+      aplicarPose(this.ossos, POSES.agachado, POSES.mirando, exposicao, pitchTorso);
+      if (this.flinch > 0) {
+        this.ossos.peito.rotation.x -= this.flinch * 0.35;
+        this.ossos.cabeca.rotation.x += this.flinch * 0.3;
+      }
+    }
+    this.grupo.updateMatrixWorld(true);
   }
 
   get vivo() { return !this.morto; }
 
-  /** Centro da cabeça no mundo, já considerando o agachamento. */
+  /** Centro da cabeça no mundo, lido do osso — segue a pose sem eu manter número nenhum. */
   cabeca(alvo = new THREE.Vector3()) {
-    return alvo.set(this.base.x, this.grupo.position.y + 1.64, this.base.z);
+    return this.ossos.cabeca.getWorldPosition(alvo).add(new THREE.Vector3(0, 0.06, 0));
   }
 
-  /** AABB do torso no mundo. */
+  /** Envoltória do tronco, derivada dos ossos do torso. */
   caixaTorso() {
-    const y = this.grupo.position.y;
-    return {
-      minX: this.base.x - 0.32, maxX: this.base.x + 0.32,
-      minY: y + 0.05, maxY: y + 1.5,
-      minZ: this.base.z - 0.3, maxZ: this.base.z + 0.3,
-    };
+    const c = new THREE.Box3();
+    for (const nome of ['raiz', 'coluna', 'peito', 'pescoco']) {
+      c.expandByPoint(this.ossos[nome].getWorldPosition(this._w));
+    }
+    c.expandByVector(new THREE.Vector3(0.21, 0.10, 0.16));
+    return { minX: c.min.x, maxX: c.max.x, minY: c.min.y, maxY: c.max.y, minZ: c.min.z, maxZ: c.max.z };
   }
 
-  /** Ponto que o jogador precisa acertar; usado pela assistência de mira. */
+  /** Ponto que a assistência de mira persegue: o peito, onde quer que ele esteja. */
   pontoDeMira(alvo = new THREE.Vector3()) {
-    return alvo.set(this.base.x, this.grupo.position.y + 1.2, this.base.z);
+    return this.ossos.peito.getWorldPosition(alvo);
   }
 
   /**
@@ -122,6 +116,7 @@ export class Soldado {
       return true;
     }
     // levar tiro interrompe a rajada e faz recolher
+    this.flinch = 1;
     this.estado = 'escondido';
     this.relogio = 0.5 + Math.random() * 0.5;
     return false;
@@ -138,14 +133,16 @@ export class Soldado {
     const { jogador, colisores, fx, som } = ctx;
 
     if (this.morto) {
-      this.tombo = Math.min(1, this.tombo + dt * 3.4);
-      const t = this.tombo;
-      this.grupo.rotation.z = -t * t * 1.5;
-      this.grupo.position.y = this.base.y - t * 0.42;
+      this.tombo = Math.min(1, this.tombo + dt * 2.6);
+      // o corpo afrouxa pela pose; o grupo só acompanha com uma queda de lado
+      this.grupo.rotation.z = -this.tombo * this.tombo * 0.75;
+      this.postura(0, 0);
       return;
     }
 
     const olho = jogador.olhoMundo(this._v);
+    // a linha de visão parte de onde a cabeça FICARIA de pé, não de onde ela está:
+    // o soldado agachado sabe que você está lá, ele só não te vê no instante
     const cabeca = new THREE.Vector3(this.base.x, this.base.y + 1.5, this.base.z);
     const dist = cabeca.distanceTo(olho);
     const enxerga = dist < ALCANCE && !bloqueado(cabeca, olho, colisores);
@@ -186,11 +183,15 @@ export class Soldado {
     let d = ((alvoRot - this.grupo.rotation.y + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
     this.grupo.rotation.y += d * Math.min(1, dt * 4);
 
-    // sobe e desce atrás da cobertura
+    // agacha e levanta pela pose: o corpo dobra os joelhos, não afunda no chão
     const expoAlvo = (this.estado === 'espiando' || this.estado === 'atirando') ? 1 : 0;
-    this.exposicao += (expoAlvo - this.exposicao) * Math.min(1, dt * 7.5);
-    this.grupo.position.y = this.base.y - MERGULHO * (1 - this.exposicao);
-    this.torso.rotation.x = (1 - this.exposicao) * 0.45;
+    this.exposicao += (expoAlvo - this.exposicao) * Math.min(1, dt * 6);
+    this.flinch = Math.max(0, this.flinch - dt * 4);
+
+    // inclina o tronco para encarar quem está acima ou abaixo
+    const alturaOlho = jogador.pos.y + jogador.olho;
+    const pitch = Math.atan2(alturaOlho - (this.base.y + 1.4), Math.max(1, dist)) * this.exposicao;
+    this.postura(this.exposicao, Math.max(-0.5, Math.min(0.5, pitch)));
   }
 
   disparar(jogador, dist, fx, som) {

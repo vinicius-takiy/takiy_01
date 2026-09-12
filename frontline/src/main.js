@@ -28,6 +28,10 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
+// sem curva de tom o Lambert chapado achata o modelo novo: os volumes do capacete
+// e dos ombros só aparecem depois disto
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.25;
 
 const cena = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(FOV_QUADRIL, 1, 0.05, 400);
@@ -150,6 +154,8 @@ function quadro(agora) {
  * sobre a partida, e para depurar no celular sem cabo — abre o console e lê.
  */
 function publicarEstado() {
+  // atalho para o retrato do teste: expõe os objetos vivos, não só números
+  window.__jogo = { jogador, inimigos, fuzil, jogo, camera, setor };
   window.__debug = {
     rodando: jogo.rodando,
     x: jogador.pos.x, z: jogador.pos.z,
@@ -219,7 +225,7 @@ function passo(dt) {
   };
   let vivos = 0;
   for (const s of inimigos) {
-    s.atualizar(dt, ctx);
+    if (!jogo.congelar) s.atualizar(dt, ctx);
     if (s.vivo) vivos++;
   }
 

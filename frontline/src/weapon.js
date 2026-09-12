@@ -17,6 +17,8 @@ const CAIXA = new THREE.BoxGeometry(1, 1, 1);
 const MAT = {
   madeira: new THREE.MeshLambertMaterial({ color: 0x5b4025 }),
   metal:   new THREE.MeshLambertMaterial({ color: 0x2b2b2e }),
+  pele:    new THREE.MeshLambertMaterial({ color: 0xb2855f }),
+  manga:   new THREE.MeshLambertMaterial({ color: 0x6b6b4a }),
 };
 
 export class Fuzil {
@@ -34,11 +36,11 @@ export class Fuzil {
     // número que faz a posição de mira funcionar: basta descer o grupo por ela
     // para os dois pontos de mira caírem no centro exato da tela.
     this.grupo = new THREE.Group();
-    const add = (mat, x, y, z, sx, sy, sz, rx = 0) => {
+    const add = (mat, x, y, z, sx, sy, sz, rx = 0, ry = 0, rz = 0) => {
       const m = new THREE.Mesh(CAIXA, mat);
       m.position.set(x, y, z);
       m.scale.set(sx, sy, sz);
-      m.rotation.x = rx;
+      m.rotation.set(rx, ry, rz);
       this.grupo.add(m);
       return m;
     };
@@ -50,6 +52,15 @@ export class Fuzil {
     add(MAT.madeira, 0.004, -0.055, 0.03, 0.034, 0.075, 0.05, 0.30);  // punho
     add(MAT.metal,   0, ALTURA_MIRA, -0.50, 0.011, 0.045, 0.020);     // massa de mira
     add(MAT.metal,   0, ALTURA_MIRA,  0.06, 0.030, 0.026, 0.020);     // alça de mira
+    add(MAT.metal,  0.026, 0.012, 0.050, 0.030, 0.014, 0.014);        // ferrolho
+    add(MAT.metal,  0,    -0.028, -0.300, 0.012, 0.026, 0.030);       // anel da bandoleira
+
+    // Duas mãos na arma e nada além delas. Antebraços inteiros num viewmodel só
+    // funcionam se saírem do enquadramento; parados no ar viram blocos soltos no
+    // canto da tela, que lê pior do que não ter braço nenhum.
+    add(MAT.pele,  0.024, -0.056,  0.028, 0.060, 0.072, 0.088);   // mão do gatilho
+    add(MAT.manga, 0.030, -0.060,  0.095, 0.072, 0.082, 0.075);   // punho, só o começo da manga
+    add(MAT.pele, -0.008, -0.046, -0.188, 0.056, 0.066, 0.100);   // mão de apoio
     camera.add(this.grupo);
     cena.add(camera);
 
