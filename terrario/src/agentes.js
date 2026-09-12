@@ -18,10 +18,14 @@ const VEL_FERA = 3.4;
 // O herbívoro existe para ser caçado e domesticado. Apetite alto o transforma
 // em concorrente do forrageio humano, e aí ele mata os bandos de fome.
 const PASTAGEM = 0.12;
-const MAIORIDADE = 15;
+const MAIORIDADE = 18;
 const FOME_POR_ANO = 0.52;
 const FOME_CRITICA = 0.55;       // acima disto largar tudo e comer
 const RAIO_BUSCA = 11;
+// 26 tiles são quase três anos de caminhada: longe demais para uma viagem sem
+// reavaliar a fome no meio.
+const RAIO_EXPLORAR = 18;
+export const MADEIRA_OCA = 9;    // lenha para levantar um abrigo de duas pessoas
 
 /** Trabalhos: duração em anos e o que rendem. */
 const OBRA = {
@@ -32,6 +36,7 @@ const OBRA = {
   arar:      { dur: 0.45 },
   cercar:    { dur: 0.5 },
   minerar:   { dur: 0.4, minerio: 2.2 },
+  lenhar:    { dur: 0.34 },
   construir: { dur: 0.6 },
   lutar:     { dur: 0.3 },
 };
@@ -68,6 +73,15 @@ export class Humano {
 
     if (this.idade > this.expectativa) return this.morrer('velhice');
     if (this.fome >= 1) return this.morrer('fome');
+
+    // Fome no limite larga o que estiver fazendo. `escolherTarefa` só roda com o
+    // agente parado, então numa viagem longa dava para morrer de fome a caminho
+    // do destino com o celeiro cheio em casa — foi o que a exploração de raio 26
+    // provocou assim que entrou.
+    if (this.fome > 0.8 && (this.alvo || this.obra) && this.tribo && this.tribo.celeiro >= 1) {
+      this.alvo = null;
+      this.obra = null;
+    }
 
     if (this.obra) return this.trabalhar(anos, sim);
     if (!this.alvo) this.escolherTarefa(sim);
@@ -115,16 +129,35 @@ export class Humano {
     // 4. celeiro baixo: trabalhar comida
     if (t.porHabitante < 3.6 && this.buscarComida(sim)) return;
 
-    // 5. uma roça por pessoa é a meta; abrir lavoura não espera a tribo engordar
+    // 5. Abrigo antes de tudo o que é opcional. Sem oca a tribo não procria, e
+    //    oca custa madeira — que sai de derrubar árvore. É a corrente inteira:
+    //    mata em pé -> lenha -> abrigo -> filho.
+    // com o celeiro raspando, lenha espera: comer vem primeiro
+    if (this.adulto && !t.temVagaEmCasa && t.porHabitante > 2.4) {
+      if (t.madeira >= t.custoDaOca(MADEIRA_OCA)) {
+        const s = sim.sitioDeOca(t);
+        if (s) { this.alvo = { x: s.x, y: s.y, obra: 'construir' }; return; }
+      } else if (this.acharMata(sim)) {
+        this.alvo.obra = 'lenhar';
+        return;
+      }
+    }
+
+    // 5b. uma roça por pessoa é a meta; abrir lavoura não espera a tribo engordar
     if (this.adulto && t.temPlantacao && t.plantios < t.pop
         && sim.sorte() < 0.5 * rende(this, 'arar')
         && this.acharFertil(sim)) { this.alvo.obra = 'arar'; return; }
 
     if (this.adulto && !t.faminta) {
       if (t.temMina && sim.sorte() < 0.35 * rende(this, 'minerar') && this.acharVeio(sim)) { this.alvo.obra = 'minerar'; return; }
-      if (t.ocas.length < Math.ceil(t.pop / 3) && sim.sorte() < 0.3 * rende(this, 'construir')) {
+      if (t.madeira >= MADEIRA_OCA && t.ocas.length < Math.ceil(t.pop / 1.7)
+          && sim.sorte() < 0.3 * rende(this, 'construir')) {
         const s = sim.sitioDeOca(t);
         if (s) { this.alvo = { x: s.x, y: s.y, obra: 'construir' }; return; }
+      }
+      if (t.madeira < MADEIRA_OCA * 2 && sim.sorte() < 0.3 && this.acharMata(sim)) {
+        this.alvo.obra = 'lenhar';
+        return;
       }
     }
 
@@ -141,6 +174,11 @@ export class Humano {
   acharFertil(sim) { return this.acharTile(sim, (i) => sim.mundo.terreno[i] === T.FERTIL, true); }
   acharPastagem(sim) { return this.acharTile(sim, (i) => sim.mundo.terreno[i] === T.GRAMA, true); }
   acharVeio(sim) { return this.acharTile(sim, (i) => sim.mundo.minerio[i] > 0, true); }
+  /** Lenha vale procurar fora de casa: mata costuma ficar na borda do domínio. */
+  acharMata(sim) {
+    return this.acharTile(sim, (i) => sim.mundo.terreno[i] === T.FLORESTA && sim.mundo.madeira[i] > 0.3, true)
+        || this.acharTile(sim, (i) => sim.mundo.terreno[i] === T.FLORESTA && sim.mundo.madeira[i] > 0.3, false);
+  }
 
   /** Comida na ordem do que rende mais por viagem. */
   buscarComida(sim) {
@@ -166,6 +204,13 @@ export class Humano {
       this.alvo.obra = 'forragear';
       return true;
     }
+    // nada por perto: sai à procura em vez de circular no pedaço já comido —
+    // mas só quem ainda tem fôlego para a viagem
+    if (this.fome < 0.6
+        && this.acharTile(sim, (i) => mundo.comida[i] > 0.10, false, RAIO_EXPLORAR)) {
+      this.alvo.obra = 'forragear';
+      return true;
+    }
     const presa = sim.presaPerto(this.x, this.y, RAIO_BUSCA + 4);
     if (presa) {
       this.alvo = { x: presa.x, y: presa.y, obra: 'cacar', presa };
@@ -174,14 +219,18 @@ export class Humano {
     return false;
   }
 
-  /** Varre um quadrado ao redor e guarda o melhor tile. Roda só ao trocar de tarefa. */
-  acharTile(sim, aceita, dentroDoTerritorio) {
+  /**
+   * Varre um quadrado ao redor e guarda o melhor tile. Roda só ao trocar de
+   * tarefa. `raio` maior é o modo exploração: quando não há nada por perto,
+   * vale andar longe em vez de ficar dando voltas no mesmo pedaço gasto.
+   */
+  acharTile(sim, aceita, dentroDoTerritorio, raio = RAIO_BUSCA) {
     const { mundo } = sim;
     const t = this.tribo;
     const cx = Math.round(this.x), cy = Math.round(this.y);
     let melhor = null, melhorCusto = Infinity;
-    for (let dy = -RAIO_BUSCA; dy <= RAIO_BUSCA; dy++) {
-      for (let dx = -RAIO_BUSCA; dx <= RAIO_BUSCA; dx++) {
+    for (let dy = -raio; dy <= raio; dy++) {
+      for (let dx = -raio; dx <= raio; dx++) {
         const x = cx + dx, y = cy + dy;
         if (!mundo.dentro(x, y)) continue;
         const i = mundo.idx(x, y);
@@ -391,7 +440,11 @@ export class Predador {
         // só cria filhote quem está comendo bem: é o que amarra o predador à presa
         if (this.fartas >= 3 && this.idade > 2) { this.fartas = 0; sim.nascerPredador(this); }
         this.presa = null;
-        this.alvo = null;
+        // De barriga cheia a fera muda de região em vez de ficar em cima do
+        // mesmo rebanho até acabar com ele.
+        const a = sim.sorte() * Math.PI * 2, d = 14 + sim.sorte() * 16;
+        const nx = Math.round(this.x + Math.cos(a) * d), ny = Math.round(this.y + Math.sin(a) * d);
+        this.alvo = sim.mundo.andavel(nx, ny) ? { x: nx, y: ny } : null;
       } else {
         // Sem esta desistência a fera trava perseguindo presa do outro lado da
         // água: `mover` recusa o passo, ela não anda mais e morre de fome parada.

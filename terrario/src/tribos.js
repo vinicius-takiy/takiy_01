@@ -21,6 +21,8 @@ export const LIMIAR_FOME = 1.6;
 /** Acima disto a tribo tem excedente e pensa em outra coisa além de comer. */
 export const LIMIAR_FARTURA = 4.2;
 
+const BANDO_SEM_TETO = 6;
+
 let proximoId = 0;
 
 export class Tribo {
@@ -42,6 +44,7 @@ export class Tribo {
     this.cabecas = 0;              // animais domesticados
     this.rebanhosProximos = 0;     // selvagens pastando no território
     this.plantios = 0;             // roças de pé dentro do território
+    this.madeira = 0;              // lenha estocada, para levantar abrigo
     this.comLider = false;         // tem alguém com dom de liderança
     this.ocas = [];                // {x, y}
     this.viva = true;
@@ -59,6 +62,27 @@ export class Tribo {
 
   /** Raio do território, em tiles. Cresce devagar com a população. */
   get raio() { return Math.min(16, 3.2 + Math.sqrt(this.pop) * 2.0); }
+
+  /** Cada oca acolhe duas pessoas. */
+  get abrigo() { return this.ocas.length * 2; }
+
+  /**
+   * Um punhado de gente dorme ao relento; de seis em diante precisa de teto.
+   * Exigir abrigo desde a primeira pessoa travava o bando inicial: ele gastava
+   * as primeiras décadas cortando lenha em vez de comer, e morria antes da
+   * primeira criança.
+   */
+  get temVagaEmCasa() {
+    if (this.pop < BANDO_SEM_TETO) return true;
+    // A cobrança entra aos poucos: nada aos seis, teto para todos aos vinte.
+    // Exigir cobertura total desde o começo matava a tribo em mundo pobre de
+    // mata — ela precisava de cinco ocas antes do primeiro filho.
+    const exigido = Math.min(1, (this.pop - BANDO_SEM_TETO) / 14);
+    return this.abrigo >= this.pop * exigido;
+  }
+
+  /** As duas primeiras ocas são de galho: uma aldeia nova não tem braço sobrando. */
+  custoDaOca(base) { return this.ocas.length < 2 ? Math.round(base * 0.55) : base; }
 
   recentrar() {
     if (!this.pop) return;

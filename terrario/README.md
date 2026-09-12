@@ -25,6 +25,7 @@ com o que tem por perto — e o que está por perto é o que você pôs lá.
 | Solta humanos longe uns dos outros | Nascem tribos separadas, cada uma explorando sua região |
 | Deixa duas tribos crescerem até se encostarem | Se as duas estão comendo bem, fazem aliança e passam a dividir excedente. Se qualquer uma passa fome, é guerra |
 | Solta feras onde não há presa | Elas caçam o rebanho; sem rebanho, atacam gente |
+| Pinta floresta | Vira madeira em pé. Sem ela a tribo não levanta abrigo, e sem abrigo ela para de crescer |
 | Não faz nada | A terra lavrada se esgota, precisa de umas quatro décadas de pousio, e a tribo tem que procurar terra nova — que costuma ser a do vizinho |
 
 Tribo grande demais se divide sozinha, e é daí que vem a maioria das guerras:
@@ -78,6 +79,25 @@ Nada é cápsula nem esfera. Cada coisa do mundo é um boneco de bloco montado e
 Cada figura vira duas malhas instanciadas: uma tingida pela cor da tribo (a
 roupa) e outra com cor de verdade (pele, madeira, folha, metal). Com uma malha
 só, a pele saía pintada da cor da tribo — foi assim que isto começou.
+
+## Madeira, abrigo e filho
+
+A corrente que segura a população é esta, e ela é toda de recurso natural:
+
+**mata em pé → lenha → abrigo → filho.**
+
+Ninguém nasce só porque há comida. A tribo precisa de vaga em casa, e casa custa
+madeira, que sai de derrubar árvore. Um bando de até seis pessoas dorme ao
+relento; daí em diante a cobrança de teto entra aos poucos, chegando a uma vaga
+por pessoa lá pelos vinte.
+
+E oca de pé cobra conserto: cerca de um terço de lenha por ano, cada. É esse
+detalhe que fecha o ciclo — **uma tribo que derrubou toda a mata começa a perder
+telhado**, porque a floresta só rebrota onde ainda sobrou floresta vizinha para
+semear. Derrubar sem esperar nascer tem preço, e ele chega décadas depois.
+
+Antes disso, 80% das mortes eram fome, com idade média de trinta anos. Com a
+trava de abrigo, a maioria passou a morrer de velhice, perto dos setenta.
 
 A **crônica**, no canto direito, é onde tudo isso vira história. Ela não é
 enfeite: você não vê um humano decidir plantar, você lê "Ocre começa a plantar".
@@ -144,15 +164,18 @@ resultante e já pegou, entre outros:
 
 ## Limites conhecidos
 
-- **Mundos variam muito.** Em cinco sementes de teste, três viram civilizações
-  grandes e duas patinam. Num sandbox isso é resultado, não defeito — mas
-  significa que às vezes vale apertar "Novo mundo".
-- A ilha é fixa em 80×80 tiles, com teto de 500 pessoas e 200 animais.
+- **Mundos variam muito.** Nas cinco sementes de teste todas atravessam os
+  trezentos anos, mas terminam entre 56 e 739 pessoas, e uma delas faz um ciclo
+  malthusiano completo: sobe a 862 e desaba para 280. Num sandbox isso é
+  resultado, não defeito.
+- A ilha é fixa em 80×80 tiles. O teto de 900 pessoas é de segurança, não regra
+  de jogo: quando a ecologia encosta nele, é sinal de que falta freio no mundo,
+  e o teste cobra isso.
 - Não há salvamento: fechar a aba encerra o mundo.
 - Tribos não migram. Elas se dividem e a filha se afasta, mas ninguém abandona
   uma região esgotada para recomeçar longe.
-- Não há madeira, barco nem pesca, e a ilha é uma só: o mar é cenário, não
-  caminho.
+- Há madeira, mas não há barco nem pesca, e a ilha é uma só: o mar é cenário,
+  não caminho.
 - De perto se vê quem é quem e para onde vai, mas as figuras são rígidas: elas
   giram e balançam ao trabalhar, e não movem pernas nem braços. Também não há
   animação de interação — ninguém luta corpo a corpo nem entrega comida na mão

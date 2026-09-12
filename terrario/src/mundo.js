@@ -38,6 +38,8 @@ export class Mundo {
     this.minerio   = new Uint8Array(t);     // 0..3, riqueza do veio
     this.base      = new Uint8Array(t);     // terreno original, para onde a terra volta
     this.vigor     = new Float32Array(t).fill(1); // fertilidade restante, 0..1
+    this.madeira   = new Float32Array(t);   // lenha em pé, 0..1, só em floresta
+    this.desmatados = new Set();            // tiles derrubados, esperando rebrotar
     this.sujo      = new Set();             // tiles que o render precisa refazer
     this.gerar(semente, pelado);
   }
@@ -51,6 +53,7 @@ export class Mundo {
   definir(i, tipo) {
     if (this.terreno[i] === tipo) return;
     this.terreno[i] = tipo;
+    if (tipo === T.FLORESTA) { this.madeira[i] = 1; this.desmatados.delete(i); }
     this.comida[i] = TERRENOS[tipo].forragem;
     if (tipo !== T.PLANTACAO) this.crescer[i] = 0;
     this.altura[i] = this.alturaDe(i, tipo);
@@ -134,6 +137,7 @@ export class Mundo {
 
         this.terreno[i] = tipo;
         this.base[i] = tipo;
+        if (tipo === T.FLORESTA) this.madeira[i] = 1;
         this.comida[i] = TERRENOS[tipo].forragem;
         this.altura[i] = this.alturaDe(i, tipo);
         if (!pelado && (tipo === T.MONTANHA || tipo === T.ROCHA) && r() > 0.55) {
@@ -149,7 +153,33 @@ export class Mundo {
   }
 
   /** Regeneração da forragem e maturação das plantações, por tique. */
+  /**
+   * Rebrota da mata. Só cresce onde havia mata e só se sobrou floresta vizinha
+   * para semear — derrubar tudo de uma região deixa a região sem mata para
+   * sempre, que é o preço de não esperar a árvore nascer.
+   */
+  rebrotar(dt) {
+    if (!this.desmatados.size) return;
+    for (const i of this.desmatados) {
+      const x = i % N, y = (i / N) | 0;
+      let semente = false;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        if (this.dentro(x + dx, y + dy) && this.terreno[this.idx(x + dx, y + dy)] === T.FLORESTA) {
+          semente = true; break;
+        }
+      }
+      if (!semente) continue;
+      this.madeira[i] += dt * 0.012;
+      if (this.madeira[i] >= 1) {
+        this.madeira[i] = 1;
+        this.desmatados.delete(i);
+        this.definir(i, T.FLORESTA);
+      }
+    }
+  }
+
   crescerTudo(dt) {
+    this.rebrotar(dt);
     const t = N * N;
     for (let i = 0; i < t; i++) {
       const tipo = this.terreno[i];
@@ -157,6 +187,7 @@ export class Mundo {
       if (this.comida[i] < teto) {
         this.comida[i] = Math.min(teto, this.comida[i] + dt * 0.10 * teto);
       }
+      // (o pousio e a rebrota da mata rodam abaixo, fora deste laço)
       // terra que foi lavrada até o fim volta a ser campo e leva umas quatro
       // décadas para virar fértil de novo. É essa espera que empurra as tribos
       // para terra nova — e é onde a briga por território começa.

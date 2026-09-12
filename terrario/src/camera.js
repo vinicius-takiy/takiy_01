@@ -26,6 +26,9 @@ export class Camera {
     this.ponteiros = new Map();
     this.pinca = null;
     this.arrastou = 0;
+    this.pendente = null;
+    this.pintando = false;
+    this.cancelado = false;
     this._raio = new THREE.Raycaster();
     this._v2 = new THREE.Vector2();
 
@@ -54,16 +57,26 @@ export class Camera {
   }
 
   baixar(e) {
-    this.tela.setPointerCapture(e.pointerId);
+    // sintético (teste) não tem captura; não é motivo para derrubar o gesto
+    try { this.tela.setPointerCapture(e.pointerId); } catch { /* segue */ }
     this.ponteiros.set(e.pointerId, { x: e.clientX, y: e.clientY });
     this.arrastou = 0;
-    if (this.ponteiros.size === 2) {
+
+    if (this.ponteiros.size >= 2) {
       const [a, b] = [...this.ponteiros.values()];
       this.pinca = { d: Math.hypot(a.x - b.x, a.y - b.y), a: Math.atan2(b.y - a.y, b.x - a.x) };
-    } else if (this.pincelAtivo && e.button !== 2) {
-      const p = this.paraMundo(e.clientX, e.clientY);
-      if (p) this.aoPintar(p.x, p.z, true);
+      // Chegou o segundo dedo: isto é pinça, não pincelada. Cancela qualquer
+      // pintura pendente e para a que já tiver começado — pintar no primeiro
+      // pointerdown fazia toda tentativa de zoom despejar um punhado de seres.
+      this.pendente = null;
+      this.pintando = false;
+      this.cancelado = true;
+      return;
     }
+
+    this.cancelado = false;
+    this.pintando = false;
+    this.pendente = this.pincelAtivo && e.button !== 2 ? { x: e.clientX, y: e.clientY } : null;
   }
 
   mover(e) {
@@ -95,9 +108,21 @@ export class Camera {
       return;
     }
 
+    if (this.cancelado) return;
+
     if (this.pincelAtivo) {
-      const m = this.paraMundo(e.clientX, e.clientY);
-      if (m) this.aoPintar(m.x, m.z, false);
+      // a pincelada só começa depois que o dedo anda: enquanto ele está parado
+      // ainda pode virar pinça
+      if (this.pendente && this.arrastou > 7) {
+        const inicio = this.paraMundo(this.pendente.x, this.pendente.y);
+        if (inicio) this.aoPintar(inicio.x, inicio.z, true);
+        this.pendente = null;
+        this.pintando = true;
+      }
+      if (this.pintando) {
+        const m = this.paraMundo(e.clientX, e.clientY);
+        if (m) this.aoPintar(m.x, m.z, false);
+      }
       return;
     }
     this.arrastar(dx, dy);
@@ -106,10 +131,18 @@ export class Camera {
   soltar(e) {
     this.ponteiros.delete(e.pointerId);
     if (this.ponteiros.size < 2) this.pinca = null;
-    if (this.ponteiros.size === 0 && this.arrastou < 8 && !this.pincelAtivo) {
+    if (this.ponteiros.size > 0) return;
+
+    // toque curto que nunca virou pinça: aí sim vale uma pincelada só
+    if (!this.cancelado && this.pendente && this.arrastou < 8) {
+      const m = this.paraMundo(this.pendente.x, this.pendente.y);
+      if (m) this.aoPintar(m.x, m.z, true);
+    } else if (!this.cancelado && !this.pincelAtivo && this.arrastou < 8) {
       const m = this.paraMundo(e.clientX, e.clientY);
       if (m) this.aoTocar(m.x, m.z, true);
     }
+    this.pendente = null;
+    this.pintando = false;
   }
 
   /** Arrastar move o mundo debaixo do dedo, não a câmera: é o gesto esperado. */

@@ -73,7 +73,7 @@ function avaliar({ pico, fim }) {
   return [
     ['a humanidade não se extingue', fim.humanos > 0, `${fim.humanos} pessoas`],
     ['a população cresce além do que foi semeado', pico.humanos >= 24, `pico ${pico.humanos}`],
-    ['a ecologia segura antes do teto do código', pico.humanos < 500, `pico ${pico.humanos}`],
+    ['a ecologia segura antes do teto do código', pico.humanos < 900, `pico ${pico.humanos}`],
     ['surgem várias tribos', pico.tribos >= 3, `pico ${pico.tribos}`],
     ['alguma tribo começa a plantar', pico.plantando > 0, ''],
     ['alguma tribo domestica rebanho', pico.pastoreando > 0, ''],

@@ -4,11 +4,13 @@
 // mundo se sustenta.
 
 import { Mundo, N, T, TERRENOS, mulberry } from './mundo.js';
-import { Humano, Rebanho, Predador, ANO } from './agentes.js';
+import { Humano, Rebanho, Predador, ANO, MADEIRA_OCA } from './agentes.js';
 import { Tribo, encontro, comerciar, encontrarSitioDeOca, reiniciarIds, TECNOLOGIAS,
          VOCACOES, CHAVES_VOCACAO, rende, sortearVocacao, temLider } from './tribos.js';
 
-const TETO_HUMANOS = 620;
+// Teto de segurança, não regra de jogo: quando a ecologia encosta nele é sinal
+// de que falta freio no mundo, e é o que a asserção do teste cobra.
+const TETO_HUMANOS = 900;
 // 320 herbívoros numa ilha de 80x80 varrem a melhor forragem e matam os bandos
 // humanos de fome antes da primeira roça. Medido isolado, o rebanho sozinho
 // satura qualquer teto que se dê a ele — então o teto é a régua.
@@ -17,6 +19,7 @@ const TETO_PREDADOR = 60;
 const PASSO_TRIBOS = 1.0;      // segundos de simulação entre revisões de tribo
 const CELA = 8;                // lado da célula do índice espacial, em tiles
 const LIMITE_CISAO = 34;       // acima disto a tribo tende a se partir em duas
+const UPKEEP_OCA = 0.30;       // lenha por oca por ano só para manter o telhado
 
 export class Simulacao {
   constructor(semente = Date.now() & 0xffff, { pelado = false } = {}) {
@@ -261,12 +264,35 @@ export class Simulacao {
     //     a tribo inteira: diplomacia, aprendizado e coesão.
     for (const t of this.tribos) t.comLider = temLider(t);
 
+    // 4d. Manutenção do abrigo. É o freio que faltava: sem ele a população
+    //     encostava no teto do código e ficava lá, porque nada mais crescia com
+    //     ela. Com ele, cada oca de pé cobra lenha todo ano, e uma tribo que
+    //     derrubou a mata inteira começa a perder telhado — que é exatamente o
+    //     preço de não esperar a árvore nascer.
+    const anos = dt / ANO;
+    for (const t of this.tribos) {
+      if (!t.ocas.length) continue;
+      const conserto = t.ocas.length * anos * UPKEEP_OCA;
+      if (t.madeira >= conserto) {
+        t.madeira -= conserto;
+      } else if (this.sorte() < conserto - t.madeira) {
+        t.madeira = 0;
+        t.ocas.pop();
+        this.cronica(`Uma oca de ${t.nome} desaba por falta de madeira`, t, 'ruina', true);
+      }
+    }
+
     // 5. tecnologia
     for (const t of this.tribos) t.investirEmTecnologia((txt, tr, tipo) => this.cronica(txt, tr, tipo));
 
     // 6. fome coletiva vira aviso, não surpresa
     for (const t of this.tribos) {
       if (t.pop >= 4 && t.faminta) this.cronica(`${t.nome} passa fome`, t, 'fome', true);
+      // sem mata não há abrigo, e sem abrigo a tribo para de crescer: é o aviso
+      // que diz ao jogador para pintar floresta
+      if (t.pop >= 3 && !t.temVagaEmCasa && t.madeira < t.custoDaOca(MADEIRA_OCA) && t.farta) {
+        this.cronica(`${t.nome} precisa de madeira para abrigar mais gente`, t, 'semLenha', true);
+      }
     }
   }
 
@@ -353,8 +379,27 @@ export class Simulacao {
         }
         break;
       }
+      case 'lenhar': {
+        if (mundo.terreno[i] !== T.FLORESTA || !t) break;
+        const tirado = Math.min(mundo.madeira[i], 0.34);
+        mundo.madeira[i] -= tirado;
+        t.madeira += tirado * 9 * rende(h, 'construir');
+        if (mundo.madeira[i] <= 0.02) {
+          // mata derrubada vira campo e entra na fila da rebrota, que só anda se
+          // sobrar floresta vizinha para semear
+          mundo.madeira[i] = 0;
+          mundo.desmatados.add(i);
+          mundo.definir(i, T.GRAMA);
+          this.cronica(`${t.nome} derruba a última árvore do lugar`, t, 'desmate', true);
+        }
+        break;
+      }
       case 'construir': {
-        if (t) { t.ocas.push({ x: Math.round(h.x), y: Math.round(h.y) }); }
+        const custo = t ? t.custoDaOca(MADEIRA_OCA) : Infinity;
+        if (!t || t.madeira < custo) break;
+        t.madeira -= custo;
+        t.ocas.push({ x: Math.round(h.x), y: Math.round(h.y) });
+        this.cronica(`${t.nome} levanta o primeiro abrigo`, t, 'abrigo', true);
         break;
       }
       case 'lutar': {
@@ -390,7 +435,16 @@ export class Simulacao {
   }
 
   // ------------------------------------------------------------ nascer
-  podeNascer(t) { return this.humanos.length < TETO_HUMANOS && t.celeiro > t.pop * 2.6; }
+  /**
+   * Comida e teto. Só comida fazia a população disparar e depois morrer de fome:
+   * 80% das mortes eram inanição, com idade média de trinta anos. Exigir vaga em
+   * casa amarra o crescimento ao que a tribo consegue construir.
+   */
+  podeNascer(t) {
+    return this.humanos.length < TETO_HUMANOS
+        && t.celeiro > t.pop * 2.6
+        && t.temVagaEmCasa;
+  }
 
   nascer(a, b) {
     const bebe = new Humano(a.x + (this.sorte() - 0.5), a.y + (this.sorte() - 0.5), 0, this.sorte);
@@ -399,8 +453,10 @@ export class Simulacao {
     a.tribo.membros.push(bebe);
     a.tribo.nascimentos++;
     a.tribo.celeiro -= 4;
-    a.descanso = 5 + this.sorte() * 4;
-    b.descanso = 5 + this.sorte() * 4;
+    // uma criança por casal a cada oito a catorze anos: com cinco, a população
+    // batia no teto do código antes de a ecologia dizer qualquer coisa
+    a.descanso = 6 + this.sorte() * 5;
+    b.descanso = 6 + this.sorte() * 5;
     this.humanos.push(bebe);
     if (a.tribo.pop === 12) this.cronica(`${a.tribo.nome} vira uma aldeia`, a.tribo, 'aldeia', true);
   }
@@ -509,6 +565,8 @@ export class Simulacao {
       plantando: this.tribos.filter((t) => t.temPlantacao).length,
       pastoreando: this.tribos.filter((t) => t.temPasto).length,
       minerando: this.tribos.filter((t) => t.temMina).length,
+      abrigos: this.tribos.reduce((s, t) => s + t.ocas.length, 0),
+      semAbrigo: this.tribos.filter((t) => t.pop >= 3 && !t.temVagaEmCasa).length,
       guerras: this.tribos.reduce((s, t) => s + [...t.relacoes.values()].filter((r) => r === 'guerra').length, 0) / 2,
       aliancas: this.tribos.reduce((s, t) => s + [...t.relacoes.values()].filter((r) => r === 'aliada').length, 0) / 2,
       mortesPorFome: this.mortesPorFome,

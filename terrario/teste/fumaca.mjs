@@ -99,6 +99,16 @@ const fertil = await pagina.evaluate(() => {
 checar('o pincel de terreno pinta o mundo', fertil > 60, `${fertil} tiles férteis`);
 await foto('terra-pintada');
 
+// mundo pelado não tem mata: sem pintar floresta não existe madeira, e sem
+// madeira a tribo nunca levanta abrigo
+await pagina.locator('.pincel[data-id=floresta]').click();
+await pagina.locator('#raio').fill('5');
+await pagina.mouse.move(meio.x - 90, meio.y - 30);
+await pagina.mouse.down();
+await pagina.mouse.move(meio.x - 30, meio.y - 10, { steps: 6 });
+await pagina.mouse.up();
+await pagina.waitForTimeout(250);
+
 await pagina.locator('.pincel[data-id=humano]').click();
 await pagina.locator('#raio').fill('3');
 for (let i = 0; i < 4; i++) {
@@ -188,6 +198,54 @@ if (temFita) {
   checar('dá para chegar perto da gente', perto < 14, `${perto.toFixed(0)} de distância`);
   await foto('de-perto');
 }
+
+// --- pinça não pode pintar: era o defeito relatado, todo zoom despejava seres ---
+await pagina.locator('#tempo button[data-vel="0"]').click();   // pausa: morte não é pincelada
+await pagina.locator('.pincel[data-id=humano]').click();
+await pagina.mouse.move(422, 200);
+for (let i = 0; i < 4; i++) { await pagina.mouse.wheel(0, 300); await pagina.waitForTimeout(60); }
+await pagina.waitForTimeout(200);
+const antesPinca = await estado();
+const camAntes = await pagina.evaluate(() => window.__terrario.cam.distancia);
+await pagina.evaluate(() => {
+  const c = document.querySelector('canvas');
+  const ev = (tipo, id, x, y) => c.dispatchEvent(new PointerEvent(tipo, {
+    pointerId: id, clientX: x, clientY: y, bubbles: true, pointerType: 'touch', isPrimary: id === 1,
+  }));
+  // dois dedos afastando: é zoom, não pincelada
+  ev('pointerdown', 1, 400, 200);
+  ev('pointerdown', 2, 450, 210);
+  for (let k = 1; k <= 6; k++) { ev('pointermove', 1, 400 - k * 8, 200 - k * 4); ev('pointermove', 2, 450 + k * 8, 210 + k * 4); }
+  ev('pointerup', 1, 352, 176);
+  ev('pointerup', 2, 498, 234);
+});
+await pagina.waitForTimeout(350);
+const depoisPinca = await estado();
+const camDepois = await pagina.evaluate(() => window.__terrario.cam.distancia);
+checar('pinça não solta seres na tela',
+       depoisPinca.humanos === antesPinca.humanos,
+       `${antesPinca.humanos} -> ${depoisPinca.humanos} pessoas`);
+checar('pinça mexe na câmera', Math.abs(camDepois - camAntes) > 0.5,
+       `${camAntes.toFixed(0)} -> ${camDepois.toFixed(0)}`);
+
+// --- e um toque com pincel ainda pinta ---
+const antesToque = await estado();
+await pagina.mouse.click(430, 210);
+await pagina.waitForTimeout(300);
+const depoisToque = await estado();
+checar('um dedo com pincel ainda solta seres', depoisToque.humanos > antesToque.humanos,
+       `${antesToque.humanos} -> ${depoisToque.humanos}`);
+await pagina.locator('#tempo button[data-vel="16"]').click();
+await pagina.waitForTimeout(2500);
+
+// --- madeira e abrigo entraram no jogo ---
+const madeira = await pagina.evaluate(() => {
+  const { sim } = window.__terrario;
+  return { ocas: sim.tribos.reduce((a, t) => a + t.ocas.length, 0),
+           lenha: sim.tribos.reduce((a, t) => a + t.madeira, 0) };
+});
+checar('a mata pintada vira madeira na tribo', madeira.lenha > 0 || madeira.ocas > 0,
+       `${madeira.lenha.toFixed(0)} de lenha, ${madeira.ocas} ocas`);
 
 // --- novo mundo não quebra nada ---
 await pagina.locator('#recomecar').click();
