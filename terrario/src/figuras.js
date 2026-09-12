@@ -76,6 +76,13 @@ const HUMANOS = {
     P(0.40, 0.92, 0.05, 0.012, 0.34, 0.012, 0xd8d2c4, 'natural'),  // linha
     P(-0.20, 0.31, -0.11, 0.15, 0.13, 0.11, 0x7a6a45, 'natural'),  // cesto
   ],
+  artesao: () => [
+    ...esqueletoHumano(),
+    P(0, 0.748, 0, 0.215, 0.065, 0.215, 0x7b5f3a, 'natural'),      // barrete de couro
+    P(0.235, 0.30, 0.09, 0.026, 0.30, 0.026, MADEIRA, 'natural'),  // cinzel
+    P(0.235, 0.47, 0.09, 0.055, 0.06, 0.055, METAL, 'natural'),
+    P(-0.20, 0.30, -0.06, 0.13, 0.13, 0.13, 0x8b877d, 'natural'),  // bloco de pedra no braço
+  ],
   pastor: () => [
     ...esqueletoHumano(),
     P(0, 0.745, 0, 0.20, 0.06, 0.20, 0xb6a077, 'natural'),         // touca de lã
@@ -236,6 +243,31 @@ function jacare() {
   ];
 }
 
+/** Poço: boca de pedra e um sarilho de madeira. É a obra que dá teto de gente
+ *  à tribo, então tem que se ver de longe que ela está lá. */
+function poco() {
+  const pedra = 0x8b877d, clara = 0x9e9a90;
+  return [
+    P(0, 0.10, 0, 0.62, 0.20, 0.62, pedra, 'natural'),
+    P(0, 0.20, 0, 0.44, 0.06, 0.44, 0x2b3138, 'natural'),          // a água escura no fundo
+    P(-0.26, 0.42, 0, 0.07, 0.45, 0.07, MADEIRA, 'natural'),
+    P(0.26, 0.42, 0, 0.07, 0.45, 0.07, MADEIRA, 'natural'),
+    P(0, 0.62, 0, 0.60, 0.07, 0.10, MADEIRA, 'natural'),           // travessa
+    P(0, 0.50, 0, 0.13, 0.12, 0.13, clara, 'natural'),             // balde
+  ];
+}
+
+/** Muro: bloco de pedra assentado, com ameia. Fera não pula. */
+function muro() {
+  const pedra = 0x8f8b81, junta = 0x7c786f;
+  return [
+    P(0, 0.30, 0, 0.94, 0.60, 0.44, pedra, 'natural'),
+    P(0, 0.61, 0, 0.96, 0.06, 0.46, junta, 'natural'),
+    P(-0.28, 0.70, 0, 0.24, 0.14, 0.40, pedra, 'natural'),         // ameias
+    P(0.28, 0.70, 0, 0.24, 0.14, 0.40, pedra, 'natural'),
+  ];
+}
+
 /** Chama: três línguas de fogo empilhadas. Só aparece em tile que está ardendo. */
 function chama() {
   return [
@@ -268,7 +300,7 @@ function espiga() {
 export const FIGURAS = {
   ...Object.fromEntries(Object.entries(HUMANOS).map(([k, f]) => [`humano:${k}`, f])),
   rebanho, predador, arvore, oca, moita, pedra, espiga, cerca, peixe, jacare,
-  capivara, lebre, chama,
+  capivara, lebre, chama, poco, muro,
   'rebanho:pata': pata(0x584a38), 'predador:pata': pata(0x4a2c22),
   'capivara:pata': pata(0x6f5231), 'lebre:pata': pata(0x8d7a58),
 };

@@ -37,6 +37,12 @@ const VEL_FERA = 3.4;
  * e é a conta capim-por-bicho que passa a mandar. Gado em curral é a exceção:
  * quem está preso come do que a tribo traz.
  *
+ * `defesa` é a chance de o bote falhar. Bicho grande escoiceia; lebre não tem o
+ * que fazer. Sem isso a fera comia sempre o mais fácil de alcançar, que é o boi
+ * — grande e lento —, e o gado morria 601 vezes para a fera contra 331 de
+ * velhice, extinguindo-se sempre. Com defesa, a fera passa a comer sobretudo
+ * miúdo, que é o que predador faz.
+ *
  * `nicho` é o que impede a espécie mais eficiente de varrer as outras. Com
  * apetite de verdade e todo mundo comendo o mesmo capim, a lebre (que precisa
  * de seis casas) expulsava o boi (que precisa de vinte) e o gado se extinguia
@@ -46,19 +52,19 @@ const VEL_FERA = 3.4;
  */
 export const ESPECIES = {
   gado: {
-    nome: 'Gado', escala: 1, escalaDesenho: 1, vel: 1.1, apetite: 1.9, carne: 2.6,
+    nome: 'Gado', escala: 1, escalaDesenho: 1, vel: 1.1, apetite: 1.9, carne: 2.6, defesa: 0.62,
     nicho: { campo: 1, mata: 0.85, margem: 0.55, roca: 0.9 },
-    cria: 3.5, vida: 12, varVida: 6, domesticavel: true, beiraDagua: false,
+    cria: 2.9, vida: 12, varVida: 6, domesticavel: true, beiraDagua: false,
   },
   capivara: {
     // `escala` pesa esterco e carne; `escalaDesenho` é só o tamanho na tela, e
     // é separado porque a geometria da capivara já nasce menor que a do boi.
-    nome: 'Capivara', escala: 0.62, escalaDesenho: 0.92, vel: 1.3, apetite: 0.95, carne: 1.5,
+    nome: 'Capivara', escala: 0.62, escalaDesenho: 0.92, vel: 1.3, apetite: 0.95, carne: 1.5, defesa: 0.18,
     nicho: { campo: 0.6, mata: 0.45, margem: 1.35, roca: 0.8 },
     cria: 1.8, vida: 7, varVida: 4, domesticavel: false, beiraDagua: true,
   },
   lebre: {
-    nome: 'Lebre', escala: 0.4, escalaDesenho: 0.85, vel: 1.55, apetite: 0.5, carne: 0.9,
+    nome: 'Lebre', escala: 0.4, escalaDesenho: 0.85, vel: 1.55, apetite: 0.5, carne: 0.9, defesa: 0.05,
     nicho: { campo: 1, mata: 0.35, margem: 0.6, roca: 1.25 },
     cria: 1.0, vida: 4, varVida: 3, domesticavel: false, beiraDagua: false,
   },
@@ -70,7 +76,10 @@ const RAIO_BUSCA = 11;
 // 26 tiles são quase três anos de caminhada: longe demais para uma viagem sem
 // reavaliar a fome no meio.
 const RAIO_EXPLORAR = 18;
-export const MADEIRA_OCA = 9;    // lenha para levantar um abrigo de duas pessoas
+export const MADEIRA_OCA = 9;   // lenha para levantar um abrigo de duas pessoas
+/** Minério por trecho de muro. Muro é a segunda coisa que a mina serve, depois
+ *  da técnica — e é a que a tribo vê de pé. */
+export const PEDRA_MURO = 14;
 
 /** Trabalhos: duração em anos e o que rendem. */
 const OBRA = {
@@ -80,6 +89,8 @@ const OBRA = {
   cacar:     { dur: 0.45 },
   arar:      { dur: 0.45 },
   cercar:    { dur: 0.5 },
+  cavarPoco: { dur: 0.9 },
+  erguerMuro:{ dur: 0.55 },
   pescar:    { dur: 0.3 },
   arrebanhar:{ dur: 0.3 },
   recolher:  { dur: 0.2 },
@@ -277,7 +288,25 @@ export class Humano {
     }
 
     if (this.adulto) {
-      // 3c. Cerca e mina, as duas depois do telhado. A cerca sai da mesma lenha
+        // 3b2. Água. Sem fonte a tribo para de crescer, e é essa a primeira obra
+      //      de pedra que ela faz — o degrau entre dormir sob teto e virar
+      //      Era da Pedra. Rio à mão é de graça; longe dele, cava-se poço.
+      if (t.pop >= 6 && (t.comSede || !t.aguaPropria) && !t.faminta
+          && this.acharSitioDePoco(sim)) {
+        this.alvo.obra = 'cavarPoco';
+        return;
+      }
+
+      // 3b3. Muro. Pedra em volta da aldeia: é a proteção que a cerca de pau
+      //      não dá, porque a fera pula a cerca e não pula o muro. Só na Era da
+      //      Pedra em diante, e só com minério para gastar.
+      if (t.era >= 2 && t.minerais >= PEDRA_MURO && t.muros.length < t.murosQueCabem
+          && !t.faminta && sim.sorte() < 0.5 * rende(this, 'erguerMuro')) {
+        const p = sim.sitioDeMuro(t);
+        if (p) { this.alvo = { x: p.x, y: p.y, obra: 'erguerMuro' }; return; }
+      }
+
+    // 3c. Cerca e mina, as duas depois do telhado. A cerca sai da mesma lenha
       //     da oca: cercada antes de abrigada, a tribo fica sem casa, para de
       //     ter filho e morre de velha — foi o que a semente 1234 fez.
       if (!t.temPasto && t.rebanhosProximos >= 3 && t.temVagaEmCasa
@@ -346,6 +375,16 @@ export class Humano {
   }
 
   acharFertil(sim) { return this.acharTile(sim, (i) => sim.mundo.terreno[i] === T.FERTIL, true); }
+  /** Onde cavar. Chão úmido, dentro de casa, longe de outro poço — poço em cima
+   *  de poço é o mesmo lençol, e não sustenta gente nenhuma a mais. */
+  acharSitioDePoco(sim) {
+    const t = this.tribo;
+    return this.acharTile(sim, (i) => {
+      if (sim.mundo.umidade[i] < 0.45) return false;
+      const x = i % sim.mundo.n, y = (i / sim.mundo.n) | 0;
+      return !t.fontes.some((f) => Math.hypot(f.x - x, f.y - y) < 7);
+    }, true, RAIO_EXPLORAR);
+  }
   acharPastagem(sim) { return this.acharTile(sim, (i) => sim.mundo.terreno[i] === T.GRAMA, true); }
   acharVeio(sim) { return this.acharTile(sim, (i) => sim.mundo.minerio[i] > 0, true); }
   /**
@@ -810,6 +849,17 @@ export class Predador {
     if (this.presa) {
       const d = Math.hypot(this.presa.x - this.x, this.presa.y - this.y);
       if (d < 0.8) {
+        const def = this.presa.especie ? ESPECIES[this.presa.especie].defesa || 0 : 0;
+        if (def && sim.sorte() < def) {
+          // escapou: o bicho reage, dispara e a fera fica sem o almoço
+          this.presa.panico = 1.2;
+          const a = Math.atan2(this.presa.y - this.y, this.presa.x - this.x);
+          this.presa.alvo = { x: Math.round(this.presa.x + Math.cos(a) * 10),
+                              y: Math.round(this.presa.y + Math.sin(a) * 10) };
+          this.presa = null;
+          this.emperrado = 0;
+          return;
+        }
         sim.abatidoPorPredador(this.presa);
         this.fome = Math.max(0, this.fome - 0.75);
         this.fartas = (this.fartas || 0) + 1;
@@ -821,6 +871,15 @@ export class Predador {
         const a = sim.sorte() * Math.PI * 2, d = 14 + sim.sorte() * 16;
         const nx = Math.round(this.x + Math.cos(a) * d), ny = Math.round(this.y + Math.sin(a) * d);
         this.alvo = sim.mundo.andavel(nx, ny) ? { x: nx, y: ny } : null;
+      } else if (sim.mundo.dentro(Math.round(this.presa.x), Math.round(this.presa.y))
+                 && (() => {
+                      const d = sim.mundo.dono[sim.mundo.idx(Math.round(this.presa.x), Math.round(this.presa.y))];
+                      const tr = d !== -1 ? sim.tribo(d) : null;
+                      return tr && tr.atrasDoMuro(this.presa.x, this.presa.y);
+                    })()) {
+        // presa se recolheu atrás do muro: a fera desiste
+        this.presa = null;
+        this.alvo = null;
       } else {
         // Sem esta desistência a fera trava perseguindo presa do outro lado da
         // água: `mover` recusa o passo, ela não anda mais e morre de fome parada.
@@ -844,6 +903,13 @@ export class Predador {
         if (!sim.mundo.andavel(x, y)) continue;
         // com a barriga cheia a fera fica no mato; faminta, entra na aldeia
         if (evitaAldeia && sim.mundo.dono[sim.mundo.idx(x, y)] !== -1 && k < 6) continue;
+        // Muro fechado a fera não passa, com fome ou sem. É o que a cerca de pau
+        // não dá, e é o que a Era da Pedra compra com o minério da mina.
+        const dono = sim.mundo.dono[sim.mundo.idx(x, y)];
+        if (dono !== -1) {
+          const tribo = sim.tribo(dono);
+          if (tribo && tribo.atrasDoMuro(x, y)) continue;
+        }
         this.alvo = { x, y };
         break;
       }

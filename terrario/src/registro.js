@@ -56,6 +56,7 @@ export function empacotar(sim, nome) {
     nascimentos: t.nascimentos, mortes: t.mortes,
     temPlantacao: t.temPlantacao, temPasto: t.temPasto, temMina: t.temMina,
     curral: t.curral, ocas: t.ocas.map((o) => [o.x, o.y]),
+    era: t.era, fontes: t.fontes, muros: t.muros.map((m) => [m.x, m.y]),
     relacoes: [...t.relacoes.entries()],
   }));
 
@@ -137,6 +138,8 @@ export function desempacotar(Simulacao, pacote) {
       nascimentos: d.nascimentos, mortes: d.mortes,
       temPlantacao: d.temPlantacao, temPasto: d.temPasto, temMina: d.temMina,
       curral: d.curral, ocas: d.ocas.map(([x, y]) => ({ x, y })),
+      era: d.era || 0, fontes: d.fontes || [],
+      muros: (d.muros || []).map(([x, y]) => ({ x, y })),
       relacoes: new Map(d.relacoes), membros: [],
     });
     if (t.curral) t.recalcularCerca(m);

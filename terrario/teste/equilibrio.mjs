@@ -66,7 +66,8 @@ function rodar(semente) {
   const pico = { humanos: 0, tribos: 0, plantando: 0, pastoreando: 0, minerando: 0,
                  guerras: 0, aliancas: 0, maiorTribo: 0, predadores: 0, tec: 0,
                  currais: 0, guardas: 0, gado: 0, peixes: 0, jacares: 0, pescados: 0,
-                 bois: 0, capivaras: 0, lebres: 0, brotos: 0, queimando: 0 };
+                 bois: 0, capivaras: 0, lebres: 0, brotos: 0, queimando: 0,
+                 eraMaxima: 0, pocos: 0, muros: 0 };
   const linha = [];
   const dt = 1 / 12;
   const passos = Math.ceil((anos * ANO) / dt);
@@ -104,6 +105,11 @@ function avaliar({ pico, fim }) {
     ['a cerca ganha quem a ronde', pico.guardas > 0, `pico ${pico.guardas}`],
     ['alguma tribo abre mina', pico.minerando > 0, ''],
     ['a tecnologia avança', pico.tec > 0, TEC[pico.tec]],
+    // Era é o eixo do jogo agora: subir de degrau exige comida, água, obra de
+    // pedra e gente com o ofício certo, tudo ao mesmo tempo.
+    ['alguma tribo cava poço', pico.pocos > 0, `${pico.pocos} poços`],
+    ['alguma tribo chega à Era da Pedra', pico.eraMaxima >= 2, `era ${pico.eraMaxima}`],
+    ['alguma tribo ergue muro', pico.muros > 0, `${pico.muros} trechos`],
     ['alguma guerra estoura', pico.guerras > 0, `pico ${pico.guerras}`],
     ['alguma aliança se forma', pico.aliancas > 0, `pico ${pico.aliancas}`],
     ['o rebanho selvagem sobrevive', fim.rebanhos > 0, `${fim.rebanhos}`],
@@ -171,6 +177,9 @@ console.log('\npicos  — pessoas', r.pico.humanos, '· tribos', r.pico.tribos, 
             '· tec', TEC[r.pico.tec]);
 console.log('mortes — fome', r.fim.mortesPorFome, '· fera', r.fim.mortesPorPredador, '· guerra', r.fim.mortesEmGuerra);
 const censo = r.fim.censo;
+console.log('civil  — era máxima', r.pico.eraMaxima, '· poços', r.fim.pocos, '· muro', r.fim.muros,
+            '· com sede', r.fim.comSede, '· eras agora',
+            r.sim.tribos.map((t) => t.era).sort((a, b) => b - a).slice(0, 8).join(''));
 console.log('mapa   — mata', censo[4] || 0, '· broto', censo[10] || 0, '· campo', censo[2] || 0,
             '· fértil', censo[3] || 0, '· terra nua', censo[9] || 0,
             '| queimados', r.fim.tilesQueimados, '· raio', r.fim.mortosPorRaio, '· fogo', r.fim.mortosNoFogo);

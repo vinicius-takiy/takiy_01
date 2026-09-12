@@ -24,7 +24,7 @@ const TETOS = {
   rebanho: 240, predador: 70, humano: 260,
   'rebanho:pata': 240 * 4, 'predador:pata': 70 * 4, peixe: 600, jacare: 40,
   capivara: 220, 'capivara:pata': 220 * 4, lebre: 260, 'lebre:pata': 260 * 4,
-  chama: 700,
+  chama: 700, poco: 90, muro: 900,
 };
 
 export class Render {
@@ -111,7 +111,7 @@ export class Render {
     for (const k of CHAVES_VOCACAO) this.criarFigura(`humano:${k}`, TETOS.humano);
     for (const k of ['rebanho', 'rebanho:pata', 'capivara', 'capivara:pata',
                      'lebre', 'lebre:pata', 'predador', 'predador:pata',
-                     'peixe', 'jacare', 'chama', 'oca', 'cerca', 'arvore', 'moita', 'pedra', 'espiga']) {
+                     'peixe', 'jacare', 'chama', 'oca', 'cerca', 'poco', 'muro', 'arvore', 'moita', 'pedra', 'espiga']) {
       this.criarFigura(k, TETOS[k]);
     }
     this.refazerCenario();
@@ -503,15 +503,17 @@ export class Render {
    *  ângulo de saída deixaria toda a cerca apontando para o centro, que lê como
    *  estaca solta e não como volta fechada. */
   refazerCercas(sim) {
-    // Cerca só muda quando alguém ergue ou amplia um curral, o que acontece
-    // umas poucas vezes por século. Reescrever mil mourões a cada meio segundo
-    // por nada é o tipo de gasto que não aparece no relógio e aparece na conta.
+    // Cerca, muro e poço só mudam quando alguém constrói, o que acontece umas
+    // poucas vezes por século. Reescrever mil pedras a cada meio segundo por
+    // nada é o tipo de gasto que não aparece no relógio e aparece na conta.
     let assinatura = '';
-    for (const t of sim.tribos) if (t.cercas.length) assinatura += `${t.id}:${t.cercas.length},`;
+    for (const t of sim.tribos) {
+      assinatura += `${t.id}:${t.cercas.length}:${t.muros.length}:${t.fontes.length},`;
+    }
     if (assinatura === this.assinaturaCercas) return;
     this.assinaturaCercas = assinatura;
 
-    this.abrirLote(['cerca']);
+    this.abrirLote(['cerca', 'poco', 'muro']);
     for (const t of sim.tribos) {
       if (!t.cercas.length) continue;
       this.cor.set(t.cor);
@@ -521,8 +523,23 @@ export class Render {
         this.aux.scale.setScalar(this.escalaEntrada(m));
         this.por('cerca', this.cor);
       }
+      // muro: de través ao raio, como o mourão, mas em volta da aldeia
+      for (const m of t.muros) {
+        const ang = Math.atan2(m.y - t.cy, m.x - t.cx);
+        this.aux.position.set(m.x, this.alturaEm(m.x, m.y), m.y);
+        this.aux.rotation.set(0, -(ang + Math.PI / 2), 0);
+        this.aux.scale.setScalar(this.escalaEntrada(m));
+        this.por('muro', this.cor);
+      }
+      for (const f of t.fontes) {
+        if (f.tipo !== 'poco') continue;
+        this.aux.position.set(f.x, this.alturaEm(f.x, f.y), f.y);
+        this.aux.rotation.set(0, ((f.x * 23 + f.y * 11) % 628) / 100, 0);
+        this.aux.scale.setScalar(this.escalaEntrada(f));
+        this.por('poco', this.cor);
+      }
     }
-    this.fecharLote(['cerca']);
+    this.fecharLote(['cerca', 'poco', 'muro']);
   }
 
   marcarPincel(x, y, raio, visivel) {

@@ -549,6 +549,55 @@ asserção "alguma espécie vive abaixo do próprio teto" existe justamente para
 deixar esconder. Fechar essa última folga exige limitar a população humana pela
 ecologia, que é a próxima calibração e não cabia nesta.
 
+## As eras da tribo
+
+O jogo virou o que ele estava querendo ser: uma simulação de civilização, do
+bando ao feudo. Cada era não é uma barra de progresso — é uma lista de coisas
+que precisam estar de pé **ao mesmo tempo**, e uma delas é sempre **gente com o
+ofício certo**. É o que dá função à vocação além do bônus de trabalho: sem um
+pastor, a tribo não sai da Aldeia por mais celeiro que tenha.
+
+| Era | O que exige | O que dá |
+|---|---|---|
+| **Bando** | — | vive do que acha |
+| **Aldeia** | lavoura de pé, teto para todos, oito pessoas, um lavrador e um construtor | +10% de território, casa que acolhe mais |
+| **Era da Pedra** | **água própria**, curral cercado, catorze pessoas, um guarda e um pastor | +25% de território, força ×1,4, e libera o muro |
+| **Era do Bronze** | mina, cobre trabalhado, oito trechos de muro, um minerador e um **artesão** | +42%, força ×1,8, técnica 22% mais barata |
+| **Feudo** | muro fechado (vinte trechos), celeiro farto, trinta e duas pessoas, líder à frente, artesão e guarda | +62%, força ×2,3, técnica um terço mais barata |
+
+O painel da tribo diz, em uma linha, **o que falta para o próximo degrau**. É a
+informação mais útil que ele tem: é ela que diz o que pintar ou soltar.
+
+### Água é o teto da população
+
+A peça que fechava o problema anterior. Uma tribo cresce até onde a água dá:
+
+- **Rio ou lago** que o território alcança: sustenta 26 pessoas, e é de graça.
+- **Poço**, cavado em chão úmido, longe de outro poço: 15 pessoas cada.
+- E o número **encolhe na seca** — a capacidade acompanha a umidade da fonte, e
+  a umidade acompanha o ciclo de décadas secas e chuvosas.
+
+Isto é o que faltava para calibrar a fauna. Sem teto, a população chegava a mil e
+duzentos e duzentos caçadores varriam o mundo animal em algumas décadas. Agora
+ela para onde a geografia manda, e a estiagem aperta a demografia sem eu precisar
+matar ninguém de sede à mão. "**Ocre não tem água para tanta gente**" é uma linha
+de crônica de verdade.
+
+### Muro
+
+Pedra em volta da aldeia, um trecho por vez, catorze de minério cada — é a
+segunda coisa para que a mina serve, depois da técnica, e é a que se vê de pé.
+Entra na força da tribo, e **a fera não passa**: ela pula a cerca de pau do
+curral e não pula o muro. Presa que se recolhe atrás dele faz o predador desistir.
+
+### Bicho grande escoiceia
+
+Um detalhe que salvou o gado. A fera comia sempre o mais fácil de alcançar, que
+é o boi — grande e lento —, e o gado morria 601 vezes para a fera contra 331 de
+velhice, extinguindo-se em toda partida. Agora cada espécie tem uma chance de o
+bote falhar: 62% no boi, 18% na capivara, 5% na lebre. A fera passa a comer
+sobretudo miúdo, que é o que predador faz.
+
 ## Na fila
 
 Coisas pedidas que ainda não estão aqui, para não empilhar sistema sobre uma
@@ -559,9 +608,6 @@ simulação que já tem seus buracos:
   atributo e não só diplomacia.
 - **Tribo saqueadora.** A que fica sem suprimento parte para tomar a vila alheia
   em vez de plantar a sua.
-- **População humana com teto ecológico.** Enquanto ela cresce sem limite, a
-  pressão de caça e pesca não deixa o predador ser o teto do herbívoro — é o que
-  impede a fauna de se calibrar sozinha por inteiro.
 - **Matilha.** Feras que se encontram caçarem juntas e atacarem organizadas, a
   ponto de acabar com uma tribo — e a que viu o bando morrer numa aldeia
   aprender a não voltar sozinha.

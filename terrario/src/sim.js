@@ -4,8 +4,8 @@
 // mundo se sustenta.
 
 import { Mundo, N, T, TERRENOS, mulberry } from './mundo.js';
-import { Humano, Rebanho, Predador, Peixe, Jacare, ESPECIES, ANO, MADEIRA_OCA } from './agentes.js';
-import { Tribo, encontro, comerciar, encontrarSitioDeOca, reiniciarIds, TECNOLOGIAS, MADEIRA_CERCA,
+import { Humano, Rebanho, Predador, Peixe, Jacare, ESPECIES, ANO, MADEIRA_OCA, PEDRA_MURO } from './agentes.js';
+import { Tribo, ERAS, encontro, comerciar, encontrarSitioDeOca, reiniciarIds, TECNOLOGIAS, MADEIRA_CERCA,
          VOCACOES, CHAVES_VOCACAO, rende, sortearVocacao, temLider } from './tribos.js';
 
 // Teto de segurança, não regra de jogo: quando a ecologia encosta nele é sinal
@@ -455,6 +455,37 @@ export class Simulacao {
       t.temCosta = costa;
     }
 
+    // 3d. Água e era. A fonte natural é o rio ou o lago que a tribo alcança; o
+    //     poço é o que ela cava quando não alcança nenhum. É essa conta que dá
+    //     teto à população — antes ela crescia até a fauna acabar.
+    for (const t of this.tribos) {
+      t.fontes = t.fontes.filter((f) => f.tipo !== 'rio');
+      if (t.temCosta) {
+        let melhor = null, md = Infinity;
+        for (const i of t.territorio) {
+          const x = i % N, y = (i / N) | 0;
+          if (!this.mundo.naMargem(x, y)) continue;
+          const d = (x - t.cx) ** 2 + (y - t.cy) ** 2;
+          if (d < md) { md = d; melhor = { x, y, tipo: 'rio' }; }
+        }
+        if (melhor) t.fontes.unshift(melhor);
+      }
+      // poço em chão que secou não dá água: é assim que a estiagem aperta a
+      // demografia sem eu precisar matar ninguém de sede à mão
+      let soma = 0;
+      for (const f of t.fontes) soma += this.mundo.umidade[this.mundo.idx(f.x, f.y)];
+      t.umidadeDaFonte = t.fontes.length ? soma / t.fontes.length : 0;
+      if (t.pop >= 6 && t.comSede) this.cronica(`${t.nome} não tem água para tanta gente`, t, 'sede', true);
+
+      // 3e. Sobe de era quando TUDO o que o degrau pede está de pé ao mesmo
+      //     tempo — inclusive gente com o ofício certo. Só sobe um degrau por
+      //     revisão, e não desce: era é o que a tribo aprendeu a fazer.
+      while (t.era + 1 < ERAS.length && ERAS[t.era + 1].exige(t)) {
+        t.era++;
+        this.cronica(`${t.nome} entra na ${ERAS[t.era].nome}`, t, `era${t.era}`, true);
+      }
+    }
+
     // 4. fronteiras
     for (let a = 0; a < this.tribos.length; a++) {
       for (let b = a + 1; b < this.tribos.length; b++) {
@@ -652,6 +683,24 @@ export class Simulacao {
         }
         break;
       }
+      case 'cavarPoco': {
+        if (!t) break;
+        const x = Math.round(h.x), y = Math.round(h.y);
+        if (mundo.umidade[i] < 0.4) break;
+        if (t.fontes.some((f) => Math.hypot(f.x - x, f.y - y) < 7)) break;
+        t.fontes.push({ x, y, tipo: 'poco' });
+        this.cronica(`${t.nome} cava um poço`, t, 'poco', true);
+        break;
+      }
+      case 'erguerMuro': {
+        if (!t || t.minerais < PEDRA_MURO) break;
+        const x = Math.round(h.x), y = Math.round(h.y);
+        if (t.muros.some((m) => Math.abs(m.x - x) < 1 && Math.abs(m.y - y) < 1)) break;
+        t.minerais -= PEDRA_MURO;
+        t.muros.push({ x, y });
+        if (t.muros.length === 8) this.cronica(`${t.nome} fecha o primeiro trecho de muro`, t, 'muro', true);
+        break;
+      }
       case 'vigiar': {
         // O plantão em si não produz nada: o efeito do guarda está em estar ali
         // quando a fera chega, e em pesar na força da tribo contra vizinho.
@@ -776,7 +825,11 @@ export class Simulacao {
   podeNascer(t) {
     return this.humanos.length < TETO_HUMANOS
         && t.celeiro > t.pop * 2.6
-        && t.temVagaEmCasa;
+        && t.temVagaEmCasa
+        // Água. É o teto que faltava: sem fonte a tribo não passa de um bando,
+        // e com fonte ela cresce até onde a fonte dá — que encolhe na seca.
+        // Antes a população ia a mil e duzentos e varria a fauna do mapa.
+        && t.pop < t.aguaPara;
   }
 
   nascer(a, b) {
@@ -837,6 +890,7 @@ export class Simulacao {
   }
 
   sitioDeOca(t) { return encontrarSitioDeOca(this.mundo, t, this.sorte); }
+  sitioDeMuro(t) { return t.sitioDeMuro(this.mundo, this.sorte); }
 
   // ------------------------------------------------------------- pincéis
   /** O jogador pintando no mundo. `pincel` vem da paleta da interface. */
@@ -962,6 +1016,10 @@ export class Simulacao {
       plantando: this.tribos.filter((t) => t.temPlantacao).length,
       pastoreando: this.tribos.filter((t) => t.temPasto).length,
       currais: this.tribos.filter((t) => t.curral).length,
+      eraMaxima: this.tribos.reduce((m, t) => Math.max(m, t.era), 0),
+      pocos: this.tribos.reduce((n, t) => n + t.fontes.filter((f) => f.tipo === 'poco').length, 0),
+      muros: this.tribos.reduce((n, t) => n + t.muros.length, 0),
+      comSede: this.tribos.filter((t) => t.pop >= 6 && t.comSede).length,
       gado: this.tribos.reduce((n, t) => n + t.cabecas, 0),
       guardas: this.tribos.reduce((n, t) => n + t.guardas, 0),
       ferasAbatidasNaCerca: this.ferasAbatidasNaCerca,

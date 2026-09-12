@@ -14,6 +14,47 @@ const CORES = [0xd94f3d, 0x3f7fd9, 0x9b59c6, 0xe08b28, 0x2fa39a, 0xd63c8a,
                0xd9c22e, 0x5fa63a, 0xc2603c, 0x4b6ad9, 0x8e44ad, 0x16a085];
 
 export const TECNOLOGIAS = ['Pedra', 'Cobre', 'Bronze', 'Ferro'];
+
+/**
+ * As eras da tribo. Não é uma barra de progresso: cada degrau é uma lista de
+ * coisas que têm que estar de pé ao mesmo tempo, e uma delas é sempre gente com
+ * o ofício certo. É o que dá função à vocação além do bônus de trabalho — sem
+ * um pastor a tribo não sai da Aldeia por mais celeiro que tenha.
+ *
+ * `exige` roda na revisão de tribos, que é a cada segundo de simulação. Nada
+ * aqui pode ser caro.
+ */
+export const ERAS = [
+  {
+    nome: 'Bando', raio: 1, abrigo: 0, forca: 1, tecnologia: 1,
+    conta: 'Vive do que acha.',
+    exige: () => true,
+  },
+  {
+    nome: 'Aldeia', raio: 1.1, abrigo: 0.3, forca: 1.15, tecnologia: 0.95,
+    conta: 'Lavoura de pé, teto para todos, um lavrador e um construtor.',
+    exige: (t) => t.temPlantacao && t.temVagaEmCasa && t.pop >= 8
+                && t.porHabitante > 3 && t.temOficio('lavrador') && t.temOficio('construtor'),
+  },
+  {
+    nome: 'Era da Pedra', raio: 1.25, abrigo: 0.7, forca: 1.4, tecnologia: 0.88,
+    conta: 'Água própria, curral cercado, um guarda e um pastor.',
+    exige: (t) => t.aguaPropria > 0 && t.curral && t.pop >= 14
+                && t.temOficio('guarda') && t.temOficio('pastor'),
+  },
+  {
+    nome: 'Era do Bronze', raio: 1.42, abrigo: 1.1, forca: 1.8, tecnologia: 0.78,
+    conta: 'Mina, cobre trabalhado, muro erguido, um minerador e um artesão.',
+    exige: (t) => t.temMina && t.tecnologia >= 1 && t.muros.length >= 8
+                && t.temOficio('minerador') && t.temOficio('artesao'),
+  },
+  {
+    nome: 'Feudo', raio: 1.62, abrigo: 1.6, forca: 2.3, tecnologia: 0.66,
+    conta: 'Muro fechado, celeiro farto, líder à frente e ofício de sobra.',
+    exige: (t) => t.comLider && t.muros.length >= 20 && t.pop >= 32
+                && t.celeiro > t.pop * 6 && t.temOficio('artesao') && t.temOficio('guarda'),
+  },
+];
 const CUSTO_TEC = [0, 40, 140, 380];
 
 /** Comida por habitante abaixo disto é fome declarada. */
@@ -22,6 +63,10 @@ export const LIMIAR_FOME = 1.6;
 export const LIMIAR_FARTURA = 4.2;
 
 const BANDO_SEM_TETO = 6;
+/** Quanta gente cada fonte sustenta. Rio é fonte grande e de graça; poço é
+ *  pequeno, mas é o que uma tribo de sertão consegue cavar. */
+const AGUA_DO_RIO = 26;
+const AGUA_DO_POCO = 15;
 /** Cerca não cresce para sempre: curral maior que isto vira uma parede de
  *  mourão atravessando a aldeia inteira. */
 const RAIO_CURRAL = 7;
@@ -48,6 +93,10 @@ export class Tribo {
     this.temMina = false;
     this.cabecas = 0;              // animais domesticados
     this.alarme = null;            // {x, y, ate} — fera avistada, guardas acorrem
+    this.era = 0;                  // degrau em ERAS
+    this.umidadeDaFonte = 0.5;     // média nas fontes; a seca aperta o teto
+    this.fontes = [];              // {x, y, tipo:'rio'|'poco'} — de onde vem a água
+    this.muros = [];               // {x, y} — pedra em volta da aldeia
     this.temCosta = false;         // território encosta em água: dá para pescar
     this.curral = null;            // {x, y, raio} — o pasto cercado
     this.cercas = [];              // tiles de mourão, na volta do curral
@@ -63,13 +112,32 @@ export class Tribo {
   }
 
   get pop() { return this.membros.length; }
+  get degrau() { return ERAS[this.era]; }
+  temOficio(dom) { return this.membros.some((m) => m.viva && m.adulto && m.dom === dom); }
+
+  /**
+   * Quanta gente a água desta tribo sustenta. É o teto de população que
+   * faltava: antes ela crescia até a comida acabar, e mil e duzentas pessoas
+   * caçando varriam a fauna do mapa inteiro. Agora quem manda é a fonte, e a
+   * fonte encolhe na seca — o que amarra a demografia ao clima.
+   */
+  get aguaPara() {
+    let n = 0;
+    for (const f of this.fontes) n += f.tipo === 'rio' ? AGUA_DO_RIO : AGUA_DO_POCO;
+    return Math.round(n * (0.55 + this.umidadeDaFonte * 0.75));
+  }
+  get aguaPropria() { return this.fontes.length; }
+  get comSede() { return this.pop > this.aguaPara; }
   get porHabitante() { return this.pop ? this.celeiro / this.pop : 0; }
   get faminta() { return this.porHabitante < LIMIAR_FOME; }
   get farta() { return this.porHabitante > LIMIAR_FARTURA; }
-  /** Força em combate: gente vezes o que ela tem na mão, mais quem treina para
+  /** Força em combate: era, gente, o que ela tem na mão, e quem treina para
    *  isso. O guarda pesa quase como uma pessoa a mais — é o que faz valer a
    *  pena sustentar gente que não produz comida. */
-  get forca() { return this.pop * (1 + this.tecnologia * 0.55) + this.guardas * 0.9; }
+  get forca() {
+    return (this.pop * (1 + this.tecnologia * 0.55) + this.guardas * 0.9
+            + this.muros.length * 0.35) * this.degrau.forca;
+  }
 
   get guardas() { return this.membros.filter((m) => m.viva && m.adulto && m.dom === 'guarda').length; }
 
@@ -91,10 +159,11 @@ export class Tribo {
   }
 
   /** Raio do território, em tiles. Cresce devagar com a população. */
-  get raio() { return Math.min(16, 3.2 + Math.sqrt(this.pop) * 2.0); }
+  get raio() { return Math.min(22, (3.2 + Math.sqrt(this.pop) * 2.0) * this.degrau.raio); }
 
   /** Cada oca acolhe duas pessoas. */
-  get abrigo() { return this.ocas.length * 2; }
+  /** Casa melhor acolhe mais gente: é o que a era faz com a mesma oca. */
+  get abrigo() { return Math.round(this.ocas.length * (2 + this.degrau.abrigo)); }
 
   /**
    * Um punhado de gente dorme ao relento; de seis em diante precisa de teto.
@@ -170,6 +239,30 @@ export class Tribo {
    * guardas, não por sorteio: sorteado, todo mundo acaba amontoado no mesmo
    * canto da cerca e três quartos do curral ficam abertos.
    */
+  /** Quantos trechos de muro cabem na volta da aldeia, no tamanho de hoje. */
+  get murosQueCabem() { return Math.round(2 * Math.PI * this.raioDoMuro); }
+  get raioDoMuro() { return Math.max(4, Math.min(13, this.raio * 0.55)); }
+
+  /** Um lugar vago no anel do muro. Devolve null quando o anel está fechado. */
+  sitioDeMuro(mundo, sorte) {
+    const r = this.raioDoMuro;
+    for (let k = 0; k < 22; k++) {
+      const a = sorte() * Math.PI * 2;
+      const x = Math.round(this.cx + Math.cos(a) * r);
+      const y = Math.round(this.cy + Math.sin(a) * r);
+      if (!mundo.andavel(x, y)) continue;
+      if (this.muros.some((m) => Math.abs(m.x - x) < 1 && Math.abs(m.y - y) < 1)) continue;
+      return { x, y };
+    }
+    return null;
+  }
+
+  /** Dentro do muro. Fera não passa — é o que a cerca de pau não dá. */
+  atrasDoMuro(x, y) {
+    if (this.muros.length < 8) return false;
+    return Math.hypot(x - this.cx, y - this.cy) < this.raioDoMuro;
+  }
+
   postoDe(h) {
     if (!this.cercas.length) return null;
     const turma = this.membros.filter((m) => m.viva && m.adulto && m.dom === 'guarda');
@@ -212,7 +305,7 @@ export class Tribo {
   investirEmTecnologia(cronica) {
     const prox = this.tecnologia + 1;
     if (prox >= TECNOLOGIAS.length) return false;
-    const custo = CUSTO_TEC[prox] * (this.comLider ? 0.78 : 1);
+    const custo = CUSTO_TEC[prox] * (this.comLider ? 0.78 : 1) * this.degrau.tecnologia;
     if (this.minerais < custo) return false;
     this.minerais -= custo;
     this.tecnologia = prox;
@@ -328,6 +421,7 @@ export const VOCACOES = {
   guarda:     { nome: 'Guarda',     cor: 0xb8574a, lutar: 1.9, enfrentar: 1.9, cercar: 1.2, arar: 0.7, colher: 0.8, minerar: 0.7 },
   pastor:     { nome: 'Pastor',     cor: 0x8fb0a0, arrebanhar: 1.9, pastorear: 1.8, recolher: 1.5, cacar: 0.7, minerar: 0.7, lutar: 0.85 },
   pescador:   { nome: 'Pescador',   cor: 0x5f97b0, pescar: 2.1, forragear: 1.15, arar: 0.8, minerar: 0.7, lutar: 0.85 },
+  artesao:    { nome: 'Artesão',    cor: 0xc08a5a, construir: 1.5, cavarPoco: 1.9, erguerMuro: 2.0, cercar: 1.4, minerar: 1.2, cacar: 0.7 },
 };
 
 export const CHAVES_VOCACAO = Object.keys(VOCACOES);
@@ -360,6 +454,12 @@ function fatiaDePescador(tribo) {
   return tribo.temCosta ? 0.14 : 0.01;
 }
 
+/** Artesão é ofício de era: quem levanta poço e muro. Antes da Aldeia não há
+ *  obra de pedra para ele fazer, e ele vira uma boca a mais na roça. */
+function fatiaDeArtesao(tribo) {
+  return tribo.era >= 1 ? 0.12 : 0.01;
+}
+
 export function rende(h, obra) {
   const v = VOCACOES[h.dom];
   return (v && v[obra]) || 1;
@@ -380,7 +480,7 @@ export function sortearVocacao(sorte, tribo, pai, mae) {
   for (const m of tribo.membros) if (m.dom) tem[m.dom]++;
 
   const alvo = { ...MISTURA_ALVO, guarda: fatiaDeGuarda(tribo), pastor: fatiaDePastor(tribo),
-                 pescador: fatiaDePescador(tribo) };
+                 pescador: fatiaDePescador(tribo), artesao: fatiaDeArtesao(tribo) };
   let faltaMais = null, maiorFalta = -Infinity;
   for (const k of CHAVES_VOCACAO) {
     const falta = alvo[k] * tribo.pop - tem[k];

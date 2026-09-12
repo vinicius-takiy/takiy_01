@@ -6,7 +6,7 @@
 
 import { T, TERRENOS } from './mundo.js';
 import { indice, abrir, apagar, guardar } from './registro.js';
-import { TECNOLOGIAS, VOCACOES, CHAVES_VOCACAO } from './tribos.js';
+import { TECNOLOGIAS, VOCACOES, CHAVES_VOCACAO, ERAS } from './tribos.js';
 
 const el = (id) => document.getElementById(id);
 
@@ -300,17 +300,24 @@ export class Interface {
     // abreviado de propósito: por extenso isto virava três linhas e o painel
     // crescia até cobrir a fita de tribos
     const CURTO = { lavrador: 'lav', cacador: 'caç', construtor: 'con', minerador: 'min',
-                    lider: 'líd', guarda: 'gua', pastor: 'pas', pescador: 'pes' };
+                    lider: 'líd', guarda: 'gua', pastor: 'pas', pescador: 'pes',
+                    artesao: 'art' };
     const gente = CHAVES_VOCACAO.filter((k) => conta[k])
       .map((k) => `${conta[k]} ${CURTO[k]}`).join(' · ');
+    const proxima = ERAS[t.era + 1];
     dl.innerHTML = linhas([
-      ['Pessoas', t.pop],
+      ['Era', `${ERAS[t.era].nome}`],
+      // o que falta para o próximo degrau é a informação mais útil do painel:
+      // é ela que diz ao jogador o que pintar ou soltar para a tribo evoluir
+      ...(proxima ? [['Para subir', proxima.conta]] : [['', 'no topo do que sabe fazer']]),
+      ['Pessoas', `${t.pop}${t.aguaPropria ? ` de ${t.aguaPara} que a água dá` : ' · sem fonte'}`],
       ['Gente', gente || '—'],
       ['Celeiro', `${t.celeiro.toFixed(0)} (${t.porHabitante.toFixed(1)} por cabeça)`],
       ['Técnica', TECNOLOGIAS[t.tecnologia] + (t.comLider ? ' · com líder' : '')],
       ['Roças', t.plantios],
       ['Abrigo', `${t.ocas.length} ocas` + (t.temVagaEmCasa ? '' : ' · sem vaga')],
       ['Madeira', t.madeira.toFixed(0)],
+      ['Pedra', `${t.minerais.toFixed(0)}${t.muros.length ? ` · ${t.muros.length} de muro` : ''}`],
       ['Gado', t.cabecas + (t.curral ? ` / ${t.capacidadeCurral} no curral` : ' · solto')],
       ['Situação', t.faminta ? 'passando fome' : t.farta ? 'com fartura' : 'em pé'],
       ['Vizinhas', rel.length ? rel.map(([id, r]) => `${sim.tribo(id)?.nome || '?'} (${r})`).join(', ') : 'nenhuma'],

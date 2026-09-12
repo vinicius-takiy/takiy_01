@@ -623,6 +623,41 @@ checar('o gado não atravessa a cerca, nem em pânico',
 checar('a fera passa por cima da cerca', cerca && cerca.saiu,
        cerca ? `a fera chegou a ${cerca.feraLonge} do centro, num curral de ${cerca.raio}` : '');
 
+// --- eras: água, poço, muro e o ofício que cada degrau exige ---
+const eras = await pagina.evaluate(() => {
+  const { sim, render } = window.__terrario;
+  const t = sim.tribos[0];
+  if (!t) return null;
+  const semFonte = t.aguaPara;
+  // cava um poço à mão e vê o teto de gente subir
+  const cx = Math.round(t.cx), cy = Math.round(t.cy);
+  sim.mundo.umidade[sim.mundo.idx(cx + 2, cy)] = 0.9;
+  t.fontes.push({ x: cx + 2, y: cy, tipo: 'poco' });
+  const comFonte = t.aguaPara;
+  // muro: precisa de minério, e fecha o anel
+  t.minerais += 600;
+  t.era = 2;
+  for (let k = 0; k < 40; k++) {
+    const p = t.sitioDeMuro(sim.mundo, sim.sorte);
+    if (p) t.muros.push(p);
+  }
+  render.refazerCercas(sim);
+  const feraFora = t.atrasDoMuro(t.cx, t.cy) && !t.atrasDoMuro(t.cx + 30, t.cy);
+  return {
+    semFonte, comFonte, muros: t.muros.length,
+    murosEmCena: render.figuras.get('muro').natural.count,
+    pocosEmCena: render.figuras.get('poco').natural.count,
+    feraFora,
+    degraus: sim.constructor.name ? null : null,
+  };
+});
+checar('poço dá teto de gente à tribo', eras && eras.comFonte > eras.semFonte,
+       eras ? `de ${eras.semFonte} para ${eras.comFonte} pessoas` : 'sem tribo');
+checar('o muro sobe e aparece em cena', eras && eras.murosEmCena === eras.muros && eras.muros > 8,
+       eras ? `${eras.muros} trechos, ${eras.murosEmCena} desenhados` : '');
+checar('o poço aparece em cena', eras && eras.pocosEmCena > 0);
+checar('o muro define um dentro e um fora', eras && eras.feraFora);
+
 // --- painéis que encolhem: a tela é o jogo ---
 const naTela = (sel) => pagina.locator(sel).isVisible();
 await pagina.locator('#dobrarEstado').click();
