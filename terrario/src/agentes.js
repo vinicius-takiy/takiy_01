@@ -14,6 +14,7 @@ export const ANO = 4;
 const VEL = 2.4;                 // tiles por segundo de simulação
 // A fera precisa ser mais rápida que a presa E que o humano. Com 1,9 ela era
 // mais lenta que os dois e morria de fome perseguindo o almoço a pé.
+const BARRIGA = 0.78;    // o quanto de fome uma refeição cheia tira da fera
 const VEL_FERA = 3.4;
 /**
  * Herbívoros. Um bicho grande só não sustenta cadeia nenhuma: ele come muito,
@@ -230,6 +231,19 @@ export class Humano {
       }
     }
 
+    // 1b2. Ir ao saque. Só quem briga vai, e só enquanto a tribo passa fome —
+    //      com a aldeia inteira em marcha ninguém colhe, que é o erro que já
+    //      extinguiu três sementes nesta simulação.
+    if (this.adulto && t.alvoDeSaque !== null && t.faminta
+        && (this.dom === 'guarda' || this.dom === 'cacador')) {
+      const alvo = sim.tribo(t.alvoDeSaque);
+      if (alvo && alvo.viva && alvo.pop) {
+        this.alvo = { x: Math.round(alvo.cx), y: Math.round(alvo.cy), obra: 'lutar' };
+        return;
+      }
+      t.alvoDeSaque = null;
+    }
+
     // 1c. Alarme dado por outro. O guarda vai mesmo sem ter visto o bicho: é o
     //     que faz três guardas chegarem juntos em vez de um de cada vez.
     if (this.adulto && this.dom === 'guarda' && t.alarme && sim.tempo < t.alarme.ate
@@ -300,8 +314,12 @@ export class Humano {
       // 3b3. Muro. Pedra em volta da aldeia: é a proteção que a cerca de pau
       //      não dá, porque a fera pula a cerca e não pula o muro. Só na Era da
       //      Pedra em diante, e só com minério para gastar.
-      if (t.era >= 2 && t.minerais >= PEDRA_MURO && t.muros.length < t.murosQueCabem
-          && !t.faminta && sim.sorte() < 0.5 * rende(this, 'erguerMuro')) {
+      // Quem apanhou ergue muro antes da hora e com mais pressa: a memória
+      // adianta a obra em uma era e dobra a vontade de fazê-la.
+      const urgente = t.ameacada > 3;
+      if ((t.era >= 2 || (urgente && t.era >= 1)) && t.minerais >= PEDRA_MURO
+          && t.muros.length < t.murosQueCabem && !t.faminta
+          && sim.sorte() < (urgente ? 0.9 : 0.5) * rende(this, 'erguerMuro')) {
         const p = sim.sitioDeMuro(t);
         if (p) { this.alvo = { x: p.x, y: p.y, obra: 'erguerMuro' }; return; }
       }
@@ -820,8 +838,12 @@ export class Predador {
     this.alvo = null;
     this.presa = null;
     this.emperrado = 0;
+    this.matilha = null;           // grupo de caça; membros dividem a presa
+    this.evita = null;             // ids de tribo onde o bando dela já morreu
     this.viva = true;
   }
+
+  get emBando() { return this.matilha ? this.matilha.filter((p) => p.viva).length : 1; }
 
   atualizar(dt, sim) {
     const anos = dt / ANO;
@@ -839,17 +861,56 @@ export class Predador {
 
     if (this.presa && !this.presa.viva) { this.presa = null; this.alvo = null; }
 
+    // Matilha. Duas feras com fome que se cruzam passam a caçar juntas: dividem
+    // o alvo e derrubam o que sozinhas não derrubariam. É o que permite a uma
+    // fera encostar num boi de meia tonelada — e, em três ou mais, na aldeia.
+    // A matilha se forma na fome E diante de bicho grande. Formando só pela
+    // fome, ela virava o modo padrão de caçar: mil e trezentas matilhas numa
+    // partida, todas rateando lebre entre quatro bocas, e no ano 170 as quinze
+    // feras do mapa morriam de fome no mesmo decênio — não foi o guarda que as
+    // matou, foi o rateio. Matilha existe para derrubar o que uma fera sozinha
+    // não derruba; diante de lebre, cada uma caça a sua.
+    const valeDividir = this.presa
+      && (!this.presa.especie || (ESPECIES[this.presa.especie].defesa || 0) >= 0.3);
+    if (this.fome > 0.55 && valeDividir) {
+      if (this.matilha) this.matilha = this.matilha.filter((p) => p.viva);
+      if (!this.matilha || this.matilha.length < 4) {
+        const outra = sim.maisPerto(this.x, this.y, 3.5, 'predadores',
+                                    (p) => p.viva && p !== this && p.fome > 0.3);
+        if (outra) {
+          const grupo = outra.matilha || this.matilha || [];
+          if (!grupo.includes(this)) grupo.push(this);
+          if (!grupo.includes(outra)) grupo.push(outra);
+          this.matilha = grupo;
+          outra.matilha = grupo;
+          if (grupo.length === 3) sim.matilhasFormadas++;
+        }
+      }
+      // quem já tem matilha caça o que a matilha caça
+      if (!this.presa && this.matilha) {
+        const dela = this.matilha.find((p) => p.viva && p.presa && p.presa.viva);
+        if (dela) this.presa = dela.presa;
+      }
+    } else if (this.matilha) {
+      this.matilha = this.matilha.filter((p) => p !== this);
+      this.matilha = null;
+    }
+
     if (!this.presa && this.fome > 0.42) {
       this.presa = sim.presaPerto(this.x, this.y, 12);
-      // gente é o último recurso: sem esta trava a fera vira praga e limpa o
-      // mundo antes de qualquer tribo existir
-      if (!this.presa && this.fome > 0.72) this.presa = sim.humanoPerto(this.x, this.y, 12);
+      // Gente é o último recurso: sem esta trava a fera vira praga e limpa o
+      // mundo antes de qualquer tribo existir. Em matilha de três, porém, a
+      // conta muda — é aí que a aldeia vira alvo em vez de refúgio.
+      const ousadia = this.emBando >= 3 ? 0.5 : 0.72;
+      if (!this.presa && this.fome > ousadia) this.presa = sim.humanoPerto(this.x, this.y, 12);
     }
 
     if (this.presa) {
       const d = Math.hypot(this.presa.x - this.x, this.presa.y - this.y);
       if (d < 0.8) {
-        const def = this.presa.especie ? ESPECIES[this.presa.especie].defesa || 0 : 0;
+        // em bando o coice não adianta tanto
+        const bruta = this.presa.especie ? ESPECIES[this.presa.especie].defesa || 0 : 0;
+        const def = bruta / (1 + (this.emBando - 1) * 0.35);
         if (def && sim.sorte() < def) {
           // escapou: o bicho reage, dispara e a fera fica sem o almoço
           this.presa.panico = 1.2;
@@ -860,8 +921,24 @@ export class Predador {
           this.emperrado = 0;
           return;
         }
+        // A carcaça é dividida, não multiplicada — mas o que cabe numa fera é
+        // uma barriga, não a carcaça inteira. Dando refeição cheia a cada
+        // membro, um bando de três valia por três caças e o predador comia a
+        // própria base de presa; dividindo sem teto de barriga, rateio de
+        // lebre matava o bando de fome. Um boi enche três; uma lebre, uma.
+        const carne = this.presa.especie ? ESPECIES[this.presa.especie].carne : 1;
+        const carcaca = BARRIGA * carne;
+        const juntos = this.matilha
+          ? this.matilha.filter((o) => o.viva && Math.hypot(o.x - this.x, o.y - this.y) <= 5)
+          : [this];
+        const quinhao = Math.min(BARRIGA, carcaca / Math.max(1, juntos.length));
+        for (const o of juntos) {
+          if (o === this) continue;
+          o.fome = Math.max(0, o.fome - quinhao);
+          o.presa = null;
+        }
         sim.abatidoPorPredador(this.presa);
-        this.fome = Math.max(0, this.fome - 0.75);
+        this.fome = Math.max(0, this.fome - quinhao);
         this.fartas = (this.fartas || 0) + 1;
         // só cria filhote quem está comendo bem: é o que amarra o predador à presa
         if (this.fartas >= 3 && this.idade > 2) { this.fartas = 0; sim.nascerPredador(this); }
@@ -906,6 +983,9 @@ export class Predador {
         // Muro fechado a fera não passa, com fome ou sem. É o que a cerca de pau
         // não dá, e é o que a Era da Pedra compra com o minério da mina.
         const dono = sim.mundo.dono[sim.mundo.idx(x, y)];
+        // Aldeia onde o bando dela morreu ela não visita mais. É a memória do
+        // outro lado: a tribo aprende a se armar, a fera aprende onde não ir.
+        if (this.evita && dono !== -1 && this.evita.has(dono)) continue;
         if (dono !== -1) {
           const tribo = sim.tribo(dono);
           if (tribo && tribo.atrasDoMuro(x, y)) continue;

@@ -81,6 +81,9 @@ export class Simulacao {
     this.mortosPorRaio = 0;
     this.mortosNoFogo = 0;
     this.empates = 0;
+    this.saques = 0;
+    this.matilhasFormadas = 0;
+    this.ferasVindasDaMata = 0;
     // Por que o bicho morre. É a única forma de saber se uma espécie sumiu de
     // fome, de caçada ou de velhice — e sem saber isso não se calibra nada.
     this.fimDoBicho = {};
@@ -231,6 +234,39 @@ export class Simulacao {
     }
   }
 
+  /**
+   * A mata devolve a fera. O mapa é uma janela num mundo maior: quando o nicho
+   * do topo fica vazio e há presa de sobra, o mato de fora manda outra.
+   *
+   * Sem isto a extinção do predador era um estado absorvente, e ela chegava
+   * sempre: com teto de dezesseis feras e um guarda de tribo com tecnologia
+   * matando em nove de cada dez encontros, o ano 170 zerava as cinco sementes.
+   * Zerado o predador, o herbívoro não tinha mais quem o segurasse e ia encostar
+   * no teto do código — que é justamente o que este jogo não quer que decida.
+   * A taxa é baixa de propósito: enquanto houver fera viva, isto não acontece.
+   */
+  repovoarAMata(dt) {
+    if (this.predadores.length > 1) return;
+    if (this.rebanhos.length < 40) return;   // sem presa não adianta mandar bicho
+    if (this.sorte() > dt / ANO * 0.35) return;
+    // Ela chega atrás da caça, não num vazio: largar a recém-chegada no mato
+    // fundo e longe de todos parecia certo e matava as quarenta de fome, porque
+    // o nicho manda o herbívoro para o campo e para a margem, não para dentro da
+    // mata. Ela vem pelo rebanho selvagem que ninguém está guardando.
+    for (let tentativa = 0; tentativa < 40; tentativa++) {
+      const alvo = this.rebanhos[(this.sorte() * this.rebanhos.length) | 0];
+      if (!alvo || !alvo.viva || alvo.tribo) continue;
+      const a = this.sorte() * Math.PI * 2, d = 6 + this.sorte() * 5;
+      const x = Math.round(alvo.x + Math.cos(a) * d), y = Math.round(alvo.y + Math.sin(a) * d);
+      if (!this.mundo.andavel(x, y)) continue;
+      if (this.humanoPerto(x, y, 12)) continue;
+      this.predadores.push(new Predador(x, y, this.sorte));
+      this.ferasVindasDaMata++;
+      this.cronica('Uma fera desce do mato fundo', null, 'fera');
+      return;
+    }
+  }
+
   recolherMortos() {
     for (const h of this.humanos) {
       if (h.viva || h.contabilizado) continue;
@@ -243,6 +279,13 @@ export class Simulacao {
       if (h.causa === 'guerra') this.mortesEmGuerra++;
       if (h.causa === 'fera') { this.mortesPorPredador++; this.guardasMortos++; }
       if (h.causa === 'afogado') this.afogados++;
+      // a tribo guarda o que a matou; é daqui que sai toda a mudança de conduta
+      if (h.tribo) {
+        if (h.causa === 'predador' || h.causa === 'fera') h.tribo.aprender('fera');
+        else if (h.causa === 'guerra') h.tribo.aprender('guerra');
+        else if (h.causa === 'fome') h.tribo.aprender('fome');
+        else if (h.causa === 'fogo' || h.causa === 'raio') h.tribo.aprender('fogo');
+      }
     }
     if (this.humanos.some((h) => !h.viva)) this.humanos = this.humanos.filter((h) => h.viva);
     if (this.rebanhos.some((r) => !r.viva)) {
@@ -259,7 +302,20 @@ export class Simulacao {
       }
       this.rebanhos = this.rebanhos.filter((r) => r.viva);
     }
-    if (this.predadores.some((p) => !p.viva)) this.predadores = this.predadores.filter((p) => p.viva);
+    if (this.predadores.some((p) => !p.viva)) {
+      // A fera que morre ensina a matilha. Quem sobrou passa a evitar o
+      // território onde a companheira ficou — o outro lado do aprendizado.
+      for (const p of this.predadores) {
+        if (p.viva || !p.matilha) continue;
+        const dono = this.mundo.dono[this.mundo.idx(Math.round(p.x), Math.round(p.y))];
+        if (dono === -1) continue;
+        for (const o of p.matilha) {
+          if (!o.viva) continue;
+          (o.evita || (o.evita = new Set())).add(dono);
+        }
+      }
+      this.predadores = this.predadores.filter((p) => p.viva);
+    }
     if (this.peixes.some((p) => !p.viva)) this.peixes = this.peixes.filter((p) => p.viva);
     if (this.jacares.some((j) => !j.viva)) this.jacares = this.jacares.filter((j) => j.viva);
   }
@@ -356,13 +412,17 @@ export class Simulacao {
     for (const t of this.tribos) {
       const antes = t.ocas.length;
       t.ocas = t.ocas.filter((o) => !mundo.fogo[mundo.idx(o.x, o.y)] || this.sorte() > anos * 1.6);
-      if (t.ocas.length < antes) this.cronica(`O fogo consome ocas de ${t.nome}`, t, 'fogoOca', true);
+      if (t.ocas.length < antes) {
+        t.aprender('fogo', 2);
+        this.cronica(`O fogo consome ocas de ${t.nome}`, t, 'fogoOca', true);
+      }
     }
   }
 
   // --------------------------------------------------------------- tribos
   revisarTribos(dt) {
     this.consequenciasDoFogo(dt);
+    this.repovoarAMata(dt);
     // 1. quem perdeu membros, quem morreu inteira
     for (const t of this.tribos) {
       t.membros = t.membros.filter((m) => m.viva && m.tribo === t);
@@ -511,6 +571,17 @@ export class Simulacao {
       if (t && perto && temCacador && t.pop >= 4 && this.sorte() < 0.02 * (1 + t.tecnologia)) {
         p.viva = false;
         this.cronica(`${t.nome} abate uma fera`, t, 'cacada', true);
+      }
+    }
+
+    // 4b2. A memória esfria com o tempo, e quando ela passa do limiar a tribo
+    //      muda de conduta — mais guarda, muro antes da hora. O aviso é para o
+    //      jogador entender POR QUE a tribo mudou.
+    const anosPassados = dt / ANO;
+    for (const t of this.tribos) {
+      t.esquecer(anosPassados);
+      if (t.ameacada > 4 && t.pop >= 6) {
+        this.cronica(`${t.nome} aprende com o que sofreu e se arma`, t, 'licao', true);
       }
     }
 
@@ -808,12 +879,22 @@ export class Simulacao {
     const chance = meu / (meu + dele);
     const vitima = this.sorte() < chance ? inimigo : h;
     vitima.morrer('guerra');
-    // saque: quem vence leva parte do celeiro
+    // Saque. Quem vai a saque leva de verdade: um quinto do celeiro e parte da
+    // pedra, não os 2,5 de quem só passou brigando. É o que faz valer a pena
+    // atacar em vez de arar, e o que torna vizinho rico um problema.
     const vencedora = vitima === inimigo ? t : inimigo.tribo;
     const perdedora = vitima === inimigo ? inimigo.tribo : t;
-    const saque = Math.min(perdedora.celeiro, 2.5);
+    const aSaque = vencedora.saqueadora;
+    const saque = aSaque ? perdedora.celeiro * 0.2 : Math.min(perdedora.celeiro, 2.5);
     perdedora.celeiro -= saque;
     vencedora.celeiro += saque;
+    if (aSaque) {
+      const pedra = perdedora.minerais * 0.25;
+      perdedora.minerais -= pedra;
+      vencedora.minerais += pedra;
+      this.saques++;
+      this.cronica(`${vencedora.nome} saqueia ${perdedora.nome}`, vencedora, 'saque', true);
+    }
   }
 
   // ------------------------------------------------------------ nascer
@@ -1006,6 +1087,12 @@ export class Simulacao {
       pescados: this.pescados,
       afogados: this.afogados,
       empates: this.empates,
+      saques: this.saques,
+      matilhas: this.matilhasFormadas,
+      ferasVindasDaMata: this.ferasVindasDaMata,
+      emMatilha: this.predadores.filter((p) => p.emBando >= 2).length,
+      saqueadoras: this.tribos.filter((t) => t.saqueadora).length,
+      aprenderam: this.tribos.filter((t) => t.ameacada > 4).length,
       mortosPorRaio: this.mortosPorRaio,
       mortosNoFogo: this.mortosNoFogo,
       queimando: this.mundo.queimando.size,

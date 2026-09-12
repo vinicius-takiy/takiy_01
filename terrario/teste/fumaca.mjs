@@ -606,6 +606,11 @@ const cerca = await pagina.evaluate(() => {
       sim.soltar('predador', c.x, c.y);
       fera = sim.predadores[sim.predadores.length - 1];
     }
+    // O boi é mantido vivo de propósito. A fera que o teste solta dentro do
+    // curral — e qualquer outra que passe por perto — o come em segundos, e
+    // "foi comido" não é resposta para "atravessa a cerca?", pelo mesmo motivo
+    // que a fera é reposta acima. O que se mede aqui é o mourão.
+    boi.viva = true; boi.causa = null;
     boi.panico = 8;
     fera.presa = null;
     fera.fome = 0.1;
@@ -614,12 +619,14 @@ const cerca = await pagina.evaluate(() => {
     if (!t.dentroDoCurral(fera.x, fera.y)) saiu = true;
   }
   t.membros.forEach((m, k) => { m.dom = domAntes[k] || m.dom; });
-  return { boiDentro: t.dentroDoCurral(boi.x, boi.y), boiVivo: boi.viva,
+  return { boiDentro: t.dentroDoCurral(boi.x, boi.y),
+           fora: Math.hypot(boi.x - c.x, boi.y - c.y).toFixed(1),
            saiu, raio: c.raio.toFixed(1),
            feraLonge: Math.hypot(fera.x - c.x, fera.y - c.y).toFixed(1) };
 });
 checar('o gado não atravessa a cerca, nem em pânico',
-       cerca && cerca.boiVivo && cerca.boiDentro, cerca ? `curral de raio ${cerca.raio}` : 'sem tribo');
+       cerca && cerca.boiDentro,
+       cerca ? `curral de raio ${cerca.raio}, boi a ${cerca.fora} do centro` : 'sem tribo');
 checar('a fera passa por cima da cerca', cerca && cerca.saiu,
        cerca ? `a fera chegou a ${cerca.feraLonge} do centro, num curral de ${cerca.raio}` : '');
 

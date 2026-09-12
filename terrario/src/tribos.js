@@ -95,6 +95,11 @@ export class Tribo {
     this.alarme = null;            // {x, y, ate} — fera avistada, guardas acorrem
     this.era = 0;                  // degrau em ERAS
     this.umidadeDaFonte = 0.5;     // média nas fontes; a seca aperta o teto
+    // O que a tribo sofreu e não esqueceu. É a única memória do jogo, e é dela
+    // que sai mudança de comportamento: quem apanhou de fera põe guarda, quem
+    // apanhou de vizinho ergue muro, quem queimou abre clareira maior.
+    this.memoria = { fera: 0, guerra: 0, fome: 0, fogo: 0 };
+    this.alvoDeSaque = null;       // tribo que esta aqui resolveu tomar
     this.fontes = [];              // {x, y, tipo:'rio'|'poco'} — de onde vem a água
     this.muros = [];               // {x, y} — pedra em volta da aldeia
     this.temCosta = false;         // território encosta em água: dá para pescar
@@ -114,6 +119,33 @@ export class Tribo {
   get pop() { return this.membros.length; }
   get degrau() { return ERAS[this.era]; }
   temOficio(dom) { return this.membros.some((m) => m.viva && m.adulto && m.dom === dom); }
+
+  /**
+   * Registra o que doeu. O líder é o que faz a tribo aprender mais depressa —
+   * é aqui que "inteligência maior" vira número, e não numa tabela de bônus.
+   */
+  aprender(tipo, quanto = 1) {
+    this.memoria[tipo] = Math.min(12, this.memoria[tipo] + quanto * (this.comLider ? 1.8 : 1));
+  }
+
+  /** A memória esfria. Uma geração inteira sem fera e a tribo relaxa de novo. */
+  esquecer(anos) {
+    for (const k of Object.keys(this.memoria)) {
+      this.memoria[k] = Math.max(0, this.memoria[k] - anos * 0.08);
+    }
+  }
+
+  get ameacada() { return this.memoria.fera + this.memoria.guerra; }
+
+  /**
+   * Tribo sem o que comer, com gente de briga, vira saqueadora: em vez de arar,
+   * vai tomar o celeiro de quem tem. É o outro caminho para fora da fome, e é o
+   * que faz vizinhança rica virar problema em vez de sorte.
+   */
+  get saqueadora() {
+    return this.faminta && this.pop >= 6 && this.guardas + this.cacadores >= 2;
+  }
+  get cacadores() { return this.membros.filter((m) => m.viva && m.adulto && m.dom === 'cacador').length; }
 
   /**
    * Quanta gente a água desta tribo sustenta. É o teto de população que
@@ -348,10 +380,20 @@ export function encontro(a, b, distancia, cronica, sorte) {
   }
 
   if (a.faminta || b.faminta) {
-    if (atual !== 'aliada' && sorte() < 0.10) {
+    // Saqueadora não espera a sorte virar: tribo com fome, gente de briga e um
+    // vizinho de celeiro cheio ao lado ataca três vezes mais. É o outro caminho
+    // para fora da fome, e é o que faz vizinhança rica virar problema.
+    const faminta = a.faminta ? a : b;
+    const outra = faminta === a ? b : a;
+    const chance = faminta.saqueadora && outra.porHabitante > faminta.porHabitante * 1.8 ? 0.3 : 0.10;
+    if (atual !== 'aliada' && sorte() < chance) {
       a.definirRelacao(b, 'guerra');
-      const quem = a.faminta ? a : b;
-      cronica(`${quem.nome} ataca ${quem === a ? b.nome : a.nome} por comida`, quem, 'guerra');
+      if (faminta.saqueadora) {
+        faminta.alvoDeSaque = outra.id;
+        cronica(`${faminta.nome} parte para o saque de ${outra.nome}`, faminta, 'saque');
+      } else {
+        cronica(`${faminta.nome} ataca ${outra.nome} por comida`, faminta, 'guerra');
+      }
     }
     return;
   }
@@ -438,9 +480,13 @@ const MISTURA_ALVO = { lavrador: 0.34, cacador: 0.19, construtor: 0.16, minerado
  */
 function fatiaDeGuarda(tribo) {
   const emGuerra = [...tribo.relacoes.values()].includes('guerra');
-  if (tribo.curral && emGuerra) return 0.16;
-  if (tribo.curral || emGuerra) return 0.10;
-  return 0.01;
+  // O que a tribo sofreu entra na conta: cada lembrança de fera ou de ataque
+  // vale mais um por cento de guarda, até dobrar a fatia. É a forma mais direta
+  // de "aprender": quem apanhou treina mais gente para não apanhar de novo.
+  const licao = Math.min(0.12, tribo.ameacada * 0.012);
+  if (tribo.curral && emGuerra) return 0.16 + licao;
+  if (tribo.curral || emGuerra) return 0.10 + licao;
+  return 0.01 + licao;
 }
 
 /** Pastor só faz sentido com cerca de pé: é quem vai buscar bicho solto e quem

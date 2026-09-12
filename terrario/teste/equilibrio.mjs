@@ -185,6 +185,8 @@ console.log('mapa   — mata', censo[4] || 0, '· broto', censo[10] || 0, '· ca
             '| queimados', r.fim.tilesQueimados, '· raio', r.fim.mortosPorRaio, '· fogo', r.fim.mortosNoFogo);
 console.log('bicho  — bois', r.fim.bois, '· capivaras', r.fim.capivaras, '· lebres', r.fim.lebres,
             '| em', r.fim.aglomeracao.celulas, 'células, top5', r.fim.aglomeracao.top5 + '%');
+console.log('fera   — vivas', r.fim.predadores, '· matilhas', r.fim.matilhas,
+            '· vindas da mata', r.fim.ferasVindasDaMata, '· abatidas na cerca', r.fim.ferasAbatidasNaCerca);
 console.log('fim    —', Object.entries(r.sim.fimDoBicho).sort((a, b) => b[1] - a[1])
             .slice(0, 8).map(([k, v]) => `${k} ${v}`).join(' · '));
 console.log('água   — peixes', r.fim.peixes, '· jacarés', r.fim.jacares, '· pescados', r.fim.pescados,
