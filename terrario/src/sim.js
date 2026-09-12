@@ -108,7 +108,7 @@ export class Simulacao {
         if (!a.viva) continue;
         const k = ((a.y / CELA) | 0) * 1000 + ((a.x / CELA) | 0);
         let c = this.grade.get(k);
-        if (!c) this.grade.set(k, (c = { humanos: [], rebanhos: [], peixes: [] }));
+        if (!c) this.grade.set(k, (c = { humanos: [], rebanhos: [], peixes: [], predadores: [] }));
         c[marca].push(a);
       }
     };
@@ -118,6 +118,9 @@ export class Simulacao {
     // vizinho na lista inteira é 236 × 236 por tique, e foi isso que fez uma
     // varredura de trezentos anos passar de seis para quarenta e nove segundos.
     por(this.peixes, 'peixes');
+    // fera no índice: agora todo adulto pergunta "tem fera por perto?" quando
+    // troca de tarefa, e varrer a lista inteira a cada pergunta não escala
+    por(this.predadores, 'predadores');
   }
 
   perto(x, y, raio, marca) {
@@ -254,6 +257,7 @@ export class Simulacao {
   }
 
   peixePerto(x, y, raio) { return this.maisPerto(x, y, raio, 'peixes', (p) => p.viva); }
+  feraPerto(x, y, raio) { return this.maisPerto(x, y, raio, 'predadores', (p) => p.viva); }
 
   /** Bicho de terra que caiu na água. É a refeição grande do jacaré. */
   afogadoPerto(x, y, raio) {
@@ -676,6 +680,9 @@ export class Simulacao {
           // sobrar floresta vizinha para semear
           mundo.madeira[i] = 0;
           mundo.desmatados.add(i);
+          // o render transforma isto numa árvore tombando: sem ver a árvore
+          // cair, "derrubar a última árvore do lugar" é só um tile mudando de cor
+          mundo.tombadas.push({ x: Math.round(h.x), y: Math.round(h.y) });
           mundo.definir(i, T.GRAMA);
           this.cronica(`${t.nome} derruba a última árvore do lugar`, t, 'desmate', true);
         }

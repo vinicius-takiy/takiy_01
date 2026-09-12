@@ -324,6 +324,10 @@ export class Render {
 
   atualizarSeres(sim, dt = 0) {
     this.tempo += dt;
+    if (this.mundo.tombadas.length) {
+      for (const a of this.mundo.tombadas) this.derrubarArvore(a.x, a.y);
+      this.mundo.tombadas.length = 0;
+    }
     const nomes = [...CHAVES_VOCACAO.map((k) => `humano:${k}`), 'oca',
                    'rebanho', 'rebanho:pata', 'capivara', 'capivara:pata',
                    'lebre', 'lebre:pata', 'predador', 'predador:pata', 'peixe', 'jacare', 'chama'];
@@ -337,12 +341,19 @@ export class Render {
       // vira para onde vai; balança enquanto trabalha, senão de perto o mundo
       // parece travado mesmo com a simulação rodando
       const giro = h.alvo ? Math.atan2(h.alvo.x - h.x, h.alvo.y - h.y) : giroParado(h);
-      const ritmo = h.obra === 'lutar' ? 11 : h.obra === 'minerar' ? 8.5 : 6.5;
-      const faina = h.obra ? Math.sin(this.tempo * ritmo + h.x * 3) : 0;
-      const passo = h.alvo ? Math.abs(Math.sin(this.tempo * 9 + h.y)) * 0.07 : 0;
-      this.aux.scale.set(s * (1 - Math.abs(faina) * 0.025), s * (1 + Math.abs(faina) * 0.05), s);
-      this.aux.rotation.set(faina * 0.3, giro, faina * 0.08);
-      this.aux.position.y += passo + Math.abs(faina) * 0.05;
+      const g = GESTO[h.obra] || GESTO.padrao;
+      const fase = this.tempo * g.ritmo + h.x * 3 + h.y;
+      // Golpe é serrote, não senoide: o braço sobe devagar e desce de uma vez.
+      // Com seno, machadada, enxadada e lançada tinham todas a mesma cara de
+      // gente balançando — que era a queixa de "não dá para ver o que acontece".
+      const faina = h.obra ? (g.golpe ? 1 - 2 * Math.abs(((fase / 6.28) % 1) - 0.5) : Math.sin(fase)) : 0;
+      const corrida = h.fugindo > 0 ? 1 : 0;
+      const passo = h.alvo ? Math.abs(Math.sin(this.tempo * (corrida ? 15 : 9) + h.y)) * (corrida ? 0.13 : 0.07) : 0;
+      this.aux.scale.set(s * (1 - Math.abs(faina) * g.encolhe), s * (1 + Math.abs(faina) * g.estica), s);
+      // `curva` é a postura fixa da tarefa (agachado na roça, lançado no golpe)
+      // e `faina` é o movimento por cima dela. Quem foge corre inclinado.
+      this.aux.rotation.set(g.curva + faina * g.balanco + corrida * 0.30, giro, faina * g.torce);
+      this.aux.position.y += passo + Math.abs(faina) * g.pulo;
       this.cor.set(h.tribo ? h.tribo.cor : 0xd8d2c0);
       if (h.fome > 0.75) this.cor.lerp(this._tinta.set(0x201a12), 0.45);
       this.por(`humano:${h.dom in FIG_HUMANO ? h.dom : 'lavrador'}`, this.cor);
@@ -381,17 +392,22 @@ export class Render {
       if (!p.viva) continue;
       const mira = p.presa || p.alvo;
       const caca = !!p.presa;
+      // Bote: em cima da presa a fera não corre, ela investe. Levanta o dianteiro
+      // e desaba para a frente num tranco só. É o que faltava para dar para ver
+      // que ela está atacando e não apenas passando por perto.
+      const bote = caca && Math.hypot(p.presa.x - p.x, p.presa.y - p.y) < 2.2;
       const base = this.escalaEntrada(p);
       const giro = mira ? Math.atan2(mira.x - p.x, mira.y - p.y) : giroParado(p);
-      const passo = this.tempo * (caca ? 13 : mira ? 8 : 1.2) + p.x * 1.9 + p.y * 2.3;
-      const balanco = Math.sin(passo);
-      const amplitude = caca ? 0.72 : mira ? 0.46 : 0.05;
+      const passo = this.tempo * (bote ? 9 : caca ? 13 : mira ? 8 : 1.2) + p.x * 1.9 + p.y * 2.3;
+      const balanco = bote ? 1 - 2 * Math.abs(((passo / 6.28) % 1) - 0.5) : Math.sin(passo);
+      const amplitude = bote ? 1.0 : caca ? 0.72 : mira ? 0.46 : 0.05;
       const chao = this.alturaEm(p.x, p.y);
       // no galope o corpo sobe e encolhe junto com a passada: é o que dá a
       // leitura de esforço que separa a fera rondando da fera atacando
-      this.aux.position.set(p.x, chao + Math.abs(balanco) * (caca ? 0.085 : 0.03), p.y);
-      this.aux.rotation.set(balanco * (caca ? 0.10 : 0.03), giro, 0);
-      this.aux.scale.set(base, base * (1 - Math.abs(balanco) * (caca ? 0.05 : 0.015)), base);
+      this.aux.position.set(p.x, chao + Math.abs(balanco) * (bote ? 0.16 : caca ? 0.085 : 0.03), p.y);
+      this.aux.rotation.set(bote ? -0.30 + balanco * 0.75 : balanco * (caca ? 0.10 : 0.03), giro, 0);
+      const magro = bote ? 1 + balanco * 0.10 : 1;
+      this.aux.scale.set(base, base * (1 - Math.abs(balanco) * (caca ? 0.05 : 0.015)), base * magro);
       this.por('predador');
       this.porPatas('predador:pata', p.x, chao, p.y, giro, base, passo, amplitude);
     }
@@ -414,10 +430,15 @@ export class Render {
       const i = this.mundo.dentro(Math.round(j.x), Math.round(j.y))
         ? this.mundo.idx(Math.round(j.x), Math.round(j.y)) : 0;
       const mira = j.presa || j.alvo;
-      // quase submerso; só o dorso e os olhos ficam acima da lâmina
+      // Giro da morte: agarrada a presa, o jacaré rola em torno do próprio
+      // comprimento. É o gesto que identifica o bicho, e é o que faz um ataque
+      // na água ser visível de cima — antes ele só encostava e a presa sumia.
+      const agarrou = j.presa && Math.hypot(j.presa.x - j.x, j.presa.y - j.y) < 1.8;
       const rasteja = mira ? Math.sin(this.tempo * 5 + j.x) : Math.sin(this.tempo * 1.1 + j.y);
-      this.aux.position.set(j.x, this.alturaDaLamina(i) - 0.05, j.y);
-      this.aux.rotation.set(0, mira ? Math.atan2(mira.x - j.x, mira.y - j.y) : giroParado(j), rasteja * 0.05);
+      this.aux.position.set(j.x, this.alturaDaLamina(i) - (agarrou ? 0.02 : 0.05), j.y);
+      this.aux.rotation.set(agarrou ? Math.sin(this.tempo * 11) * 0.12 : 0,
+                            mira ? Math.atan2(mira.x - j.x, mira.y - j.y) : giroParado(j),
+                            agarrou ? this.tempo * 7 % 6.283 : rasteja * 0.05);
       this.aux.scale.setScalar(this.escalaEntrada(j));
       this.por('jacare');
     }
@@ -533,6 +554,25 @@ export class Render {
     while (this.efeitos.length > 18) this.removerEfeito(this.efeitos.shift());
   }
 
+  /**
+   * Árvore tombando. Não é enfeite: sem ver a árvore cair, "derruba a última
+   * árvore do lugar" é um tile mudando de cor, e a coisa mais consequente que
+   * uma tribo faz com a paisagem passa despercebida.
+   */
+  derrubarArvore(x, y) {
+    const f = this.figuras.get('arvore');
+    if (!f || !f.natural) return;
+    const i = this.mundo.dentro(x, y) ? this.mundo.idx(x, y) : 0;
+    const malha = new THREE.Mesh(f.natural.geometry, f.natural.material);
+    malha.position.set(x, this.alturaColuna(i), y);
+    // o eixo do tombo é estável por tile: a mesma árvore cai sempre para o
+    // mesmo lado, e duas vizinhas não caem em paralelo
+    malha.userData.giro = ((x * 31 + y * 17) % 628) / 100;
+    this.cena.add(malha);
+    this.efeitos.push({ malha, inicio: this.tempo, tipo: 'tombo', dur: 1.5 });
+    while (this.efeitos.length > 26) this.removerEfeito(this.efeitos.shift());
+  }
+
   atualizarEfeitos() {
     const tempo = this.tempo;
     this.mar.position.y += (0.4 + Math.sin(tempo * 0.55) * 0.025 - this.mar.position.y) * 0.06;
@@ -540,10 +580,18 @@ export class Render {
     this.marBrilho.material.opacity = 0.035 + (Math.sin(tempo * 0.7) + 1) * 0.012;
     for (let k = this.efeitos.length - 1; k >= 0; k--) {
       const e = this.efeitos[k];
-      const idade = (tempo - e.inicio) / 0.62;
+      const idade = (tempo - e.inicio) / (e.dur || 0.62);
       if (idade >= 1) {
         this.removerEfeito(e);
         this.efeitos.splice(k, 1);
+        continue;
+      }
+      if (e.tipo === 'tombo') {
+        // acelera como coisa que cai, treme no fim e some
+        const t = Math.min(1, idade * 1.45);
+        const ang = (Math.PI / 2) * (t * t) + (t >= 1 ? Math.sin(tempo * 24) * 0.02 : 0);
+        e.malha.rotation.set(0, e.malha.userData.giro, ang);
+        e.malha.scale.setScalar(1 - Math.max(0, idade - 0.75) * 3.2);
         continue;
       }
       const escala = 0.7 + (1 - (1 - idade) ** 3) * 2.7;
@@ -556,6 +604,9 @@ export class Render {
   removerEfeito(e) {
     if (!e) return;
     this.cena.remove(e.malha);
+    // o tombo empresta a geometria e o material da malha instanciada de árvore:
+    // descartar aqui apagaria todas as árvores do mundo de uma vez
+    if (e.tipo === 'tombo') return;
     e.malha.geometry.dispose();
     e.malha.material.dispose();
   }
@@ -581,3 +632,28 @@ const FIG_HUMANO = Object.fromEntries(CHAVES_VOCACAO.map((k) => [k, true]));
 const giroParado = (a) => (a.x * 37 + a.y * 17) % 6.28;
 /** Cada herbívoro tem boneco próprio; o gado usa a figura histórica 'rebanho'. */
 const FIG_BICHO = { gado: 'rebanho', capivara: 'capivara', lebre: 'lebre' };
+
+/**
+ * Como cada trabalho se parece. `curva` é a postura parada da tarefa, `balanco`
+ * o quanto o movimento por cima dela vai e volta, e `golpe` troca a senoide por
+ * um serrote — sobe devagar, desce de uma vez, que é como se dá machadada.
+ */
+const GESTO = {
+  padrao:    { ritmo: 6.5, curva: 0,    balanco: 0.30, torce: 0.08, pulo: 0.05, encolhe: 0.025, estica: 0.05 },
+  lutar:     { ritmo: 9,   curva: 0.16, balanco: 0.60, torce: 0.20, pulo: 0.11, encolhe: 0.05,  estica: 0.03, golpe: true },
+  enfrentar: { ritmo: 8,   curva: 0.20, balanco: 0.66, torce: 0.24, pulo: 0.13, encolhe: 0.05,  estica: 0.03, golpe: true },
+  lenhar:    { ritmo: 5,   curva: 0.10, balanco: 0.85, torce: 0.05, pulo: 0.03, encolhe: 0.04,  estica: 0.02, golpe: true },
+  minerar:   { ritmo: 6.5, curva: 0.14, balanco: 0.70, torce: 0.06, pulo: 0.03, encolhe: 0.04,  estica: 0.02, golpe: true },
+  construir: { ritmo: 7.5, curva: 0.08, balanco: 0.45, torce: 0.04, pulo: 0.04, encolhe: 0.03,  estica: 0.03, golpe: true },
+  // Roça: agachado sobre o próprio canteiro, indo e voltando devagar. A curva
+  // era 0,62 e 0,70 e de perto a pessoa parecia deitada de bruços, não curvada.
+  arar:      { ritmo: 3.2, curva: 0.46, balanco: 0.26, torce: 0.05, pulo: 0.02, encolhe: 0.02,  estica: 0.02 },
+  colher:    { ritmo: 3.6, curva: 0.52, balanco: 0.22, torce: 0.09, pulo: 0.02, encolhe: 0.02,  estica: 0.02 },
+  pastorear: { ritmo: 3.0, curva: 0.30, balanco: 0.18, torce: 0.06, pulo: 0.02, encolhe: 0.02,  estica: 0.02 },
+  forragear: { ritmo: 3.4, curva: 0.44, balanco: 0.24, torce: 0.07, pulo: 0.02, encolhe: 0.02,  estica: 0.02 },
+  // pescar é ficar quieto na margem, com um tranco de vez em quando
+  pescar:    { ritmo: 1.6, curva: 0.06, balanco: 0.14, torce: 0.03, pulo: 0.01, encolhe: 0.01,  estica: 0.01 },
+  vigiar:    { ritmo: 0.9, curva: 0,    balanco: 0.05, torce: 0.02, pulo: 0.01, encolhe: 0.01,  estica: 0.01 },
+  arrebanhar:{ ritmo: 5,   curva: 0.24, balanco: 0.34, torce: 0.14, pulo: 0.04, encolhe: 0.03,  estica: 0.02 },
+  cercar:    { ritmo: 6,   curva: 0.30, balanco: 0.50, torce: 0.06, pulo: 0.03, encolhe: 0.03,  estica: 0.02, golpe: true },
+};

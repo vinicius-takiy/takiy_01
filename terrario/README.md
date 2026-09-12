@@ -401,6 +401,53 @@ mantém o predador vivo entre uma boiada e outra. Cada espécie tem teto própri
 com um número compartilhado, o gado (que a tribo protege dentro da cerca) enchia
 sozinho os lugares e as outras duas se extinguiam nas cinco sementes.
 
+## Dá para ver o que está acontecendo
+
+A queixa era essa, e era justa: tudo balançava igual. Uma senoide só, o mesmo
+gingado para arar, minerar, brigar e pescar — de perto, o jogo virava um mundo
+de gente tremendo.
+
+Agora cada tarefa tem **gesto próprio**, e golpe é serrote, não senoide: o braço
+sobe devagar e desce de uma vez. É o que separa machadada de enxadada.
+
+| O que se vê | Quem é |
+|---|---|
+| Curvado sobre o canteiro, indo e voltando devagar | Arando ou colhendo |
+| Golpe seco e largo, tronco acompanhando | Lenhando |
+| Quase parado na margem, com um tranco de vez em quando | Pescando |
+| Parado no mourão, olhando | Guarda de plantão |
+| Investida: lançado para a frente, um tranco por vez | Brigando ou enfrentando fera |
+| Correndo inclinado, passada curta e rápida | Fugindo de uma fera |
+
+**A árvore cai.** Derrubar a última árvore de um lugar era um tile mudando de
+cor; agora a árvore tomba de verdade — acelera como coisa que cai, treme no
+chão e some. Vale para o machado e para o incêndio.
+
+**A fera dá o bote.** Em cima da presa ela não corre, investe: levanta o
+dianteiro e desaba para a frente num tranco só. E o **jacaré rola** — agarrada a
+presa, ele gira em torno do próprio comprimento, que é o gesto que identifica o
+bicho e o que faz um ataque na água ser visível de cima.
+
+## Alarme: chamar o guarda
+
+Antes, uma fera circulava a aldeia e ninguém reagia até ela morder alguém.
+
+Agora quem vê uma fera a quatro tiles reage, e a reação depende de quem é. Guarda
+e caçador **encaram**: viram para o bicho e vão. Todo o resto **corre** para o
+meio da tribo — e deixa o alarme dado. É o alarme que junta os guardas num ponto
+só, em vez de cada um enfrentar a sua fera sozinho: guarda que nem viu o bicho
+larga o posto e acorre, se estiver a menos de catorze tiles.
+
+Duas travas que o teste exigiu, as duas por extinção em massa:
+
+- **O ponto quente dura nove meses**, não três anos. Com três anos os guardas
+  iam e voltavam sem parar, e três das cinco sementes se extinguiam antes do ano
+  65 sem ninguém trabalhar.
+- **Susto tem descanso.** Sem ele a pessoa foge, chega ao meio da tribo,
+  reavalia, vê a mesma fera e foge de novo. Uma banda de doze passava a vida
+  correndo em vez de comer. E só fera caçando ou com fome assusta: a de barriga
+  cheia já passa longe da aldeia por conta própria.
+
 ## Na fila
 
 Coisas pedidas que ainda não estão aqui, para não empilhar sistema sobre uma
@@ -411,6 +458,10 @@ simulação que já tem seus buracos:
 - **Apagar antes de trocar.** Hoje o pincel de terreno sobrescreve o que havia.
   A ideia é ter que limpar primeiro, e o que se planta somar com o substrato em
   vez de substituí-lo.
+- **Nascente e cachoeira.** Uma fonte no alto, a água descendo por gravidade,
+  formando rio e enchendo depressão até virar lago — e o verde vindo atrás dela.
+- **Bioma por substrato.** A mesma semente dando mata fechada em terra fértil e
+  vegetação rala em chão de pedra, em vez de floresta igual em todo lugar.
 
 ## Limites conhecidos
 

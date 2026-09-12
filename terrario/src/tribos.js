@@ -47,6 +47,7 @@ export class Tribo {
     this.temPasto = false;
     this.temMina = false;
     this.cabecas = 0;              // animais domesticados
+    this.alarme = null;            // {x, y, ate} — fera avistada, guardas acorrem
     this.temCosta = false;         // território encosta em água: dá para pescar
     this.curral = null;            // {x, y, raio} — o pasto cercado
     this.cercas = [];              // tiles de mourão, na volta do curral
@@ -147,6 +148,16 @@ export class Tribo {
         }
       }
     }
+  }
+
+  /** Alguém viu uma fera. O ponto fica quente por uns anos: é o que faz o
+   *  guarda largar o posto e ir, mesmo sem ter visto o bicho ele mesmo. */
+  darAlarme(x, y, agora) {
+    // Três segundos de simulação, uns nove meses de mundo. Com doze segundos o
+    // ponto ficava quente três anos e os guardas iam e voltavam sem parar,
+    // largando tudo o tempo todo — três das cinco sementes se extinguiam antes
+    // do ano 65 sem ninguém trabalhar.
+    this.alarme = { x, y, ate: agora + 3 };
   }
 
   dentroDoCurral(x, y) {
@@ -306,7 +317,7 @@ export function reiniciarIds() { proximoId = 0; }
  */
 export const VOCACOES = {
   lavrador:   { nome: 'Lavrador',   cor: 0x9ad06a, arar: 1.6, colher: 1.5, pastorear: 1.15, cacar: 0.8, minerar: 0.8 },
-  cacador:    { nome: 'Caçador',    cor: 0xd08a4a, cacar: 1.8, forragear: 1.35, lutar: 1.3, arar: 0.8, minerar: 0.85 },
+  cacador:    { nome: 'Caçador',    cor: 0xd08a4a, cacar: 1.8, forragear: 1.35, lutar: 1.3, enfrentar: 1.3, arar: 0.8, minerar: 0.85 },
   construtor: { nome: 'Construtor', cor: 0xd9cb72, construir: 1.9, cercar: 1.7, minerar: 1.15, cacar: 0.85 },
   minerador:  { nome: 'Minerador',  cor: 0x9aa8c0, minerar: 2.0, cercar: 0.9, arar: 0.85, cacar: 0.85 },
   lider:      { nome: 'Líder',      cor: 0xe0b344, arar: 0.8, colher: 0.85, minerar: 0.8, cacar: 0.8, lutar: 1.15 },

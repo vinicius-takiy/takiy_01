@@ -70,6 +70,7 @@ export class Mundo {
     this.tilesQueimados = 0;
     this.tilesDeMata = 0;                   // contagem viva; `censo()` é caro
     this.raios = [];                        // raios deste passo, a simulação drena
+    this.tombadas = [];                     // árvores caindo, o render drena
 
     this.gerar(semente, pelado);
     this.recalcularUmidade();
@@ -489,6 +490,7 @@ export class Mundo {
         this.madeira[i] = 0;
         this.desmatados.delete(i);
         this.tilesQueimados++;
+        if (this.terreno[i] === T.FLORESTA) this.tombadas.push({ x: i % N, y: (i / N) | 0 });
         this.definir(i, T.TERRA);
       }
     }

@@ -85,6 +85,7 @@ export class Humano {
     this.travado = 0;
     this.descanso = 0;             // anos até poder gerar outro filho
     this.conduzindo = null;        // bicho que está sendo tocado para o curral
+    this.fugindo = 0;              // anos de correria; o render lê isto
     this.viva = true;
     this.causa = null;
   }
@@ -106,6 +107,7 @@ export class Humano {
     this.idade += anos;
     this.fome += anos * FOME_POR_ANO * (this.adulto ? 1 : 0.6);
     this.descanso = Math.max(0, this.descanso - anos);
+    this.fugindo = Math.max(0, this.fugindo - anos);
 
     if (this.idade > this.expectativa) return this.morrer('velhice');
     if (this.fome >= 1) return this.morrer('fome');
@@ -168,6 +170,40 @@ export class Humano {
       return this.vagar(sim);
     }
 
+    // 1b. Fera à vista. Quem tem arma na mão encara; quem não tem corre para o
+    //     meio da tribo e deixa o alarme dado — e é o alarme que junta os
+    //     guardas num ponto só, em vez de cada um enfrentar a sua fera sozinho.
+    //     Antes disso o bicho circulava a aldeia e ninguém reagia até ele
+    //     morder alguém.
+    // `fugindo` é também o tempo de descanso do susto: sem ele a pessoa foge,
+    // chega ao meio da tribo, reavalia, vê a mesma fera e foge de novo, e uma
+    // banda de doze passa a vida correndo em vez de comer. Três das cinco
+    // sementes se extinguiam antes do ano 170 por causa disso.
+    if (this.adulto && this.fugindo <= 0) {
+      // Quatro tiles, não sete: com trinta feras no mundo, a sete tiles sempre
+      // havia uma à vista de alguém. E só fera caçando ou com fome assusta —
+      // a que está de barriga cheia passa longe da aldeia por conta própria.
+      const fera = sim.feraPerto(this.x, this.y, 4);
+      if (fera && (fera.presa || fera.fome > 0.5)) {
+        t.darAlarme(Math.round(fera.x), Math.round(fera.y), sim.tempo);
+        if (this.dom === 'guarda' || this.dom === 'cacador') {
+          this.alvo = { x: Math.round(fera.x), y: Math.round(fera.y), obra: 'enfrentar' };
+          return;
+        }
+        this.fugindo = 1.4;
+        this.alvo = { x: Math.round(t.cx), y: Math.round(t.cy), obra: null };
+        return;
+      }
+    }
+
+    // 1c. Alarme dado por outro. O guarda vai mesmo sem ter visto o bicho: é o
+    //     que faz três guardas chegarem juntos em vez de um de cada vez.
+    if (this.adulto && this.dom === 'guarda' && t.alarme && sim.tempo < t.alarme.ate
+        && Math.hypot(t.alarme.x - this.x, t.alarme.y - this.y) < 14) {
+      this.alvo = { x: t.alarme.x, y: t.alarme.y, obra: 'enfrentar' };
+      return;
+    }
+
     // 2. Guerra na fronteira tem precedência sobre obra — mas não para todo
     //    mundo. Com a tribo inteira em armas ninguém colhe, e o celeiro de
     //    cento e cinquenta vira catorze em dez anos: a fome mata muito mais que
@@ -180,12 +216,16 @@ export class Humano {
       return;
     }
 
-    // 2b. Fera rondando a cerca. O guarda vai atrás; os outros seguem a vida.
-    //     Sem isto o curral só junta o gado num lugar — e junto e parado ele é
-    //     alvo mais fácil do que espalhado.
+    // 2b. Fera rondando a cerca, mesmo longe de quem a viu. O curral junta o
+    //     gado num lugar, e junto e parado ele é alvo mais fácil do que
+    //     espalhado — vale um olho a mais que o alarme geral.
     if (this.adulto && this.dom === 'guarda' && t.curral) {
       const fera = sim.feraNoCurral(t);
-      if (fera) { this.alvo = { x: fera.x, y: fera.y, obra: 'enfrentar' }; return; }
+      if (fera) {
+        t.darAlarme(Math.round(fera.x), Math.round(fera.y), sim.tempo);
+        this.alvo = { x: Math.round(fera.x), y: Math.round(fera.y), obra: 'enfrentar' };
+        return;
+      }
     }
 
     if (this.adulto) {
@@ -495,6 +535,7 @@ export class Rebanho {
     const anos = dt / ANO;
     this.idade += anos;
     this.descanso = Math.max(0, this.descanso - anos);
+    this.fugindo = Math.max(0, this.fugindo - anos);
     if (this.idade > this.expectativa) { this.viva = false; return; }
 
     const { mundo } = sim;
@@ -764,6 +805,7 @@ export class Peixe {
     const anos = dt / ANO;
     this.idade += anos;
     this.descanso = Math.max(0, this.descanso - anos);
+    this.fugindo = Math.max(0, this.fugindo - anos);
     if (this.idade > this.expectativa) { this.viva = false; return; }
 
     const { mundo } = sim;

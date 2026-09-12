@@ -450,6 +450,62 @@ checar('os miúdos também andam com pata', fauna.patas === (fauna.capivara + fa
        `${fauna.patas} patas`);
 await foto('clima-e-fauna');
 
+// --- animação: cada tarefa com o próprio gesto, e a árvore caindo ---
+// A queixa era "não dá para ver o que está acontecendo". O que se afirma aqui é
+// que gestos diferentes produzem poses diferentes — se todo mundo balançasse
+// igual, estas matrizes seriam a mesma.
+const gestos = await pagina.evaluate(async () => {
+  const { sim, render, cam } = window.__terrario;
+  const t = sim.tribos[0];
+  if (!t) return null;
+  const gente = t.membros.filter((m) => m.viva && m.adulto).slice(0, 4);
+  if (gente.length < 3) return null;
+  const obras = ['arar', 'lenhar', 'enfrentar'];
+  const poses = [];
+  for (let k = 0; k < 3; k++) {
+    const h = gente[k];
+    h.obra = obras[k];
+    h.alvo = { x: h.x + 1, y: h.y };
+    h.fugindo = 0;
+  }
+  render.atualizarSeres(sim, 0.016);
+  for (let k = 0; k < 3; k++) {
+    const h = gente[k];
+    const f = render.figuras.get(`humano:${h.dom}`) || render.figuras.get('humano:lavrador');
+    void f;
+    // a pose sai da rotação em x, que é o que `curva` e `balanco` mexem
+    poses.push({ obra: h.obra, curva: h.obra });
+  }
+  // mede pela matriz: põe cada um sozinho em cena e lê a primeira instância
+  const ler = (obra) => {
+    const h = gente[0];
+    h.obra = obra;
+    render.atualizarSeres(sim, 0.016);
+    const fig = render.figuras.get(`humano:${h.dom in { lavrador: 1, cacador: 1, construtor: 1, minerador: 1, lider: 1, guarda: 1, pastor: 1, pescador: 1 } ? h.dom : 'lavrador'}`);
+    const malha = fig.tribo || fig.natural;
+    return Array.from(malha.instanceMatrix.array.slice(0, 12));
+  };
+  const arar = ler('arar');
+  const lutar = ler('enfrentar');
+  const parado = ler(null);
+  let difA = 0, difB = 0;
+  for (let i = 0; i < 12; i++) {
+    difA += Math.abs(arar[i] - parado[i]);
+    difB += Math.abs(arar[i] - lutar[i]);
+  }
+  // árvore caindo
+  const antes = render.efeitos.length;
+  render.derrubarArvore(Math.round(cam.alvo.x), Math.round(cam.alvo.z));
+  const tombos = render.efeitos.filter((e) => e.tipo === 'tombo').length;
+  return { poses: poses.length, difA, difB, antes, tombos };
+});
+checar('trabalhar muda a pose de quem trabalha', gestos && gestos.difA > 0.05,
+       gestos ? `diferença ${gestos.difA.toFixed(2)} para quem está parado` : 'sem tribo');
+checar('cada tarefa tem gesto próprio', gestos && gestos.difB > 0.05,
+       gestos ? `arar × enfrentar diferem em ${gestos.difB.toFixed(2)}` : 'sem tribo');
+checar('a árvore derrubada tomba em cena', gestos && gestos.tombos > 0,
+       gestos ? `${gestos.tombos} tombando` : 'sem tribo');
+
 // --- painéis que encolhem: a tela é o jogo ---
 const naTela = (sel) => pagina.locator(sel).isVisible();
 await pagina.locator('#dobrarEstado').click();
