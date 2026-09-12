@@ -6,30 +6,234 @@ estrada, os heróis ficam na muralha e atiram sozinhos. Referência de estilo:
 
 ## Loop do jogo
 
+**24 skills** para escolher ao subir de nível, três por vez: Tiro duplo, Perfurante, Chamas,
+Gelo, Raio em cadeia, Crítico, Cadência, Força, Reforço, Meteoro, Espinhos, Ímã de XP,
+Veneno, Congelar, Estouro, Precisão, Mira, Fúria, Argamassa, Pilhagem, Vampirismo,
+Rodopio, Guarda e Volta rápida.
+
 | Camada | O que acontece | Onde no código |
 |---|---|---|
 | **Mapa de fases** | Dez fases com dificuldade gradual e um chefe no fim de cada uma; vitória dá 1 a 3 estrelas pela vida da muralha e abre a próxima. Modo Infinito abre ao vencer a fase 10 | `LEVELS`, `renderMap()`, `winLevel()` |
 | **Dentro da fase** | Ondas fixas, XP por slime, ao subir de nível escolhe 1 de 3 skills (12 skills, com níveis) | `SKILLS`, `openLevelUp()`, `applyHit()` |
-| **Chefes** | Príncipe Slime (se parte em 3), Slime Bruxo (invoca a cada 5 s), Golem de Lama (lento, derruba a muralha), Slime Gigante (acelera ao perder vida), Rei Slime (se parte em 6). Todo chefe deixa cair um item | `ENEMIES`, `kill()` |
+| **Chefes** | Príncipe Slime (se parte em 3), Slime Bruxo (invoca a cada 5 s), Golem de Lama (lento, derruba a muralha), Slime Gigante (acelera ao perder vida), Rei Slime (se parte em 6). O item **não é garantido**: 35% no Príncipe, 50% no Bruxo e no Golem, 55% no Gigante, 75% no Rei. Sem item, o chefe paga moedas | `ENEMIES`, `kill()` |
+| **Hordas** | A cada 4 ondas vem quase o dobro de inimigos, chegando em metade do tempo. Anunciado no HUD com 🔥 | `startWave()` |
 | **Itens** | Cinco slots por herói: arma, cabeça, peitoral, mãos, pés. Raridade comum/raro/épico com 1 a 3 afixos sorteados por slot. Baú compartilhado, venda por moedas | `rollItem()`, `heroBonus()`, `renderEquip()` |
 | **Entre fases** | Moedas compram 5 melhorias permanentes, heróis novos e vagas no time (até 3) | `UPGRADES`, `HEROES`, `SLOT_COST` |
 | **Interação** | Toque em um slime: todos os heróis focam nele por 4 s | `pointerdown` no canvas |
 
-### Heróis
+### Monstros
 
-| Herói | Papel | Como joga |
-|---|---|---|
-| Mago | Muralha | Bola de fogo com explosão pequena |
-| Arqueira | Muralha | Flechas rápidas que atravessam um inimigo |
-| Bruxa | Muralha | Veneno ao longo do tempo |
-| **Cavaleiro** | Campo, tanque | 240 de vida, 30% de armadura, regenera 7/s. A cada 12 s grita e puxa os slimes num raio de 150 px por 5 s: eles largam a muralha e batem nele |
-| **Ladina** | Campo, assassina | 95 de vida, esquiva 35% dos golpes, 20% de crítico base, dano alto, rápida |
+| Monstro | Truque |
+|---|---|
+| Slime / Rápido / Gordo | Base: comum, veloz e resistente |
+| **Morcego** | Voa em zigue-zague e ignora Espinhos da muralha |
+| **Esqueleto** | Levanta uma vez com metade da vida depois de morto |
+| **Aranha** | Ao bater, tem 50% de prender o herói em teia: metade da cadência por 3 s |
+| **Cogumelo** | Explode ao morrer, ferindo heróis de campo por perto e a muralha |
+| **Curandeiro** | Cura 11/s todos os inimigos num raio de 95 px. Mate primeiro |
+| **Casco** | Resiste a 60% do dano de projétil. Só golpe corpo a corpo derruba rápido |
+| **Zumbi** | Apodrece quem ele bate: dano contínuo no herói por 4 s |
+| **Goblin** | Rápido, e rouba suas moedas enquanto bate na muralha |
+| **Lobo** | Corre até 48% mais rápido conforme outros lobos estão por perto |
+| **Orc** | Golpe em área: acerta todos os heróis de campo num raio de 52 px |
+| **Espectro** | Fica intangível 1 s a cada 3 s: projétil atravessa, só corpo a corpo alcança |
+| **Dragão** (chefe) | Voa, ignora espinhos e cospe bolas de fogo na muralha. Fases 9 e 10 |
 
-Heróis de campo levam dano em golpes discretos a cada 0,8 s (por isso a esquiva é
-visível como texto), morrem e voltam em 10 s no ponto de origem em frente à muralha.
-Slimes que um herói de campo acerta passam a persegui-lo por 3 s. Skills de time
-valem para eles também: Tiro duplo vira +35% de dano por nível, Perfurante vira golpe
-em área.
+Cada fase tem de 10 a 12 ondas, com mistura própria que introduz os tipos aos poucos.
+
+### Cenário e chefe por fase
+
+Cada fase tem **cenário próprio** desenhado no mesmo traço tremido do resto do jogo
+(`THEMES` + `drawScene()`) e um **chefe que combina com o lugar e com os monstros
+daquela fase** — nem todo chefe é slime.
+
+| Fase | Cenário | Novo na mistura | Chefe |
+|---|---|---|---|
+| 1 | Vila: casinhas ao longe e capim | Slime | Príncipe Slime (14 dano, se parte em 3) |
+| 2 | Moinho: pás girando e cerca | Rápido, Goblin | **Rei Goblin** (rouba moedas e chama goblins) |
+| 3 | Ponte: rio atravessando e tábuas | Gordo | **Troll da Ponte** (cura 15/s sozinho) |
+| 4 | Pântano: poças e juncos | Lobo, Morcego | Slime Bruxo (invoca reforços) |
+| 5 | Colina: árvores secas e lápides | Aranha, Cogumelo | **Rainha Aranha** (teia + ninhada) |
+| 6 | Floresta torta: mata fechada | Esqueleto | **Lorde Esqueleto** (levanta e chama os seus) |
+| 7 | Ruínas: colunas quebradas | Zumbi, Espectro | **Rei Espectro** (some 1 s a cada 3 s) |
+| 8 | Desfiladeiro: paredões dos dois lados | Casco, Orc | **Chefe Orc** (área de 72 px, enlouquece) |
+| 9 | Vale da névoa: pinheiros e neblina | Curandeiro | Dragão (voa e cospe fogo) |
+| 10 | Trono: tapete, tochas e o trono | Tudo junto | **Rei Slime** + Dragão |
+
+Golem de Lama (45 de dano, o mais forte) e Slime Gigante ficaram guardados para o
+**Infinito**, junto com todos os outros no sorteio de chefe a cada 5 ondas.
+
+Os chefes novos reaproveitam a silhueta do bicho que manda na fase, em tamanho de
+chefe — as formas em `SHAPES` já escalam pelo raio — com **coroa** para a realeza
+(Rei Goblin, Rainha Aranha, Lorde Esqueleto, Rei Espectro). O Troll tem corpo próprio.
+
+### Dificuldade: vem da FASE, não da onda
+
+Antes a vida do monstro subia **15% por onda** dentro da mesma fase, o que fazia a
+onda 10 ter mais que o dobro da vida da onda 1 — a dificuldade vinha de avançar as
+ondas, não de avançar no jogo. Agora é o contrário:
+
+- **Dentro da fase** a vida quase não mexe (4% por onda). O que cresce é a
+  **quantidade** de monstros por onda, e a cada 4 ondas vem uma horda.
+- **Entre fases** sobem juntos vida (`L.hp`: 0,75 → 3,40 da fase 1 à 10),
+  velocidade (`L.spd`) e, novidade, **poder de ataque** (`dpsMul()`: +6% por fase,
+  1,00 → 1,54). O dano do monstro não era escalado por nada antes.
+- O **volume por onda** também pesa mais por fase: `3,8 + onda×0,6 + fase×0,95`.
+
+Verificado em partidas automatizadas: fase 1 com o time inicial (só o Mago, zero
+melhorias) fecha em 100% de muralha — continua sendo tutorial; fase 2 com Mago +
+Arqueira fecha inteira; fase 5 com time de cinco fecha sem levar dano.
+
+## Sobre o bug do dinheiro quase infinito
+
+Um jogador teve o save corrompido: `coins: 48.689.953`, `runs: 1.741`, `kills: 184.488`.
+`runs` só incrementa quando uma partida termina de verdade — 1.741 é a prova de que o
+fim de onda disparou em rajada, somando o bônus de moedas repetidas vezes antes do
+estado do jogo mudar.
+
+Duas correções estruturais:
+- **Trava de disparo único** (`G.waveClearedAt`): o bônus de fim de onda só pode ser dado
+  uma vez por onda. A trava guarda o **número da onda já premiada** em vez de um booleano
+  que precisava ser zerado em `startWave()` — um booleano assim ficava preso em `true`
+  para sempre se qualquer coisa no meio do caminho falhasse, e a fase encalhava.
+- **Teto de moedas** (`COIN_CAP = 999.999`): nenhuma partida legítima chega perto disso.
+  Toda soma passa por `addCoins()`, que arredonda e trava no teto.
+- **Piso de moedas (saldo negativo)**: um jogador ficou com `coins: -721` e não conseguia
+  mais comprar nada. As compras debitavam direto (`profile.coins -= custo`) confiando só
+  no botão desabilitado. Agora todo débito passa por `pay()`, que **recusa** se não houver
+  saldo, e `clampCoins()` prende o saldo entre 0 e o teto em todo ponto de escrita —
+  `NaN` e `undefined` viram 0. `Save.sanitize()` conserta saves já estragados na abertura.
+
+## A fase que não terminava
+
+Outro jogador concluiu a fase 2 e ficou preso: nenhuma tela de resultado, e a única saída
+era encerrar a run pela pausa. A causa é a ordem dentro de `winLevel()` — ela chamava
+`Save.save()` e `renderMenu()` **antes** de `setState('over')`. Se qualquer uma dessas
+falhasse (um save com campo nulo, por exemplo), a tela nunca subia e o jogo ficava em
+`play` com o campo vazio: sem ondas, sem vitória, sem saída.
+
+Três camadas de proteção, todas verificadas com falha injetada de propósito num teste:
+1. `winLevel()` e `endRun()` **sobem a tela primeiro** e só depois salvam/redesenham, cada
+   um desses passos em `try/catch`.
+2. O bloco de fim de onda inteiro está em `try/catch`, com saída segura para a tela de fim.
+3. **Watchdog**: se passarem 6 s com o campo limpo e a fase não avançar nem terminar, o
+   jogo destrava sozinho em vez de deixar o jogador preso.
+
+### Heróis: time de até cinco
+
+**3 na muralha + 2 no campo**, no máximo — as vagas são compradas uma a uma
+(400, 1.200, 2.200 e 3.400 moedas).
+
+| Herói | Papel | Custo | Como joga |
+|---|---|---|---|
+| Mago | Muralha | inicial | Bola de fogo com explosão pequena |
+| Arqueira | Muralha | 300 | Flechas rápidas que atravessam um inimigo |
+| Bruxa | Muralha | 800 | Veneno ao longo do tempo |
+| **Domador** | Muralha | 1.200 | Atira da muralha e mantém a **Fera** lutando no campo. A Fera volta sozinha em **15 s** se cair e **não ocupa vaga** |
+| Cavaleiro | Campo, tanque | 500 | 150 de vida, salta sobre o grupo a cada 7 s e provoca a cada 12 s |
+| Ladina | Campo, assassina | 900 | 95 de vida, esquiva 35%, 20% de crítico base |
+| **Lanceiro** | Campo, linha de frente | 1.400 | 175 de vida, 32% de armadura, alcance de 54 px, bate devagar e provoca a cada 14 s |
+| **Bárbaro** | Campo, dano em área | 1.600 | 125 de vida e quase nenhuma defesa; **cada golpe acerta todos num raio de 48 px** |
+
+**Todo herói tem vida agora, inclusive quem fica na muralha.** Antes o herói de muralha
+era intocável. Agora, quando um monstro chega na ameia, ele divide o estrago: **metade
+vai para a muralha e metade para o herói que está bem ali em cima** (`wallHeroNear()` +
+`heroDot()`). Quem está na muralha compensa com armadura alta (26–32%, luta atrás da
+ameia) e regeneração; se cair, volta depois de alguns segundos, como os de campo.
+
+Por causa disso, duas skills mudaram de escopo: **Guarda** (+armadura e +vida) e **Volta
+rápida** (voltar mais cedo) agora valem para **todos** os heróis. Só **Vampirismo** e
+**Rodopio** continuam restritas a corpo a corpo — e são escondidas da escolha de nível
+quando o time não tem ninguém no campo, para não oferecer skill inútil.
+
+**A Fera** é um herói de campo escondido (`hidden: true`): não aparece na loja, não conta
+vaga, e nasce junto com o Domador em `buildTeam()`. Com isso ela reaproveita toda a IA,
+o desenho, a morte e o respawn dos heróis de campo, sem código novo de companheiro.
+
+O tempo de volta virou propriedade do herói (`respawnTime`, padrão 10 s): a Fera leva
+**15 s**, o preço de ela ser um lutador a mais que não ocupa vaga. A skill **Volta rápida**
+continua descontando 2 s por nível dela também, com piso de 3 s. Medido em teste: a Fera
+voltou em 15,0 s e o Cavaleiro em 9,9 s na mesma partida.
+
+`Save.sanitize()` conserta saves antigos na abertura: tira herói que não existe mais,
+tira a Fera do time salvo, corta o time para caber em 3 muralha / 2 campo e prende
+`slots` entre 1 e 5.
+
+## Skills: ganho visível e marco no nível 3
+
+O cartão de subir de nível só mostrava o texto da skill, então não dava para saber
+**o quanto** se ganhava ao repetir a mesma skill. Agora cada skill tem `fmt(n)` — quanto
+ela vale no nível `n` — e o cartão mostra **agora → fica**:
+
+```
+🔥 Chamas          nível 1 → 2
+   Acertos queimam por 3 s. Acumula.
+   4 de dano/s  →  8 de dano/s
+   ★ nível 3: quem morre queimando explode e incendeia os vizinhos
+```
+
+E repetir a mesma skill deixou de ser só número: **no nível 3 cada skill ganha um marco**,
+um efeito que muda a skill de qualidade (nas três skills que só vão até o nível 2 — Gelo,
+Precisão e Rodopio — o marco entra no nível 2). O cartão mostra o marco como prévia
+enquanto ele não foi alcançado, e destacado quando aquela escolha já o atinge. A tela de
+pausa lista as skills da run com o valor atual e um ★ nas que já passaram do marco.
+
+| Skill | Marco |
+|---|---|
+| Tiro duplo | os projéteis extras miram inimigos diferentes |
+| Perfurante | cada inimigo atravessado deixa o tiro 25% mais forte |
+| Chamas | quem morre queimando explode e incendeia os vizinhos |
+| Gelo | inimigo lento leva +25% de dano |
+| **Raio em cadeia** | cada salto tem 20% de paralisar o alvo por 1 s |
+| Crítico | o crítico espalha 40% do dano em quem está perto |
+| Cadência | matar um inimigo recarrega o disparo na hora |
+| Força | +50% de dano contra chefes |
+| Reforço | abaixo de 30%, a muralha se conserta sozinha uma vez por onda |
+| **Meteoro** | o meteoro se parte em três e cai em outros pontos do mapa |
+| Espinhos | os espinhos passam a alcançar quem voa |
+| Ímã de XP | cada novo nível ainda repara 20% da muralha |
+| Veneno | quem morre envenenado passa o veneno para os vizinhos |
+| Congelar | inimigo congelado leva +50% de dano |
+| Estouro | a explosão empurra os inimigos para trás |
+| Precisão | o crítico ignora a couraça do Casco |
+| Mira | quando o marcado morre, a marca pula para o próximo |
+| Fúria | abaixo da metade, também +30% de cadência |
+| Argamassa | a argamassa também cura os heróis em 2/s |
+| Pilhagem | chefe sempre deixa item |
+| Vampirismo | a cura que sobra vai para a muralha |
+| Rodopio | o rodopio também deixa todos lentos |
+| Guarda | heróis ficam imunes a teia e apodrecimento |
+| Volta rápida | ao voltar, o herói explode e afasta os inimigos |
+
+Os marcos são checados por `M('id')` (nível atual ≥ `at`, onde `at = min(3, max)`), não por
+texto. Verificados em jogo, um a um, com testes automatizados: meteoro gerando exatamente
+3 fragmentos, raio paralisando em ~20% dos saltos, espinhos ferindo morcego (antes imune),
+congelado levando 150 em vez de 100, chefe levando 150 em vez de 100, e o vizinho de um
+inimigo em chamas pegando fogo.
+
+## Itens: o baú e o drop que não acontecia
+
+Os chefes soltam itens (5 slots, três raridades, afixos sorteados), mas duas coisas
+atrapalhavam:
+
+**O drop não era guardado.** Um comentário de fim de linha engoliu o resto da instrução:
+
+```js
+// errado — tudo depois do // virou comentário
+if(M('bounty')||Math.random()<(e.def.drop||.5)){ const it=rollItem(G.level.id);   // marco ... profile.items.push(it); G.drops.push(it); Save.save();
+```
+
+O item era sorteado e o `ITEM!` aparecia na tela, mas `profile.items` e `G.drops` nunca
+recebiam nada — o jogador via o anúncio do prêmio e ficava sem o prêmio. O comentário
+passou para a linha de cima. Fica a lição: comentário no fim de uma linha densa é um
+jeito fácil de apagar código sem perceber, e só um teste que **verifica o efeito**
+(o item entrou no baú?) pega isso — a sintaxe continua válida.
+
+**Não dava para ver o que se tinha.** O único caminho até um item era Heróis → herói →
+Itens → escolher um slot, que mostra só o que serve naquele slot. Agora existe o
+**Baú de itens** no menu, com contador de quantos itens você tem, listando tudo num
+lugar só: o que cada item dá, quem está usando, botão para equipar em qualquer herói
+(o item entra na vaga certa sozinho) e botão para vender.
 
 ## Como o progresso fica salvo
 
