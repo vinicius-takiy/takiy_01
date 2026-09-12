@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#12140f">
+<meta name="theme-color" content="#0c1717">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Terrário">
@@ -13,66 +13,92 @@
 <title>Terrário</title>
 <style>
   :root{
-    --fundo:#12140f; --painel:rgba(18,20,15,.82); --linha:rgba(214,206,178,.22);
-    --tinta:#d6cea2; --claro:#f2eddb; --dim:#9a9787;
-    --musgo:#7fa356; --terra:#b8894a; --agua:#4f8fb0; --sangue:#c4553f; --ouro:#e0b344;
+    --fundo:#0c1717; --painel:rgba(12,24,23,.88); --painel-claro:rgba(24,40,35,.9);
+    --linha:rgba(232,220,178,.2); --linha-forte:rgba(232,220,178,.38);
+    --tinta:#d7d1af; --claro:#fff9e9; --dim:#9ca493;
+    --musgo:#88aa62; --terra:#b8894a; --agua:#4f91a5; --sangue:#ce6048; --ouro:#efc65b;
     --sat:env(safe-area-inset-top); --sar:env(safe-area-inset-right);
     --sab:env(safe-area-inset-bottom); --sal:env(safe-area-inset-left);
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{height:100%;margin:0;overflow:hidden;background:var(--fundo);color:var(--tinta)}
-  body{font:500 13px/1.4 ui-sans-serif,-apple-system,"Segoe UI",Roboto,sans-serif;
+  body{font:500 13px/1.4 "Avenir Next",Avenir,ui-sans-serif,-apple-system,"Segoe UI",sans-serif;
     touch-action:none;-webkit-user-select:none;user-select:none;overscroll-behavior:none}
-  canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+  body::after{content:"";position:fixed;inset:0;z-index:2;pointer-events:none;
+    background:radial-gradient(circle at 50% 43%,transparent 40%,rgba(4,12,12,.3) 100%);
+    mix-blend-mode:multiply}
+  canvas{position:fixed;inset:0;width:100%;height:100%;display:block;
+    background:radial-gradient(circle at 50% 22%,#b6d7ce 0,#6ba5a2 42%,#2f6873 100%)}
 
   #ui{position:fixed;inset:0;pointer-events:none;z-index:10;display:flex;flex-direction:column}
-  .painel{background:var(--painel);border:1px solid var(--linha);border-radius:8px;
-    backdrop-filter:blur(10px);pointer-events:auto}
+  .painel{background:linear-gradient(145deg,var(--painel-claro),var(--painel));
+    border:1px solid var(--linha);border-radius:14px;box-shadow:0 12px 34px rgba(2,10,9,.24),inset 0 1px rgba(255,255,255,.04);
+    backdrop-filter:blur(14px) saturate(1.12);-webkit-backdrop-filter:blur(14px) saturate(1.12);pointer-events:auto}
 
   /* ---- barra de estado ---- */
   #estado{position:absolute;left:calc(10px + var(--sal));top:calc(10px + var(--sat));
     display:flex;gap:0;overflow:hidden}
-  #estado div{padding:7px 11px;border-right:1px solid var(--linha);text-align:center;min-width:62px}
+  #estado div{padding:7px 12px 6px;border-right:1px solid var(--linha);text-align:center;min-width:60px}
   #estado div:last-child{border:none}
-  #estado b{display:block;font-size:16px;color:var(--claro);font-variant-numeric:tabular-nums;line-height:1.15}
-  #estado span{font-size:9px;letter-spacing:.14em;text-transform:uppercase;opacity:.55}
+  #estado b{display:block;font-size:17px;color:var(--claro);font-variant-numeric:tabular-nums;line-height:1.1;font-weight:700}
+  #estado span{font-size:8px;letter-spacing:.15em;text-transform:uppercase;color:var(--dim)}
 
   /* ---- tempo ---- */
-  #tempo{position:absolute;right:calc(10px + var(--sar));top:calc(10px + var(--sat));display:flex;overflow:hidden}
+  #tempo{position:absolute;right:calc(10px + var(--sar));top:calc(10px + var(--sat));display:flex;overflow:hidden;border-radius:999px}
   #tempo button{background:none;border:none;border-right:1px solid var(--linha);color:var(--tinta);
-    padding:9px 12px;font:inherit;font-size:12px;cursor:pointer}
+    min-width:44px;padding:9px 12px;font:inherit;font-size:12px;cursor:pointer;transition:background .18s,color .18s,transform .18s}
   #tempo button:last-child{border:none}
-  #tempo button.on{background:rgba(224,179,68,.22);color:var(--claro)}
+  #tempo button.on{background:linear-gradient(135deg,rgba(239,198,91,.34),rgba(239,198,91,.15));color:var(--claro);box-shadow:inset 0 0 0 1px rgba(239,198,91,.15)}
+  #tempo button:active{transform:scale(.91)}
 
   /* ---- crônica ---- */
-  #cronica{position:absolute;right:calc(10px + var(--sar));top:calc(56px + var(--sat));
-    width:min(300px,46vw);max-height:38vh;display:flex;flex-direction:column;overflow:hidden}
-  #cronica h2{margin:0;padding:7px 11px;font-size:9px;letter-spacing:.16em;text-transform:uppercase;
-    opacity:.55;border-bottom:1px solid var(--linha);display:flex;justify-content:space-between;align-items:center}
+  #cronica{position:absolute;right:calc(10px + var(--sar));top:calc(58px + var(--sat));
+    width:min(310px,42vw);max-height:34vh;display:flex;flex-direction:column;overflow:hidden}
+  #cronica h2{margin:0;padding:8px 12px;font-size:9px;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--dim);border-bottom:1px solid var(--linha);display:flex;justify-content:space-between;align-items:center}
+  #cronica h2 span::before{content:"";display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--ouro);box-shadow:0 0 9px var(--ouro);margin:0 7px 1px 0}
   #cronica h2 button{background:none;border:none;color:var(--tinta);opacity:.7;font:inherit;cursor:pointer;padding:0 2px}
   #linhas{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:4px 0}
   #linhas p{margin:0;padding:4px 11px;font-size:11.5px;line-height:1.35;display:flex;gap:7px}
   #linhas i{font-style:normal;opacity:.45;font-variant-numeric:tabular-nums;flex:none;min-width:34px}
   #linhas em{font-style:normal;flex:1}
   #linhas p b{width:6px;height:6px;border-radius:50%;flex:none;margin-top:5px}
+  #linhas p.nova{animation:linhaNova .55s cubic-bezier(.2,.8,.2,1) both}
+  @keyframes linhaNova{from{opacity:0;transform:translateX(12px);background:rgba(239,198,91,.13)}to{opacity:1;transform:none;background:transparent}}
   #cronica.fechada #linhas{display:none}
 
   /* ---- paleta ---- */
-  #paleta{margin-top:auto;padding:0 calc(8px + var(--sar)) calc(8px + var(--sab)) calc(8px + var(--sal))}
-  #grupos{display:flex;gap:5px;padding:5px;overflow-x:auto;-webkit-overflow-scrolling:touch;align-items:stretch}
-  .pincel{flex:none;pointer-events:auto;background:rgba(0,0,0,.25);border:1px solid var(--linha);
-    border-radius:6px;color:var(--tinta);padding:5px 7px 4px;min-width:52px;cursor:pointer;
-    display:flex;flex-direction:column;align-items:center;gap:3px;font:inherit}
-  .pincel .amostra{width:17px;height:17px;border-radius:4px;border:1px solid rgba(0,0,0,.35)}
-  .pincel .rot{font-size:9px;letter-spacing:.04em;line-height:1.1;text-align:center;opacity:.8}
-  .pincel.on{border-color:var(--ouro);background:rgba(224,179,68,.2)}
-  .pincel.on .rot{opacity:1;color:var(--claro)}
-  .divisor{flex:none;width:1px;background:var(--linha);margin:4px 2px}
-  #ajustes{display:flex;align-items:center;gap:9px;padding:0 9px 6px;font-size:10.5px}
-  #ajustes input{flex:1;accent-color:var(--ouro)}
-  #ajustes output{min-width:42px;text-align:right;opacity:.7;font-variant-numeric:tabular-nums}
-  #ajustes button{background:none;border:1px solid var(--linha);border-radius:5px;color:var(--tinta);
-    padding:4px 9px;font:inherit;font-size:11px;cursor:pointer;pointer-events:auto}
+  #paleta{margin-top:auto;padding:0 calc(9px + var(--sar)) calc(9px + var(--sab)) calc(9px + var(--sal));filter:drop-shadow(0 12px 24px rgba(0,0,0,.2))}
+  .paleta-painel{overflow:hidden}
+  #grupos{display:flex;gap:5px;padding:6px 7px 5px;overflow-x:auto;-webkit-overflow-scrolling:touch;align-items:stretch;scrollbar-width:none}
+  #grupos::-webkit-scrollbar{display:none}
+  .pincel{flex:none;pointer-events:auto;background:transparent;border:1px solid transparent;
+    border-radius:9px;color:var(--tinta);padding:5px 6px 4px;min-width:54px;cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;gap:3px;font:inherit;transition:background .18s,border-color .18s,transform .18s}
+  .pincel .amostra{width:27px;height:27px;border-radius:8px;border:1px solid rgba(255,255,255,.18);
+    box-shadow:inset 0 1px rgba(255,255,255,.22),0 3px 8px rgba(0,0,0,.2);display:grid;place-items:center;
+    transition:transform .25s cubic-bezier(.2,.9,.2,1.3),box-shadow .25s}
+  .pincel .amostra svg{width:17px;height:17px;fill:none;stroke:rgba(255,255,255,.88);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 1px 1px rgba(0,0,0,.35))}
+  .pincel .rot{font-size:8.5px;letter-spacing:.025em;line-height:1.1;text-align:center;color:var(--dim);white-space:nowrap}
+  .pincel:hover{background:rgba(255,255,255,.04)}
+  .pincel:active{transform:scale(.93)}
+  .pincel.on{border-color:rgba(239,198,91,.64);background:linear-gradient(180deg,rgba(239,198,91,.17),rgba(239,198,91,.07))}
+  .pincel.on .amostra{transform:translateY(-2px) scale(1.08);box-shadow:0 0 0 2px rgba(239,198,91,.22),0 5px 12px rgba(0,0,0,.3)}
+  .pincel.on .rot{color:var(--claro)}
+  .divisor{flex:none;width:1px;background:var(--linha);margin:5px 2px}
+  #ajustes{display:flex;align-items:center;gap:8px;padding:5px 10px 7px;border-top:1px solid var(--linha);font-size:10px}
+  #ferramenta{min-width:145px;display:flex;align-items:center;gap:8px}
+  #ferramenta::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--ouro);box-shadow:0 0 8px var(--ouro)}
+  #ferramenta span{display:block;color:var(--dim);font-size:8px;letter-spacing:.13em;text-transform:uppercase}
+  #ferramenta strong{display:block;color:var(--claro);font-size:10.5px;font-weight:600}
+  #ajustes label{color:var(--dim);white-space:nowrap}
+  #ajustes input{flex:1;accent-color:var(--ouro);min-width:80px}
+  #ajustes output{min-width:19px;text-align:right;color:var(--claro);font-variant-numeric:tabular-nums}
+  #ajustes button{background:rgba(255,255,255,.035);border:1px solid var(--linha);border-radius:7px;color:var(--tinta);
+    padding:5px 10px;font:inherit;font-size:10px;cursor:pointer;pointer-events:auto;white-space:nowrap;transition:border-color .18s,background .18s,transform .18s}
+  #ajustes button:hover{border-color:var(--linha-forte);background:rgba(255,255,255,.07)}
+  #ajustes button:active{transform:scale(.95)}
+  #recomecar{color:#e9b3a7!important}
 
   /* ---- fita de tribos ---- */
   #fita{position:absolute;left:calc(10px + var(--sal));top:calc(58px + var(--sat));
@@ -87,11 +113,15 @@
   #fita button.guerra{box-shadow:inset 0 0 0 1px rgba(196,85,63,.7)}
 
   /* ---- inspetor ---- */
-  #inspetor{position:absolute;left:calc(10px + var(--sal));bottom:calc(96px + var(--sab));
-    width:min(222px,50vw);padding:8px 10px;display:none;opacity:.94;
-    max-height:calc(100vh - 210px);overflow-y:auto;-webkit-overflow-scrolling:touch}
-  #inspetor.on{display:block}
-  #inspetor h3{margin:0 0 4px;font-size:12px;color:var(--claro);display:flex;align-items:center;gap:6px}
+  /* Junta as duas intenções: a animação de abrir veio do trabalho paralelo, e o
+     teto de altura é meu — sem ele o painel cresce com as linhas de abrigo e
+     madeira até cobrir a fita de tribos, e o toque na tribo para de funcionar. */
+  #inspetor{position:absolute;left:calc(10px + var(--sal));bottom:calc(112px + var(--sab));
+    width:min(232px,54vw);padding:9px 11px;display:none;transform-origin:left bottom;
+    max-height:min(44vh,calc(100vh - 215px));overflow-y:auto;-webkit-overflow-scrolling:touch}
+  #inspetor.on{display:block;animation:abrirInspetor .28s cubic-bezier(.2,.8,.2,1) both}
+  @keyframes abrirInspetor{from{opacity:0;transform:translateY(8px) scale(.97)}to{opacity:1;transform:none}}
+  #inspetor h3{margin:0 0 5px;font-size:12.5px;color:var(--claro);display:flex;align-items:center;gap:6px}
   #inspetor h3 b{width:9px;height:9px;border-radius:2px;flex:none}
   #inspetor dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:1px 8px;font-size:10.8px}
   #inspetor dt{opacity:.55}
@@ -99,16 +129,50 @@
 
   /* ---- telas ---- */
   .tela{position:fixed;inset:0;z-index:20;pointer-events:auto;display:flex;flex-direction:column;
-    align-items:center;justify-content:center;gap:15px;padding:26px;text-align:center;
-    background:linear-gradient(rgba(12,14,10,.93),rgba(12,14,10,.98))}
+    align-items:center;justify-content:center;padding:max(18px,var(--sat)) max(22px,var(--sar)) max(18px,var(--sab)) max(22px,var(--sal));text-align:center;
+    background:radial-gradient(circle at 50% 42%,rgba(29,53,45,.82),rgba(6,16,15,.96) 68%)}
   .tela[hidden]{display:none}
-  .tela h1{margin:0;font-size:31px;letter-spacing:.14em;text-transform:uppercase;color:var(--claro);font-weight:700}
-  .tela p{margin:0;max-width:48ch;opacity:.78;font-size:13.5px;line-height:1.6}
-  .tela .dica{opacity:.5;font-size:11.5px;max-width:44ch}
-  .acao{padding:13px 30px;font-size:12.5px;letter-spacing:.18em;text-transform:uppercase;font-weight:700;
-    background:var(--tinta);color:var(--fundo);border:none;border-radius:4px;cursor:pointer;pointer-events:auto}
+  .abertura-card{width:min(650px,100%);max-height:94vh;overflow:auto;padding:24px 32px 25px;border:1px solid var(--linha);
+    border-radius:24px;background:linear-gradient(145deg,rgba(21,39,34,.88),rgba(8,20,18,.92));
+    box-shadow:0 30px 90px rgba(0,0,0,.42),inset 0 1px rgba(255,255,255,.06);backdrop-filter:blur(18px)}
+  .selo{display:inline-flex;align-items:center;gap:7px;color:var(--ouro);font-size:8px;letter-spacing:.2em;text-transform:uppercase}
+  .selo::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--ouro);box-shadow:0 0 12px var(--ouro);animation:respirar 2.4s ease-in-out infinite}
+  @keyframes respirar{50%{opacity:.45;transform:scale(.72)}}
+  .marca{display:flex;align-items:center;justify-content:center;gap:13px;margin:8px 0 2px}
+  .globo{position:relative;width:46px;height:46px;border:2px solid rgba(255,249,233,.78);border-radius:50%;box-shadow:inset 0 -11px rgba(73,125,89,.38),0 8px 20px rgba(0,0,0,.2)}
+  .globo::before{content:"";position:absolute;left:8px;right:8px;bottom:8px;height:13px;border-radius:50% 50% 42% 42%;background:#83a85d;transform:rotate(-7deg)}
+  .globo::after{content:"";position:absolute;width:5px;height:14px;left:21px;bottom:16px;background:#d9c18c;border-radius:5px 5px 1px 1px;box-shadow:0 -7px 0 4px #5b8448}
+  .tela h1{margin:0;font-size:34px;letter-spacing:.15em;text-transform:uppercase;color:var(--claro);font-weight:750;text-shadow:0 3px 20px rgba(0,0,0,.3)}
+  .chamada{margin:3px auto 14px;color:var(--tinta);font-size:14px;line-height:1.45}
+  .passos{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:left;margin:0 auto 13px}
+  .passos span{padding:9px 10px;border:1px solid rgba(255,255,255,.07);border-radius:10px;background:rgba(255,255,255,.03);font-size:10.5px;color:var(--dim);line-height:1.35}
+  .passos b{display:block;margin-bottom:2px;color:var(--claro);font-size:10px;letter-spacing:.04em}
+  .tela .dica{margin:0 auto 14px;color:var(--dim);font-size:10.5px;max-width:60ch;line-height:1.4}
+  .acao{min-width:190px;padding:12px 25px;font-size:11px;letter-spacing:.15em;text-transform:uppercase;font-weight:750;
+    background:linear-gradient(135deg,#f5d77f,var(--ouro));color:#172018;border:0;border-radius:999px;cursor:pointer;pointer-events:auto;
+    box-shadow:0 8px 24px rgba(239,198,91,.18),inset 0 1px rgba(255,255,255,.5);transition:transform .2s,box-shadow .2s}
+  .acao:hover{transform:translateY(-2px);box-shadow:0 11px 28px rgba(239,198,91,.26),inset 0 1px rgba(255,255,255,.5)}
+  .acao:active{transform:scale(.97)}
   #carregando{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;
     background:var(--fundo);font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;opacity:.6}
+
+  @media(max-height:460px){
+    .abertura-card{padding:15px 24px 16px}.marca{margin:5px 0 0}.globo{width:38px;height:38px}
+    .globo::before{left:7px;right:7px;bottom:6px;height:11px}.globo::after{left:17px;bottom:13px}
+    .tela h1{font-size:29px}.chamada{margin-bottom:9px}.passos{margin-bottom:8px}.tela .dica{margin-bottom:9px}
+  }
+  @media(max-width:680px){
+    #estado div{min-width:50px;padding-left:8px;padding-right:8px}#estado div:nth-child(5){display:none}
+    #cronica{width:min(260px,55vw)}#ferramenta{display:none}.pincel{min-width:51px}
+  }
+  @media(max-width:520px) and (orientation:portrait){
+    #estado{right:calc(10px + var(--sar))}#estado div{flex:1}#tempo{top:calc(67px + var(--sat))}
+    #fita{top:calc(71px + var(--sat));max-width:calc(100vw - 220px)}
+    #cronica{top:calc(119px + var(--sat));left:calc(10px + var(--sal));right:auto;width:min(260px,calc(100vw - 20px));max-height:24vh}
+    #paleta{padding-left:6px;padding-right:6px}.pincel{min-width:57px}#ajustes{gap:6px}#ajustes label{display:none}
+    .abertura-card{padding:24px 18px}.passos{grid-template-columns:1fr}.passos span{display:flex;gap:8px}.passos b{display:inline}
+  }
+  @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}}
 </style>
 </head>
 <body>
@@ -140,9 +204,10 @@
   <div class="painel" id="inspetor"><h3><b></b><span></span></h3><dl></dl></div>
 
   <div id="paleta">
-    <div class="painel">
+    <div class="painel paleta-painel">
       <div id="grupos"></div>
       <div id="ajustes">
+        <div id="ferramenta"><div><span>Ferramenta ativa</span><strong id="ferramentaNome">Humano</strong></div></div>
         <label for="raio">Pincel</label>
         <input type="range" id="raio" min="1" max="9" step="1" value="3">
         <output id="raioOut">3</output>
@@ -155,17 +220,18 @@
 </div>
 
 <div class="tela" id="abertura">
-  <h1>Terrário</h1>
-  <p>O mundo nasce pelado: terra nua, areia e pedra. Mato, terra fértil, minério e
-     bicho são todos coisa sua. Pinte terra fértil, solte um punhado de humanos em
-     cima e espere: eles forrageiam, começam a plantar, domesticam o rebanho que
-     estiver por perto, abrem minas, se multiplicam, se dividem em tribos e acabam
-     brigando ou se aliando por conta própria.</p>
-  <p class="dica">Pedra e montanha que <b>você</b> pinta vêm com veio de minério.
-     Se preferir começar de um mundo já formado, use <b>Ilha pronta</b>.</p>
-  <p class="dica">Um dedo pinta quando há pincel escolhido, e arrasta o mapa quando não há.
-     Dois dedos giram e aproximam. A crônica, à direita, é onde a história aparece.</p>
-  <button class="acao" id="comecar">Criar</button>
+  <div class="abertura-card">
+    <span class="selo">Simulação emergente</span>
+    <div class="marca"><span class="globo" aria-hidden="true"></span><h1>Terrário</h1></div>
+    <p class="chamada">Você cria as condições. A vida escreve a história.</p>
+    <div class="passos">
+      <span><b>01 · Molde</b>O mundo começa nu. Pinte campos, florestas, rios e montanhas.</span>
+      <span><b>02 · Semeie</b>Solte pessoas, rebanhos e feras pelo mundo.</span>
+      <span><b>03 · Observe</b>Veja tribos nascerem, prosperarem e disputarem espaço.</span>
+    </div>
+    <p class="dica">Pedra pintada traz minério. Prefere começar pronto? Use <b>Ilha pronta</b>. Um dedo pinta ou move; dois giram e aproximam.</p>
+    <button class="acao" id="comecar">Criar mundo&nbsp; →</button>
+  </div>
 </div>
 
 <script type="importmap">

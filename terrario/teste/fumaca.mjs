@@ -89,6 +89,7 @@ await pagina.mouse.move(meio.x, meio.y);
 await pagina.mouse.down();
 await pagina.mouse.move(meio.x + 60, meio.y + 20, { steps: 8 });
 await pagina.mouse.up();
+checar('o pincel responde com animação', await pagina.evaluate(() => window.__terrario.render.totalPulsos > 0));
 await pagina.waitForTimeout(300);
 const fertil = await pagina.evaluate(() => {
   const { sim } = window.__terrario;
@@ -121,6 +122,18 @@ await pagina.waitForTimeout(300);
 const semeado = await estado();
 checar('o pincel de seres solta humanos', semeado.humanos >= 8, `${semeado.humanos}`);
 checar('o pincel de seres solta rebanho', semeado.rebanhos >= 1, `${semeado.rebanhos}`);
+const matrizHumano = () => pagina.evaluate(() => {
+  for (const [nome, figura] of window.__terrario.render.figuras) {
+    if (!nome.startsWith('humano:') || !figura.n) continue;
+    const malha = figura.tribo || figura.natural;
+    return Array.from(malha.instanceMatrix.array.slice(0, 16));
+  }
+  return [];
+});
+const matrizAntes = await matrizHumano();
+await pagina.waitForTimeout(220);
+const matrizDepois = await matrizHumano();
+checar('os seres têm movimento procedural', matrizAntes.length > 0 && matrizDepois.some((v, i) => Math.abs(v - matrizAntes[i]) > 0.001));
 await foto('semeado');
 
 // --- correr o tempo e ver a civilização acontecer ---
@@ -253,6 +266,20 @@ await pagina.waitForTimeout(900);
 const novo = await estado();
 checar('novo mundo recomeça do zero', novo.humanos === 0 && novo.ano < 5, `ano ${novo.ano}, ${novo.humanos} pessoas`);
 await foto('novo-mundo');
+
+// --- retrato: o jogo se apresenta como mobile e precisa funcionar nas duas orientações ---
+await pagina.setViewportSize({ width: 390, height: 844 });
+await pagina.waitForTimeout(250);
+const retratoOk = await pagina.evaluate(() => {
+  const estado = document.getElementById('estado').getBoundingClientRect();
+  const tempo = document.getElementById('tempo').getBoundingClientRect();
+  const cronica = document.getElementById('cronica').getBoundingClientRect();
+  const paleta = document.getElementById('paleta').getBoundingClientRect();
+  return estado.left >= 0 && estado.right <= innerWidth && paleta.left >= 0 && paleta.right <= innerWidth
+    && estado.bottom <= tempo.top && tempo.bottom <= cronica.top;
+});
+checar('a interface se adapta ao modo retrato', retratoOk);
+await foto('retrato');
 
 checar('nenhum erro no console', problemas.length === 0, problemas.slice(0, 3).join(' | '));
 

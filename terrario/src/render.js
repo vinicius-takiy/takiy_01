@@ -13,7 +13,7 @@ import { montarFigura } from './figuras.js';
 
 const CAIXA = new THREE.BoxGeometry(1, 1, 1);
 const ALTURA_MIN = 0.35;
-const COR_MAR = 0x2b5f80;
+const COR_MAR = 0x397f91;
 
 const TETOS = {
   arvore: 2600, moita: 1100, pedra: 800, espiga: 1400, oca: 200,
@@ -30,9 +30,18 @@ export class Render {
     this.tempo = 0;
     this.relogioCenario = 0;
     this.figuras = new Map();
+    this.entradas = new WeakMap();
+    this.efeitos = [];
+    this.totalPulsos = 0;
+    this.ultimoPulso = { x: -99, y: -99, quando: -99 };
 
     // ---------- terreno ----------
-    this.chao = new THREE.InstancedMesh(CAIXA, new THREE.MeshLambertMaterial(), N * N);
+    this.chao = new THREE.InstancedMesh(
+      CAIXA,
+      new THREE.MeshStandardMaterial({ vertexColors: false, roughness: 0.94, metalness: 0,
+                                       flatShading: true }),
+      N * N,
+    );
     this.chao.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.chao.receiveShadow = true;
     cena.add(this.chao);
@@ -44,11 +53,24 @@ export class Render {
     // bem maior que a ilha: um plano do tamanho dela mostra a própria borda
     this.mar = new THREE.Mesh(
       new THREE.PlaneGeometry(N * 6, N * 6),
-      new THREE.MeshLambertMaterial({ color: COR_MAR, transparent: true, opacity: 0.9 }),
+      new THREE.MeshPhongMaterial({ color: COR_MAR, transparent: true, opacity: 0.94,
+                                    shininess: 75, specular: 0xb7e1d8 }),
     );
     this.mar.rotation.x = -Math.PI / 2;
     this.mar.position.set(N / 2, 0.4, N / 2);
     cena.add(this.mar);
+
+    // Uma segunda pele quase invisível quebra o plano perfeito do mar e produz
+    // reflexos lentos sem textura externa nem custo alto no celular.
+    this.marBrilho = new THREE.Mesh(
+      new THREE.PlaneGeometry(N * 3.3, N * 3.3, 22, 22),
+      new THREE.MeshBasicMaterial({ color: 0xb9eee2, transparent: true, opacity: 0.045,
+                                    wireframe: true, depthWrite: false }),
+    );
+    this.marBrilho.rotation.x = -Math.PI / 2;
+    this.marBrilho.rotation.z = 0.18;
+    this.marBrilho.position.set(N / 2, this.mar.position.y + 0.025, N / 2);
+    cena.add(this.marBrilho);
 
     // ---------- figuras ----------
     for (const k of CHAVES_VOCACAO) this.criarFigura(`humano:${k}`, TETOS.humano);
@@ -75,7 +97,8 @@ export class Render {
     for (const grupo of ['tribo', 'natural']) {
       if (!geos[grupo]) { par[grupo] = null; continue; }
       const m = new THREE.InstancedMesh(
-        geos[grupo], new THREE.MeshLambertMaterial({ vertexColors: true }), teto);
+        geos[grupo], new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.86,
+                                                       metalness: 0, flatShading: true }), teto);
       m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       m.castShadow = true;
       m.frustumCulled = false;
@@ -227,6 +250,13 @@ export class Render {
   }
 
   // ---------------------------------------------------------------- seres
+  /** Escala de nascimento/construção: cada figura cresce suavemente ao aparecer. */
+  escalaEntrada(ser) {
+    if (!this.entradas.has(ser)) this.entradas.set(ser, this.tempo);
+    const t = Math.min(1, Math.max(0.08, (this.tempo - this.entradas.get(ser)) / 0.45));
+    return 1 - (1 - t) ** 3;
+  }
+
   atualizarSeres(sim, dt = 0) {
     this.tempo += dt;
     const nomes = [...CHAVES_VOCACAO.map((k) => `humano:${k}`), 'rebanho', 'predador', 'oca'];
@@ -234,15 +264,18 @@ export class Render {
 
     for (const h of sim.humanos) {
       if (!h.viva) continue;
-      const s = h.adulto ? 1 : 0.66;
+      const entrada = this.escalaEntrada(h);
+      const s = (h.adulto ? 1 : 0.66) * entrada;
       this.aux.position.set(h.x, this.alturaEm(h.x, h.y), h.y);
-      this.aux.scale.set(s, s, s);
       // vira para onde vai; balança enquanto trabalha, senão de perto o mundo
       // parece travado mesmo com a simulação rodando
       const giro = h.alvo ? Math.atan2(h.alvo.x - h.x, h.alvo.y - h.y) : giroParado(h);
-      const faina = h.obra ? Math.sin(this.tempo * 6.5 + h.x * 3) : 0;
-      this.aux.rotation.set(faina * 0.3, giro, 0);
-      this.aux.position.y += Math.abs(faina) * 0.05;
+      const ritmo = h.obra === 'lutar' ? 11 : h.obra === 'minerar' ? 8.5 : 6.5;
+      const faina = h.obra ? Math.sin(this.tempo * ritmo + h.x * 3) : 0;
+      const passo = h.alvo ? Math.abs(Math.sin(this.tempo * 9 + h.y)) * 0.07 : 0;
+      this.aux.scale.set(s * (1 - Math.abs(faina) * 0.025), s * (1 + Math.abs(faina) * 0.05), s);
+      this.aux.rotation.set(faina * 0.3, giro, faina * 0.08);
+      this.aux.position.y += passo + Math.abs(faina) * 0.05;
       this.cor.set(h.tribo ? h.tribo.cor : 0xd8d2c0);
       if (h.fome > 0.75) this.cor.lerp(this._tinta.set(0x201a12), 0.45);
       this.por(`humano:${h.dom in FIG_HUMANO ? h.dom : 'lavrador'}`, this.cor);
@@ -250,18 +283,23 @@ export class Render {
 
     for (const r of sim.rebanhos) {
       if (!r.viva) continue;
-      this.aux.position.set(r.x, this.alturaEm(r.x, r.y), r.y);
-      this.aux.rotation.set(0, r.alvo ? Math.atan2(r.alvo.x - r.x, r.alvo.y - r.y) : giroParado(r), 0);
-      this.aux.scale.setScalar(r.domesticado ? 1 : 0.92);
+      const entrada = this.escalaEntrada(r);
+      const anda = r.alvo ? Math.sin(this.tempo * 7.5 + r.x * 2) : Math.sin(this.tempo * 1.8 + r.y);
+      const base = (r.domesticado ? 1 : 0.92) * entrada;
+      this.aux.position.set(r.x, this.alturaEm(r.x, r.y) + Math.abs(anda) * (r.alvo ? 0.055 : 0.012), r.y);
+      this.aux.rotation.set(0, r.alvo ? Math.atan2(r.alvo.x - r.x, r.alvo.y - r.y) : giroParado(r), anda * 0.045);
+      this.aux.scale.set(base, base * (1 + Math.abs(anda) * 0.025), base);
       this.por('rebanho');
     }
 
     for (const p of sim.predadores) {
       if (!p.viva) continue;
       const mira = p.presa || p.alvo;
-      this.aux.position.set(p.x, this.alturaEm(p.x, p.y), p.y);
-      this.aux.rotation.set(0, mira ? Math.atan2(mira.x - p.x, mira.y - p.y) : giroParado(p), 0);
-      this.aux.scale.setScalar(1);
+      const entrada = this.escalaEntrada(p);
+      const corrida = mira ? Math.sin(this.tempo * 11 + p.x) : 0;
+      this.aux.position.set(p.x, this.alturaEm(p.x, p.y) + Math.abs(corrida) * 0.065, p.y);
+      this.aux.rotation.set(0, mira ? Math.atan2(mira.x - p.x, mira.y - p.y) : giroParado(p), corrida * 0.055);
+      this.aux.scale.set(entrada * (1 + Math.abs(corrida) * 0.025), entrada * (1 - Math.abs(corrida) * 0.045), entrada);
       this.por('predador');
     }
 
@@ -269,7 +307,7 @@ export class Render {
       for (const o of t.ocas) {
         this.aux.position.set(o.x, this.alturaEm(o.x, o.y), o.y);
         this.aux.rotation.set(0, ((o.x * 31 + o.y * 17) % 6.28), 0);
-        this.aux.scale.setScalar(1);
+        this.aux.scale.setScalar(this.escalaEntrada(o));
         this.por('oca', this.cor.set(t.cor));
       }
     }
@@ -290,9 +328,58 @@ export class Render {
     this.alvoPincel.scale.setScalar(Math.max(0.6, raio));
   }
 
+  /** Feedback de pintura/colocação: anel que nasce no chão e se dissolve. */
+  pulso(x, y, cor = 0xefc65b) {
+    const agora = this.tempo;
+    const longe = Math.hypot(x - this.ultimoPulso.x, y - this.ultimoPulso.y) > 1.1;
+    if (!longe && agora - this.ultimoPulso.quando < 0.09) return;
+    this.ultimoPulso = { x, y, quando: agora };
+    const i = this.mundo.dentro(Math.round(x), Math.round(y))
+      ? this.mundo.idx(Math.round(x), Math.round(y)) : 0;
+    const material = new THREE.MeshBasicMaterial({ color: cor, transparent: true, opacity: 0.7,
+      side: THREE.DoubleSide, depthTest: false, depthWrite: false });
+    const malha = new THREE.Mesh(new THREE.RingGeometry(0.32, 0.46, 24), material);
+    malha.rotation.x = -Math.PI / 2;
+    malha.position.set(x, this.alturaColuna(i) + 0.07, y);
+    malha.renderOrder = 10;
+    this.cena.add(malha);
+    this.efeitos.push({ malha, inicio: agora });
+    this.totalPulsos++;
+    while (this.efeitos.length > 18) this.removerEfeito(this.efeitos.shift());
+  }
+
+  atualizarEfeitos() {
+    const tempo = this.tempo;
+    this.mar.position.y += (0.4 + Math.sin(tempo * 0.55) * 0.025 - this.mar.position.y) * 0.06;
+    this.marBrilho.rotation.z = 0.18 + Math.sin(tempo * 0.08) * 0.035;
+    this.marBrilho.material.opacity = 0.035 + (Math.sin(tempo * 0.7) + 1) * 0.012;
+    for (let k = this.efeitos.length - 1; k >= 0; k--) {
+      const e = this.efeitos[k];
+      const idade = (tempo - e.inicio) / 0.62;
+      if (idade >= 1) {
+        this.removerEfeito(e);
+        this.efeitos.splice(k, 1);
+        continue;
+      }
+      const escala = 0.7 + (1 - (1 - idade) ** 3) * 2.7;
+      e.malha.scale.setScalar(escala);
+      e.malha.material.opacity = (1 - idade) * 0.72;
+      e.malha.position.y += 0.0015;
+    }
+  }
+
+  removerEfeito(e) {
+    if (!e) return;
+    this.cena.remove(e.malha);
+    e.malha.geometry.dispose();
+    e.malha.material.dispose();
+  }
+
   /** Solta tudo o que este mundo pôs na cena. */
   descartar() {
-    const malhas = [this.chao, this.mar, this.alvoPincel];
+    for (const e of [...this.efeitos]) this.removerEfeito(e);
+    this.efeitos.length = 0;
+    const malhas = [this.chao, this.mar, this.marBrilho, this.alvoPincel];
     for (const f of this.figuras.values()) for (const m of [f.tribo, f.natural]) if (m) malhas.push(m);
     for (const m of malhas) {
       this.cena.remove(m);

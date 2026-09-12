@@ -139,7 +139,7 @@ isso que permite o teste abaixo.
 npm install        # só o Playwright, só para o teste de tela
 npm test           # os dois
 npm run test:mundo # 300 anos × 5 sementes, sem tela, em segundos
-npm run test:tela  # 17 verificações num Chromium do tamanho de um celular
+npm run test:tela  # 26 verificações em paisagem e retrato no tamanho de um celular
 npm run test:fotos # o mesmo, salvando telas em fotos/
 ```
 

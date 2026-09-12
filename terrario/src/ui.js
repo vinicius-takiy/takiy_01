@@ -13,7 +13,7 @@ const el = (id) => document.getElementById(id);
 export const PINCEIS = [
   { id: 'humano',   nome: 'Humano',  tipo: 'ser', ser: 'humano', quantos: 3, cor: 0xf2eddb },
   { id: 'rebanho',  nome: 'Rebanho', tipo: 'ser', ser: 'rebanho', quantos: 4, cor: 0xc9b48c },
-  { id: 'fera',     nome: 'Fera',    tipo: 'ser', ser: 'predador', quantos: 1, cor: 0x8c3a2a },
+  { id: 'fera',     nome: 'Fera',    tipo: 'ser', ser: 'predador', quantos: 1, cor: 0x9a4436 },
   { divisor: true },
   { id: 'fertil',   nome: 'Terra fértil', tipo: 'terreno', terreno: T.FERTIL },
   { id: 'campo',    nome: 'Campo',        tipo: 'terreno', terreno: T.GRAMA },
@@ -49,8 +49,10 @@ export class Interface {
       b.className = 'pincel';
       b.dataset.id = p.id;
       const cor = p.tipo === 'terreno' ? TERRENOS[p.terreno].cor : p.cor;
-      b.innerHTML = `<span class="amostra" style="background:#${cor.toString(16).padStart(6, '0')}"></span>`
+      b.innerHTML = `<span class="amostra" style="background:#${cor.toString(16).padStart(6, '0')}">${icone(p.id)}</span>`
                   + `<span class="rot">${p.nome}</span>`;
+      b.setAttribute('aria-label', p.nome);
+      b.title = p.nome;
       b.onclick = () => this.escolher(p.id);
       grupos.appendChild(b);
     }
@@ -82,6 +84,7 @@ export class Interface {
     for (const b of document.querySelectorAll('.pincel')) {
       b.classList.toggle('on', this.pincel && b.dataset.id === this.pincel.id);
     }
+    el('ferramentaNome').textContent = this.pincel ? this.pincel.nome : 'Explorar o mundo';
   }
 
   /**
@@ -152,6 +155,7 @@ export class Interface {
     const novas = sim.cronicas.slice(Math.max(0, this.ultimaCronica - Math.max(0, total - sim.cronicas.length)));
     for (const c of novas.slice(-12)) {
       const p = document.createElement('p');
+      p.className = 'nova';
       p.innerHTML = `<b style="background:#${c.cor.toString(16).padStart(6, '0')}"></b>`
                   + `<i>${c.ano}</i><em></em>`;
       p.querySelector('em').textContent = c.texto;
@@ -225,3 +229,22 @@ export class Interface {
 }
 
 const linhas = (pares) => pares.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
+
+/** Ícones vetoriais pequenos, monocromáticos e offline. */
+function icone(id) {
+  const caminhos = {
+    humano: '<circle cx="12" cy="6" r="3"/><path d="M7 21v-4.5a5 5 0 0 1 10 0V21M9 12l-3 5m9-5 3 5"/>',
+    rebanho: '<path d="M5 10.5h11a3 3 0 0 1 3 3v2H7a3 3 0 0 1-3-3v-1a1 1 0 0 1 1-1Z"/><path d="M17 11V8l3 1v4M8 16v3m7-3v3"/>',
+    fera: '<path d="m4 15 2-7 4 3 5-4 5 3-2 7-7 2Z"/><path d="m6 8-1-3 4 2m6 0 4-2-1 4"/>',
+    fertil: '<path d="M4 18c5-1 11-1 16 0M6 14c4-1 8-1 12 0M9 10c2-.5 4-.5 6 0"/><path d="M12 10V5m0 0-3 2m3-2 3 2"/>',
+    campo: '<path d="M5 19c1-5 2-8 4-12m2 12c0-6 1-10 3-14m1 14c1-4 2-7 4-10"/>',
+    terra: '<path d="M4 18c4-2 12-2 16 0M5 13c3 1 5 1 7 0s5-1 7 0M8 8h.01M15 7h.01"/>',
+    floresta: '<path d="m12 3-6 8h3l-4 6h14l-4-6h3Z"/><path d="M12 17v4"/>',
+    agua: '<path d="M12 3S6 10 6 14a6 6 0 0 0 12 0c0-4-6-11-6-11Z"/><path d="M9 15c1 2 3 3 5 2"/>',
+    areia: '<circle cx="8" cy="9" r="1"/><circle cx="16" cy="7" r="1"/><circle cx="14" cy="15" r="1"/><path d="M4 19c5-2 11-2 16 0"/>',
+    rocha: '<path d="m5 17 2-8 5-4 6 5 1 7-5 2-6-1Z"/><path d="m7 9 5 3 6-2"/>',
+    montanha: '<path d="m3 19 7-13 3 5 2-3 6 11Z"/><path d="m8 10 2 2 2-2 1 1"/>',
+    apagar: '<path d="m6 7 11 11m1-11L7 18"/><circle cx="12" cy="12" r="9"/>',
+  };
+  return `<svg viewBox="0 0 24 24" aria-hidden="true">${caminhos[id] || ''}</svg>`;
+}
