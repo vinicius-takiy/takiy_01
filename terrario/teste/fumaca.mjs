@@ -651,7 +651,24 @@ const cerca = await pagina.evaluate(() => {
   const t = sim.tribos[0];
   if (!t) return null;
   t.madeira += 90;
-  for (let k = 0; k < 3; k++) t.cercar(sim.mundo, Math.round(t.cx) + 10, Math.round(t.cy));
+  // O curral do teste vai num sítio com chão em volta, escolhido aqui. Cercar
+  // cegamente em `cx+10` caía no mar conforme o mundo, e a fera nascia num tile
+  // de onde nenhum passo era possível: "chegou a 0,0 do centro".
+  let sitio = null;
+  for (let d = 8; d <= 14 && !sitio; d++) {
+    for (let k = 0; k < 16 && !sitio; k++) {
+      const a = k * Math.PI / 8;
+      const x = Math.round(t.cx + Math.cos(a) * d), y = Math.round(t.cy + Math.sin(a) * d);
+      let firme = true;
+      for (let dy = -2; dy <= 2 && firme; dy++) for (let dx = -2; dx <= 2; dx++) {
+        if (!sim.mundo.andavel(x + dx, y + dy)) { firme = false; break; }
+      }
+      if (firme) sitio = { x, y };
+    }
+  }
+  if (!sitio) return null;
+  t.curral = null; t.cercas = [];
+  for (let k = 0; k < 3; k++) t.cercar(sim.mundo, sitio.x, sitio.y);
   t.temPasto = true;
   const c = t.curral;
   sim.soltar('rebanho', c.x, c.y);
