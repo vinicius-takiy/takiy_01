@@ -24,7 +24,7 @@ const TETOS = {
   rebanho: 240, predador: 70, humano: 260,
   'rebanho:pata': 240 * 4, 'predador:pata': 70 * 4, peixe: 600, jacare: 40,
   capivara: 220, 'capivara:pata': 220 * 4, lebre: 260, 'lebre:pata': 260 * 4,
-  chama: 700, poco: 90, muro: 900,
+  chama: 700, poco: 90, muro: 900, jangada: 120,
 };
 
 export class Render {
@@ -111,7 +111,7 @@ export class Render {
     for (const k of CHAVES_VOCACAO) this.criarFigura(`humano:${k}`, TETOS.humano);
     for (const k of ['rebanho', 'rebanho:pata', 'capivara', 'capivara:pata',
                      'lebre', 'lebre:pata', 'predador', 'predador:pata',
-                     'peixe', 'jacare', 'chama', 'oca', 'cerca', 'poco', 'muro', 'arvore', 'moita', 'pedra', 'espiga']) {
+                     'peixe', 'jacare', 'chama', 'oca', 'cerca', 'poco', 'muro', 'jangada', 'arvore', 'moita', 'pedra', 'espiga']) {
       this.criarFigura(k, TETOS[k]);
     }
     this.refazerCenario();
@@ -330,17 +330,29 @@ export class Render {
     }
     const nomes = [...CHAVES_VOCACAO.map((k) => `humano:${k}`), 'oca',
                    'rebanho', 'rebanho:pata', 'capivara', 'capivara:pata',
-                   'lebre', 'lebre:pata', 'predador', 'predador:pata', 'peixe', 'jacare', 'chama'];
+                   'lebre', 'lebre:pata', 'predador', 'predador:pata', 'peixe', 'jacare', 'chama', 'jangada'];
     this.abrirLote(nomes);
 
     for (const h of sim.humanos) {
       if (!h.viva) continue;
       const entrada = this.escalaEntrada(h);
       const s = (h.adulto ? 1 : 0.66) * entrada;
-      this.aux.position.set(h.x, this.alturaEm(h.x, h.y), h.y);
       // vira para onde vai; balança enquanto trabalha, senão de perto o mundo
       // parece travado mesmo com a simulação rodando
       const giro = h.alvo ? Math.atan2(h.alvo.x - h.x, h.alvo.y - h.y) : giroParado(h);
+      // Na água a pessoa pisa na lâmina, não no fundo do lago — e leva a
+      // jangada embaixo. `alturaEm` devolve o leito, que é onde ela afogava.
+      const xi = Math.round(h.x), yi = Math.round(h.y);
+      const noMar = h.embarcado && this.mundo.ehAgua(xi, yi);
+      let chao = this.alturaEm(h.x, h.y);
+      if (noMar) {
+        chao = this.alturaDaLamina(this.mundo.idx(xi, yi)) + 0.06;
+        this.aux.position.set(h.x, chao - 0.04, h.y);
+        this.aux.rotation.set(0, giro, 0);
+        this.aux.scale.set(1, 1, 1);
+        this.por('jangada', this.cor.set(0xffffff));
+      }
+      this.aux.position.set(h.x, chao, h.y);
       const g = GESTO[h.obra] || GESTO.padrao;
       const fase = this.tempo * g.ritmo + h.x * 3 + h.y;
       // Golpe é serrote, não senoide: o braço sobe devagar e desce de uma vez.

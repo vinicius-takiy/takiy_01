@@ -257,6 +257,20 @@ function poco() {
   ];
 }
 
+/** Jangada: quatro troncos amarrados, rasa, com uma vara. É o que se vê
+ *  atravessando o canal — sem ela, a pessoa na água parecia afogada. */
+function jangada() {
+  const escuro = 0x5a4530;
+  return [
+    P(0, 0.05, -0.27, 1.05, 0.10, 0.15, MADEIRA, 'natural'),
+    P(0, 0.05, -0.09, 1.05, 0.10, 0.15, escuro, 'natural'),
+    P(0, 0.05, 0.09, 1.05, 0.10, 0.15, MADEIRA, 'natural'),
+    P(0, 0.05, 0.27, 1.05, 0.10, 0.15, escuro, 'natural'),
+    P(-0.38, 0.11, 0, 0.06, 0.04, 0.74, escuro, 'natural'),       // amarra
+    P(0.38, 0.11, 0, 0.06, 0.04, 0.74, escuro, 'natural'),
+  ];
+}
+
 /** Muro: bloco de pedra assentado, com ameia. Fera não pula. */
 function muro() {
   const pedra = 0x8f8b81, junta = 0x7c786f;
@@ -300,7 +314,7 @@ function espiga() {
 export const FIGURAS = {
   ...Object.fromEntries(Object.entries(HUMANOS).map(([k, f]) => [`humano:${k}`, f])),
   rebanho, predador, arvore, oca, moita, pedra, espiga, cerca, peixe, jacare,
-  capivara, lebre, chama, poco, muro,
+  capivara, lebre, chama, poco, muro, jangada,
   'rebanho:pata': pata(0x584a38), 'predador:pata': pata(0x4a2c22),
   'capivara:pata': pata(0x6f5231), 'lebre:pata': pata(0x8d7a58),
 };

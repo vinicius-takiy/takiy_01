@@ -531,6 +531,46 @@ onde havia um — nação de 183 almas, zero guerras entre parentes e 23 entre
 estranhos. Teste de mundo em **10 falhas**, o melhor da história do jogo, e todas
 as dez são da ecologia; nenhuma da civilização.
 
+## O pasto é um distrito
+
+O curral era cercado no tile de grama mais perto de quem estava com a lenha na
+mão — colado nas ocas. Lia como "a cerca da tribo", e o jogador viu bicho
+pastando no meio da aldeia. Agora a grama tem que estar na borda do domínio, a
+pelo menos 60% do raio do centro e a duas casas de qualquer oca; e oca não nasce
+dentro do pasto. O curral cresce para fora, a aldeia fica com o miolo. Pastoreio
+subiu (5, 4, 7, 3, 7 contra 4, 3, 7, 3, 4 nas cinco sementes) sem mudar o total
+de falhas.
+
+## Além-mar: a ilha deixa de ser parede
+
+O jogador partiu o mapa em quatro ilhas e viu que ninguém atravessava. O mundo
+agora rotula as massas de terra (inundação a quatro vizinhos, refeita só quando
+algum tile muda de andável para não-andável), e uma tribo na Era da Pedra, com
+costa, pescador ou construtor, e lenha de sobra depois do telhado, **amarra uma
+jangada** — só se há outra ilha à vista: em mundo de ilha única a jangada era
+catorze de lenha jogada na água, e custou três falhas no teste de mundo até eu
+medir.
+
+Com jangada e apertada — sem teto, ou perto do teto da água — a tribo escolhe
+terra livre e boa em outra ilha, ao alcance, e manda seis pessoas com mantimento.
+Quem embarca atravessa água a 70% do passo, em cima de quatro troncos amarrados
+que o render desenha na lâmina (sem isso a pessoa na água parecia afogada). Ao
+pisar em terra de outra ilha, desembarca e deixa a tribo de origem; quando três
+desses se encontram, nasce a **colônia**: filha da tribo que a mandou, com a era
+de baixo, a técnica, a memória e a aliança — como a cisão. Náufrago não funda
+nada.
+
+O que o teste cobrou: o alvo era um tile exato, e quem travava numa pedra a três
+casas dele desistia, desembarcava como membro da tribo de origem e ficava ali,
+do outro lado, sem fundar nada — novecentos tiques, seis pessoas na água, zero
+colonos. Chegar a qualquer terra da outra ilha é chegar.
+
+Custo medido: as cinco sementes de teste são ilha única ou ilha com ilhota. Na
+90210 uma tribo amarra uma jangada para uma ilhota que nunca chega a precisar —
+catorze de lenha — e o teste de mundo fica em 11 falhas contra 10. É o preço de
+ter o barco pronto antes da falta de terra, e ele é o mesmo em todas as sementes:
+onde não há destino, jangada não nasce.
+
 ## Cabe no telefone
 
 O jogo se diz de telefone desde o primeiro dia, mas ninguém tinha medido onde os

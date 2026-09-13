@@ -59,12 +59,14 @@ export function empacotar(sim, nome) {
     era: t.era, fontes: t.fontes, muros: t.muros.map((m) => [m.x, m.y]),
     relacoes: [...t.relacoes.entries()],
     mae: t.mae, nascidaEm: t.nascidaEm, corPropria: t.corPropria,
+    jangadas: t.jangadas, colonia: t.colonia,
     nacao: t.nacao ? t.nacao.id : null,
   }));
 
   const gente = sim.humanos.filter((h) => h.viva).map((h) => [
     n2(h.x), n2(h.y), n2(h.idade), n2(h.expectativa), n2(h.fome),
     h.dom, h.tribo ? h.tribo.id : -1, n2(h.descanso),
+    h.embarcado ? 1 : 0, h.origem ?? -1,
   ]);
   const bichos = sim.rebanhos.filter((r) => r.viva).map((r) => [
     n2(r.x), n2(r.y), n2(r.idade), n2(r.expectativa), r.especie,
@@ -144,6 +146,7 @@ export function desempacotar(Simulacao, pacote) {
       muros: (d.muros || []).map(([x, y]) => ({ x, y })),
       relacoes: new Map(d.relacoes), membros: [],
       mae: d.mae ?? null, nascidaEm: d.nascidaEm || 0,
+      jangadas: d.jangadas || 0, colonia: d.colonia || null,
       corPropria: d.corPropria ?? d.cor,
     });
     if (t.curral) t.recalcularCerca(m);
@@ -168,9 +171,13 @@ export function desempacotar(Simulacao, pacote) {
   }
   Tribo.retomarIds(Math.max(0, ...sim.tribos.map((t) => t.id)) + 1);
 
-  sim.humanos = pacote.gente.map(([x, y, idade, exp, fome, dom, tribo, descanso]) => {
+  sim.humanos = pacote.gente.map(([x, y, idade, exp, fome, dom, tribo, descanso, embarcado, origem]) => {
     const h = new Humano(x, y, idade, sim.sorte);
     h.expectativa = exp; h.fome = fome; h.dom = dom; h.descanso = descanso;
+    h.embarcado = !!embarcado; h.origem = origem === undefined || origem === -1 ? null : origem;
+    // quem foi guardado no meio da travessia precisa saber de que ilha saiu,
+    // senão ao abrir o mundo desembarca no primeiro tile de terra que pisar
+    if (h.embarcado && h.tribo) h.ilhaDeOrigem = m.ilhaDe(Math.round(h.tribo.cx), Math.round(h.tribo.cy));
     h.tribo = porId.get(tribo) || null;
     if (h.tribo) h.tribo.membros.push(h);
     return h;

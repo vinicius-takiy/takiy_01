@@ -182,6 +182,8 @@ console.log('\npicos  — pessoas', r.pico.humanos, '· tribos', r.pico.tribos, 
             '· tec', TEC[r.pico.tec]);
 console.log('mortes — fome', r.fim.mortesPorFome, '· fera', r.fim.mortesPorPredador, '· guerra', r.fim.mortesEmGuerra);
 const censo = r.fim.censo;
+console.log('mar    — ilhas', r.fim.ilhas, '· jangadas', r.fim.jangadas, '· expedições', r.fim.expedicoes,
+            '· colonos', r.fim.colonos, '· colônias', r.fim.colonias);
 console.log('nação  — nações', r.fim.nacoes, '· tribos federadas', r.fim.naNacao, 'de', r.fim.tribos,
             '· maior', r.fim.maiorNacao, 'almas · guerras entre parentes no pico', r.pico.guerrasEntreParentes, 'de', r.pico.guerras);
 console.log('civil  — era máxima', r.pico.eraMaxima, '· poços', r.fim.pocos, '· muro', r.fim.muros,

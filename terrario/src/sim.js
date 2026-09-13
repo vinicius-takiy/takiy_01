@@ -5,7 +5,7 @@
 
 import { Mundo, N, T, TERRENOS, mulberry } from './mundo.js';
 import { Humano, Rebanho, Predador, Peixe, Jacare, ESPECIES, ANO, MADEIRA_OCA, PEDRA_MURO } from './agentes.js';
-import { Tribo, Nacao, ERAS, encontro, comerciar, difundirTecnologia, encontrarSitioDeOca, reiniciarIds, TECNOLOGIAS, MADEIRA_CERCA,
+import { Tribo, Nacao, ERAS, encontro, comerciar, difundirTecnologia, encontrarSitioDeOca, reiniciarIds, TECNOLOGIAS, MADEIRA_CERCA, MADEIRA_JANGADA,
          VOCACOES, CHAVES_VOCACAO, rende, sortearVocacao, temLider } from './tribos.js';
 
 // Teto de segurança, não regra de jogo: quando a ecologia encosta nele é sinal
@@ -84,6 +84,10 @@ export class Simulacao {
     this.saques = 0;
     this.matilhasFormadas = 0;
     this.nacoesFundadas = 0;
+    this.jangadasFeitas = 0;
+    this.colonos = 0;
+    this.coloniasFundadas = 0;
+    this.expedicoes = 0;
     this.ferasVindasDaMata = 0;
     // Por que o bicho morre. É a única forma de saber se uma espécie sumiu de
     // fome, de caçada ou de velhice — e sem saber isso não se calibra nada.
@@ -233,6 +237,57 @@ export class Simulacao {
       this.revisarTribos(this.relogioTribos);
       this.relogioTribos = 0;
     }
+  }
+
+  /**
+   * Terra em outra ilha, ao alcance da jangada, livre e boa. Varre um quadrado
+   * de 36 tiles em volta da aldeia de dois em dois — é uma decisão por década,
+   * não por quadro — e pontua cada candidato pelo que tem em volta: campo,
+   * terra fértil e mata. Devolve null quando a tribo já está na única ilha.
+   */
+  /**
+   * Vale amarrar jangada? Só se há terra livre e boa em OUTRA ilha, ao alcance.
+   * "Há outra ilha" não bastava: a semente 42 tem uma ilhota inútil, e as tribos
+   * amarraram três jangadas para lugar nenhum — quarenta e dois de lenha na água
+   * e uma falha a mais no teste de mundo. A resposta vale cinco anos: a varredura
+   * é barata para uma decisão por década, e cara para uma por pessoa por tique.
+   */
+  haDestinoAlemMar(t) {
+    this.mundo.rotularIlhas();
+    if (this.mundo.quantasIlhas < 2) return false;
+    if (t.alemMarVisto && this.ano - t.alemMarVisto.ano < 5) return !!t.alemMarVisto.alvo;
+    t.alemMarVisto = { ano: this.ano, alvo: this.escolherAlemMar(t) };
+    return !!t.alemMarVisto.alvo;
+  }
+
+  escolherAlemMar(t) {
+    const m = this.mundo;
+    const minha = m.ilhaDe(Math.round(t.cx), Math.round(t.cy));
+    if (m.quantasIlhas < 2) return null;
+    let melhor = null, nota = 0;
+    const cx = Math.round(t.cx), cy = Math.round(t.cy);
+    for (let y = cy - 36; y <= cy + 36; y += 2) {
+      for (let x = cx - 36; x <= cx + 36; x += 2) {
+        if (!m.andavel(x, y)) continue;
+        if (m.ilhaDe(x, y) === minha) continue;
+        const i = m.idx(x, y);
+        if (m.dono[i] !== -1) continue;
+        const d = Math.hypot(x - cx, y - cy);
+        if (d < 8) continue;
+        let n = 0;
+        for (let dy = -2; dy <= 2; dy++) {
+          for (let dx = -2; dx <= 2; dx++) {
+            if (!m.dentro(x + dx, y + dy)) continue;
+            const tp = m.terreno[m.idx(x + dx, y + dy)];
+            if (tp === T.FERTIL) n += 3; else if (tp === T.GRAMA || tp === T.FLORESTA) n += 2;
+          }
+        }
+        // mais perto vale um pouco mais: jangada é lenta e o mar tem jacaré
+        n -= d * 0.15;
+        if (n > nota) { nota = n; melhor = { x, y }; }
+      }
+    }
+    return melhor;
   }
 
   /**
@@ -439,9 +494,15 @@ export class Simulacao {
     const avulsos = this.humanos.filter((h) => h.viva && !h.tribo);
     for (const h of avulsos) {
       let melhor = null, md = Infinity;
+      // Só entra em tribo da MESMA ilha. O colono que desembarcava a doze tiles
+      // da aldeia-mãe — do outro lado de um canal de três — caía no raio dela e
+      // voltava a ser membro no mesmo segundo: dois chegavam, zero colônias.
+      const ilhaDele = this.mundo.ilhaDe(Math.round(h.x), Math.round(h.y));
       for (const t of this.tribos) {
         const d = Math.hypot(t.cx - h.x, t.cy - h.y);
-        if (d < t.raio + 3 && d < md) { md = d; melhor = t; }
+        if (d >= t.raio + 3 || d >= md) continue;
+        if (this.mundo.ilhaDe(Math.round(t.cx), Math.round(t.cy)) !== ilhaDele) continue;
+        md = d; melhor = t;
       }
       if (melhor) { melhor.membros.push(h); h.tribo = melhor; }
     }
@@ -457,7 +518,26 @@ export class Simulacao {
       // celeiro proporcional ao bando: nascer com a despensa fixa do construtor
       // matava a tribo de fome antes da primeira colheita ficar pronta
       t.celeiro = bando.length * 6;
-      this.cronica(`Nasce a tribo ${t.nome}, com ${bando.length} pessoas`, t, 'fundacao');
+      // Colonos fundam colônia, não bando: a maioria veio da mesma tribo, e a
+      // colônia é filha dela — leva era, técnica, memória e aliança, como a
+      // cisão. É o que faz a travessia render civilização e não náufragos.
+      const origens = new Map();
+      for (const m of bando) if (m.origem !== null) origens.set(m.origem, (origens.get(m.origem) || 0) + 1);
+      const [origem, quantos] = [...origens.entries()].sort((a, b) => b[1] - a[1])[0] || [null, 0];
+      const mae = origem !== null && quantos * 2 >= bando.length ? this.porId.get(origem) : null;
+      for (const m of bando) m.origem = null;
+      if (mae && mae.viva) {
+        t.mae = mae.id;
+        t.nascidaEm = this.ano;
+        t.era = Math.max(0, mae.era - 1);
+        t.tecnologia = mae.tecnologia;
+        t.memoria = { ...mae.memoria };
+        mae.definirRelacao(t, 'aliada');
+        this.coloniasFundadas++;
+        this.cronica(`Colonos de ${mae.nome} fundam ${t.nome} além-mar`, t, 'colonia');
+      } else {
+        this.cronica(`Nasce a tribo ${t.nome}, com ${bando.length} pessoas`, t, 'fundacao');
+      }
     }
 
     // 2b. Cisão. Uma tribo de trezentas pessoas não é uma tribo, e sem divisão
@@ -498,6 +578,20 @@ export class Simulacao {
       this.porId.set(nova.id, nova);
       if (t.nacao && !t.nacao.cheia) t.nacao.admitir(nova);
       this.cronica(`${t.nome} se divide; ${nova.nome} nasce aliada${nova.nacao ? `, na nação de ${nova.nacao.nome}` : ''}`, nova, 'cisao');
+    }
+
+    // 2c. Além-mar. Tribo apertada, com jangada e sem para onde crescer a pé,
+    //     escolhe terra em outra ilha e manda gente. A expedição tem prazo:
+    //     vaga que ninguém tomou em oito anos expira, senão a tribo fica com um
+    //     destino velho apontando para terra que outro já ocupou.
+    for (const t of this.tribos) {
+      if (t.colonia && (this.ano > t.colonia.ate || t.colonia.vagas <= 0)) t.colonia = null;
+      if (t.colonia || !t.navega || !t.apertada || t.pop < 8 || this.sorte() > 0.15) continue;
+      const alvo = this.escolherAlemMar(t);
+      if (!alvo) continue;
+      t.colonia = { x: alvo.x, y: alvo.y, vagas: 6, ate: this.ano + 8 };
+      this.expedicoes++;
+      this.cronica(`${t.nome} manda gente para além-mar`, t, 'expedicao');
     }
 
     // 3. território
@@ -901,6 +995,25 @@ export class Simulacao {
         this.combater(h);
         break;
       }
+      case 'construirJangada': {
+        if (!t || t.madeira < MADEIRA_JANGADA) break;
+        t.madeira -= MADEIRA_JANGADA;
+        t.jangadas++;
+        this.jangadasFeitas++;
+        this.cronica(`${t.nome} amarra uma jangada`, t, 'jangada', true);
+        break;
+      }
+      case 'colonizar': {
+        // Chegou. Desce da jangada e deixa a tribo de origem: quem funda a
+        // colônia é o passo 2 da revisão, quando três desses se encontrarem.
+        h.embarcado = false;
+        if (t) {
+          t.membros.splice(t.membros.indexOf(h), 1);
+          h.tribo = null;
+        }
+        this.colonos++;
+        break;
+      }
       default: break;
     }
   }
@@ -1160,6 +1273,11 @@ export class Simulacao {
       pastoreando: this.tribos.filter((t) => t.temPasto).length,
       currais: this.tribos.filter((t) => t.curral).length,
       eraMaxima: this.tribos.reduce((m, t) => Math.max(m, t.era), 0),
+      ilhas: (this.mundo.rotularIlhas(), this.mundo.quantasIlhas),
+      jangadas: this.tribos.reduce((n, t) => n + t.jangadas, 0),
+      expedicoes: this.expedicoes,
+      colonos: this.colonos,
+      colonias: this.coloniasFundadas,
       nacoes: new Set(this.tribos.filter((t) => t.nacao).map((t) => t.nacao)).size,
       naNacao: this.tribos.filter((t) => t.nacao).length,
       maiorNacao: this.tribos.reduce((m, t) => Math.max(m, t.nacao ? t.nacao.pop : 0), 0),

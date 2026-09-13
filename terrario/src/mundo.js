@@ -56,6 +56,9 @@ export class Mundo {
     this.madeira   = new Float32Array(t);   // lenha em pé, 0..1, só em floresta
     this.desmatados = new Set();            // tiles derrubados, esperando rebrotar
     this.sujo      = new Set();             // tiles que o render precisa refazer
+    this.ilha      = new Int16Array(t);     // rótulo da massa de terra de cada tile
+    this.ilhasSujas = true;                 // andável mudou em algum tile: rotular de novo
+    this.quantasIlhas = 0;
 
     // ---------- clima e solo ----------
     this.umidade   = new Float32Array(t);   // água no chão agora, 0..1
@@ -87,6 +90,7 @@ export class Mundo {
     if (this.terreno[i] === tipo) return;
     const antes = this.terreno[i];
     this.terreno[i] = tipo;
+    if (TERRENOS[antes].andavel !== TERRENOS[tipo].andavel) this.ilhasSujas = true;
     if (tipo === T.FLORESTA) { this.madeira[i] = 1; this.desmatados.delete(i); this.tilesDeMata++; }
     if (antes === T.FLORESTA) this.tilesDeMata--;
     this.comida[i] = TERRENOS[tipo].forragem;
@@ -121,6 +125,48 @@ export class Mundo {
   superficieDaAgua(i) { return this.relevo[i] - 0.07; }
 
   ehAgua(x, y) { return this.dentro(x, y) && this.terreno[this.idx(x, y)] === T.AGUA; }
+
+  /**
+   * Massas de terra. Rotula cada tile andável com o número da ilha em que está,
+   * por inundação a quatro vizinhos. É o que diz a uma tribo que a terra boa
+   * do outro lado do canal não é alcançável a pé — e é o que a jangada existe
+   * para vencer. Preguiçoso: só refaz quando algum tile mudou de andável para
+   * não-andável ou vice-versa, que é evento de pincel, não de quadro.
+   */
+  rotularIlhas() {
+    if (!this.ilhasSujas) return;
+    const n = this.n, total = n * n;
+    this.ilha.fill(-1);
+    const fila = new Int32Array(total);
+    let rotulo = 0;
+    for (let semente = 0; semente < total; semente++) {
+      if (this.ilha[semente] !== -1 || !TERRENOS[this.terreno[semente]].andavel) continue;
+      let ini = 0, fim = 0;
+      fila[fim++] = semente;
+      this.ilha[semente] = rotulo;
+      while (ini < fim) {
+        const i = fila[ini++];
+        const x = i % n, y = (i / n) | 0;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nx = x + dx, ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= n || ny >= n) continue;
+          const j = ny * n + nx;
+          if (this.ilha[j] !== -1 || !TERRENOS[this.terreno[j]].andavel) continue;
+          this.ilha[j] = rotulo;
+          fila[fim++] = j;
+        }
+      }
+      rotulo++;
+    }
+    this.quantasIlhas = rotulo;
+    this.ilhasSujas = false;
+  }
+
+  ilhaDe(x, y) {
+    if (!this.dentro(x, y)) return -1;
+    this.rotularIlhas();
+    return this.ilha[this.idx(x, y)];
+  }
 
   /** Tem água encostada neste tile? É o que define margem — onde se pesca e
    *  onde o jacaré alcança. */

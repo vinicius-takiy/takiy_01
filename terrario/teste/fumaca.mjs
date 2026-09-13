@@ -661,7 +661,22 @@ const cerca = await pagina.evaluate(() => {
   // a segura como segura o boi. Ela é reposta a cada tique se morrer — os
   // guardas da tribo a matam em segundos, e "morreu" não é resposta para
   // "atravessa a cerca?".
-  const longe = { x: Math.round(c.x) + Math.ceil(c.raio) + 9, y: Math.round(c.y) };
+  // Para fora do curral, na primeira direção que tem chão. Fixo em +x, com o
+  // curral agora na borda do domínio, o destino às vezes caía na água — e a
+  // fera, sem para onde ir, ficava parada dentro da cerca "sem atravessar".
+  // Rumo à aldeia: o curral fica na borda do domínio, com metade do anel sobre
+  // o mar, e um ponto "com chão" a dezesseis tiles não garante o caminho até
+  // ele — a fera parava a 6,4 do centro, na beira d'água, dentro da cerca. A
+  // aldeia é chão certo, e está fora do curral em qualquer tribo que cerca.
+  const d0 = Math.ceil(c.raio) + 9;
+  let longe = { x: Math.round(t.cx), y: Math.round(t.cy) };
+  if (t.dentroDoCurral(longe.x, longe.y)) {
+    for (let k = 0; k < 8; k++) {
+      const a = k * Math.PI / 4;
+      const x = Math.round(c.x + Math.cos(a) * d0), y = Math.round(c.y + Math.sin(a) * d0);
+      if (sim.mundo.andavel(x, y)) { longe = { x, y }; break; }
+    }
+  }
   // Ninguém de arma na mão enquanto se mede a cerca: guarda e caçador matam a
   // fera em segundos e o teste passa a medir a defesa da tribo, não o mourão.
   const domAntes = t.membros.map((m) => m.dom);
@@ -845,6 +860,72 @@ checar('o mourão pisa no topo do tile', curral && curral.piorDesvio < 0.01,
        curral ? `desvio ${curral.piorDesvio.toFixed(3)}` : '');
 checar('o guarda tem boneco próprio', curral && curral.guarda > 0, curral ? `${curral.guarda} em cena` : '');
 await foto('curral');
+
+// --- além-mar: a ilha deixa de ser parede ---
+// O jogador partiu o mapa em quatro ilhas e viu que ninguém atravessava. Aqui
+// se abre um canal de água de ponta a ponta, se dá jangada à tribo e se olha
+// se alguém cruza, se a jangada aparece na água, e se do outro lado nasce
+// uma tribo-filha — colônia, não náufragos.
+const alemMar = await pagina.evaluate(() => {
+  const { sim, render } = window.__terrario;
+  const mae = sim.tribos.reduce((m, t) => (!m || t.pop > m.pop ? t : m), null);
+  if (!mae) return null;
+  const m = sim.mundo;
+  // canal vertical a dez tiles da aldeia, de cima a baixo
+  const cx = Math.round(mae.cx) + 10;
+  for (let y = 0; y < m.n; y++) sim.pintar(cx, y, 1, { tipo: 'terreno', terreno: 0 });
+  render.aplicarSujos();
+  const ilhas = (m.rotularIlhas(), m.quantasIlhas);
+  mae.jangadas = 1;
+  mae.era = Math.max(mae.era, 2);
+  mae.celeiro += 400;
+  for (let k = 0; k < 10; k++) {
+    sim.soltar('humano', mae.cx + (sim.sorte() - .5) * 6, mae.cy + (sim.sorte() - .5) * 6);
+    const h = sim.humanos[sim.humanos.length - 1];
+    h.tribo = mae; mae.membros.push(h); h.idade = 22;
+  }
+  const alvo = sim.escolherAlemMar(mae);
+  if (!alvo) return { ilhas, alvo: null };
+  mae.colonia = { x: alvo.x, y: alvo.y, vagas: 6, ate: sim.ano + 40 };
+  const minhaIlha = m.ilhaDe(Math.round(mae.cx), Math.round(mae.cy));
+  let naAgua = 0, jangadasEmCena = 0, colonias = 0, colonos = 0;
+  for (let k = 0; k < 900; k++) {
+    sim.tique(1 / 12);
+    if (k % 6 === 0) {
+      render.atualizarSeres(sim, 1 / 60);
+      jangadasEmCena = Math.max(jangadasEmCena, render.figuras.get('jangada')?.n || 0);
+      for (const h of sim.humanos) if (h.viva && h.embarcado && m.ehAgua(Math.round(h.x), Math.round(h.y))) naAgua++;
+    }
+    colonias = sim.coloniasFundadas; colonos = sim.colonos;
+    if (colonias > 0) break;
+  }
+  const filha = sim.tribos.find((t) => t.mae === mae.id && m.ilhaDe(Math.round(t.cx), Math.round(t.cy)) !== minhaIlha);
+  // A outra ilha pode já ter gente: aí o colono que desembarca ao lado de uma
+  // aldeia entra nela em vez de fundar outra — chegou e foi acolhido, que é
+  // travessia bem-sucedida do mesmo jeito. Conta quem está do outro lado numa
+  // tribo de lá.
+  const acolhidos = sim.humanos.filter((h) => h.viva && h.tribo && h.tribo !== mae
+    && m.ilhaDe(Math.round(h.x), Math.round(h.y)) !== minhaIlha
+    && m.ilhaDe(Math.round(h.tribo.cx), Math.round(h.tribo.cy)) !== minhaIlha).length;
+  // para ler o que deu errado quando não nasce colônia: onde cada um parou
+  const gente = sim.humanos.filter((h) => h.origem === mae.id || h.embarcado || (h.ilhaDeOrigem !== undefined))
+    .map((h) => `${h.viva ? '' : '†'}${h.embarcado ? 'J' : ''}(${Math.round(h.x)},${Math.round(h.y)})i${m.ilhaDe(Math.round(h.x), Math.round(h.y))}${h.tribo ? '' : '·solto'}`);
+  return { ilhas, alvo, naAgua, jangadasEmCena, colonos, colonias, acolhidos, vagas: mae.colonia ? mae.colonia.vagas : -1,
+           gente: gente.slice(0, 8).join(' '), minhaIlha, alvoIlha: m.ilhaDe(alvo.x, alvo.y),
+           filha: filha ? { nome: filha.nome, era: filha.era, relacao: filha.relacaoCom(mae), pop: filha.pop } : null,
+           alvoNaOutraIlha: m.ilhaDe(alvo.x, alvo.y) !== minhaIlha };
+});
+checar('o canal parte o mapa em ilhas', alemMar && alemMar.ilhas >= 2, alemMar ? `${alemMar.ilhas} ilhas` : 'sem tribo');
+checar('a tribo escolhe terra na OUTRA ilha', alemMar && alemMar.alvo && alemMar.alvoNaOutraIlha,
+       alemMar && alemMar.alvo ? `(${alemMar.alvo.x}, ${alemMar.alvo.y})` : 'não achou');
+checar('alguém atravessa a água de jangada', alemMar && alemMar.naAgua > 0, alemMar ? `${alemMar.naAgua} amostras na água` : '');
+checar('a jangada aparece na água', alemMar && alemMar.jangadasEmCena > 0, alemMar ? `${alemMar.jangadasEmCena} em cena` : '');
+checar('do outro lado nasce uma colônia, filha e aliada — ou os colonos são acolhidos',
+       alemMar && ((alemMar.filha && alemMar.filha.relacao === 'aliada') || (alemMar.colonos >= 3 && alemMar.acolhidos >= 3)),
+       alemMar && alemMar.filha ? `${alemMar.filha.nome}: ${alemMar.filha.pop} pessoas, era ${alemMar.filha.era}, ${alemMar.filha.relacao}`
+       : alemMar && alemMar.acolhidos >= 3 ? `${alemMar.colonos} desembarcaram; ${alemMar.acolhidos} vivem em tribo da outra ilha`
+                                : `${alemMar ? alemMar.colonos : 0} colonos desembarcaram, ${alemMar ? alemMar.colonias : 0} colônias; `
+                                  + `vagas ${alemMar?.vagas}, de ilha ${alemMar?.minhaIlha} para ${alemMar?.alvoIlha}, alvo (${alemMar?.alvo?.x},${alemMar?.alvo?.y}); gente: ${alemMar?.gente}`);
 
 // --- novo mundo não quebra nada ---
 // Dois toques, e os dois de dentro da página: o mundo aqui tem anos por

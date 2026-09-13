@@ -6,7 +6,7 @@
 // é essa a peça que precisa ficar de pé, não a lista de tarefas.
 
 import { T, TERRENOS } from './mundo.js';
-import { rende, MADEIRA_CERCA } from './tribos.js';
+import { rende, MADEIRA_CERCA, MADEIRA_JANGADA } from './tribos.js';
 
 /** Um ano de mundo em segundos de simulação. Toda taxa abaixo é por ano. */
 export const ANO = 4;
@@ -101,6 +101,8 @@ const OBRA = {
   lenhar:    { dur: 0.34 },
   construir: { dur: 0.6 },
   lutar:     { dur: 0.3 },
+  construirJangada: { dur: 0.9 },
+  colonizar: { dur: 0.1 },
 };
 
 export class Humano {
@@ -121,11 +123,16 @@ export class Humano {
     this.descanso = 0;             // anos até poder gerar outro filho
     this.conduzindo = null;        // bicho que está sendo tocado para o curral
     this.fugindo = 0;              // anos de correria; o render lê isto
+    this.embarcado = false;        // na jangada: atravessa água
+    this.origem = null;            // id da tribo que mandou esta pessoa colonizar
     this.viva = true;
     this.causa = null;
   }
 
   get adulto() { return this.idade >= MAIORIDADE; }
+
+  /** Por onde esta pessoa passa. Água só de jangada. */
+  passa(mundo, x, y) { return mundo.andavel(x, y) || (this.embarcado && mundo.ehAgua(x, y)); }
 
   morrer(causa) { this.viva = false; this.causa = causa; this.largarBicho(); }
 
@@ -140,7 +147,10 @@ export class Humano {
   atualizar(dt, sim) {
     const anos = dt / ANO;
     this.idade += anos;
-    this.fome += anos * FOME_POR_ANO * (this.adulto ? 1 : 0.6);
+    // Na jangada come do que trouxe: a fome fica onde está. Sem isto os seis da
+    // expedição morriam de fome no meio do mar numa travessia de cinco anos, e
+    // o teste achava seis pessoas na água e nenhuma do outro lado.
+    if (!this.embarcado) this.fome += anos * FOME_POR_ANO * (this.adulto ? 1 : 0.6);
     this.descanso = Math.max(0, this.descanso - anos);
     this.fugindo = Math.max(0, this.fugindo - anos);
 
@@ -151,7 +161,33 @@ export class Humano {
     // sem isto a pessoa ficava presa para sempre num tile que `mover` recusa —
     // viva, sem tarefa possível, contando como população para todo o resto.
     // Gente nada melhor que boi, mas não indefinidamente.
-    if (sim.mundo.ehAgua(Math.round(this.x), Math.round(this.y))) {
+    // Chegou a outra ilha? Então chegou. O alvo era um tile exato, e quem
+    // travava numa pedra a três casas dele desistia, desembarcava como membro
+    // da tribo de origem e ficava ali, do outro lado, sem fundar nada: novecentos
+    // tiques de teste, seis pessoas na água, zero colonos.
+    if (this.embarcado && this.origem !== null) {
+      const xi = Math.round(this.x), yi = Math.round(this.y);
+      if (sim.mundo.andavel(xi, yi)) {
+        // Marca UMA vez. Marcando a cada tique, o `progresso` voltava a zero
+        // antes de a obra de um décimo de ano completar: os seis ficavam vivos,
+        // na ilha certa, no mesmo tile, embarcados para sempre.
+        if (sim.mundo.ilhaDe(xi, yi) !== this.ilhaDeOrigem) {
+          if (this.obra !== 'colonizar') {
+            this.alvo = null;
+            this.obra = 'colonizar';
+            this.progresso = 0;
+          }
+        } else if (!this.alvo && !this.obra) {
+          // desistiu no meio do mar e a margem mais perto era a de casa: desce
+          // e volta a ser gente da aldeia, em vez de andar de jangada no seco
+          this.embarcado = false;
+          this.origem = null;
+        }
+      }
+    }
+
+    // De jangada não se nada: a água é caminho, não armadilha.
+    if (!this.embarcado && sim.mundo.ehAgua(Math.round(this.x), Math.round(this.y))) {
       this.nadando = (this.nadando || 0) + anos;
       if (this.nadando > 0.9) return this.morrer('afogado');
       this.alvo = null; this.obra = null;
@@ -167,7 +203,7 @@ export class Humano {
     // agente parado, então numa viagem longa dava para morrer de fome a caminho
     // do destino com o celeiro cheio em casa — foi o que a exploração de raio 26
     // provocou assim que entrou.
-    if (this.fome > 0.8 && (this.alvo || this.obra) && this.tribo && this.tribo.celeiro >= 1) {
+    if (this.fome > 0.8 && !this.embarcado && (this.alvo || this.obra) && this.tribo && this.tribo.celeiro >= 1) {
       this.alvo = null;
       this.obra = null;
       // quem larga tudo para comer larga o bicho também, senão ele fica preso a
@@ -243,6 +279,24 @@ export class Humano {
       }
       t.alvoDeSaque = null;
     }
+    // 1b3. Além-mar. A tribo apertada e com jangada escolheu terra do outro
+    //      lado (`colonia`); quem é adulto e não está fugindo embarca. Fica
+    //      alto na fila porque é decisão da tribo, não vontade de um.
+    if (this.adulto && t.colonia && t.colonia.vagas > 0 && this.fugindo <= 0 && !this.conduzindo
+        && sim.sorte() < 0.5) {
+      t.colonia.vagas--;
+      this.largarBicho();
+      this.embarcado = true;
+      this.origem = t.id;
+      this.ilhaDeOrigem = sim.mundo.ilhaDe(Math.round(this.x), Math.round(this.y));
+      // leva mantimento: a travessia dura anos de simulação, e sem isto o
+      // colono largava a jangada no meio do mar para voltar a comer em casa
+      this.fome = 0;
+      t.celeiro = Math.max(0, t.celeiro - 4);
+      this.alvo = { x: t.colonia.x, y: t.colonia.y, obra: 'colonizar' };
+      return;
+    }
+
 
     // 1c. Alarme dado por outro. O guarda vai mesmo sem ter visto o bicho: é o
     //     que faz três guardas chegarem juntos em vez de um de cada vez.
@@ -376,6 +430,17 @@ export class Humano {
         const s = sim.sitioDeOca(t);
         if (s) { this.alvo = { x: s.x, y: s.y, obra: 'construir' }; return; }
       }
+      // Jangada: quem tem costa, ofício de água ou de madeira, e lenha de sobra
+      // depois do telhado. Uma só — é o que muda "ilha" de parede em caminho.
+      // Só se há outra ilha: em mundo de ilha única a jangada era catorze de
+      // lenha jogada na água, e custava três falhas no teste de mundo.
+      if (t.temCosta && t.era >= 2 && t.jangadas < 1 && sim.haDestinoAlemMar(t)
+          && (this.dom === 'pescador' || this.dom === 'construtor')
+          && t.madeira >= MADEIRA_JANGADA + t.custoDaOca(MADEIRA_OCA)
+          && sim.sorte() < 0.3 * rende(this, 'construir') && this.acharMargem(sim)) {
+        this.alvo.obra = 'construirJangada';
+        return;
+      }
       if (t.madeira < MADEIRA_OCA * 2 && sim.sorte() < 0.3 && this.acharMata(sim)) {
         this.alvo.obra = 'lenhar';
         return;
@@ -393,6 +458,9 @@ export class Humano {
   }
 
   acharFertil(sim) { return this.acharTile(sim, (i) => sim.mundo.terreno[i] === T.FERTIL, true); }
+  acharMargem(sim) {
+    return this.acharTile(sim, (i) => sim.mundo.naMargem(i % sim.mundo.n, (i / sim.mundo.n) | 0), true, RAIO_EXPLORAR);
+  }
   /** Onde cavar. Chão úmido, dentro de casa, longe de outro poço — poço em cima
    *  de poço é o mesmo lençol, e não sustenta gente nenhuma a mais. */
   acharSitioDePoco(sim) {
@@ -403,7 +471,29 @@ export class Humano {
       return !t.fontes.some((f) => Math.hypot(f.x - x, f.y - y) < 7);
     }, true, RAIO_EXPLORAR);
   }
-  acharPastagem(sim) { return this.acharTile(sim, (i) => sim.mundo.terreno[i] === T.GRAMA, true); }
+  /**
+   * O pasto é um distrito, não o quintal. Cercado no tile de grama mais perto
+   * de quem estava com a lenha na mão, o curral nascia colado nas ocas e lia
+   * como "a cerca da tribo" — o jogador viu bicho pastando no meio da aldeia.
+   * Agora a grama tem que estar na borda do domínio, a pelo menos 60% do raio
+   * do centro e a duas casas de qualquer oca: o curral cresce para fora, e a
+   * aldeia fica com o miolo. Sem grama na borda, vale a regra antiga.
+   */
+  acharPastagem(sim) {
+    const t = this.tribo;
+    const grama = (i) => sim.mundo.terreno[i] === T.GRAMA;
+    if (t) {
+      const r = t.raio, minimo = (r * 0.6) ** 2;
+      const naBorda = (i) => {
+        if (!grama(i)) return false;
+        const x = i % sim.mundo.n, y = (i / sim.mundo.n) | 0;
+        if ((x - t.cx) ** 2 + (y - t.cy) ** 2 < minimo) return false;
+        return !t.ocas.some((o) => Math.abs(o.x - x) < 3 && Math.abs(o.y - y) < 3);
+      };
+      if (this.acharTile(sim, naBorda, true, RAIO_BUSCA + 6)) return true;
+    }
+    return this.acharTile(sim, grama, true);
+  }
   acharVeio(sim) { return this.acharTile(sim, (i) => sim.mundo.minerio[i] > 0, true); }
   /**
    * Lenha vale procurar fora de casa: mata costuma ficar na borda do domínio.
@@ -547,6 +637,17 @@ export class Humano {
   }
 
   vagar(sim) {
+    // Quem está na jangada não vaga: desistiu do destino no meio da água, vai
+    // para a margem mais perto; chegou em terra, desce.
+    if (this.embarcado) {
+      if (sim.mundo.ehAgua(Math.round(this.x), Math.round(this.y))) {
+        // sem obra: se a margem for a de casa, quem decide o que fazer ao
+        // pisar em terra é a checagem de ilha no `atualizar`, não este alvo
+        const m = this.margemMaisPerto(sim);
+        if (m) { this.alvo = { x: m.x, y: m.y, obra: null }; return; }
+      }
+      this.embarcado = false;
+    }
     const t = this.tribo;
     const raio = t ? t.raio * 0.8 : 6;
     const cx = t ? t.cx : this.x, cy = t ? t.cy : this.y;
@@ -571,12 +672,14 @@ export class Humano {
       this.travado = 0;
       return;
     }
-    const passo = VEL * dt;
+    const mundo = sim.mundo;
+    const naAgua = mundo.ehAgua(Math.round(this.x), Math.round(this.y));
+    const passo = VEL * dt * (naAgua ? 0.7 : 1);   // jangada é mais lenta que perna
     let nx = this.x + (dx / d) * passo, ny = this.y + (dy / d) * passo;
-    if (!sim.mundo.andavel(Math.round(nx), Math.round(ny))) {
+    if (!this.passa(mundo, Math.round(nx), Math.round(ny))) {
       // contorna: tenta só um eixo antes de desistir do alvo
-      if (sim.mundo.andavel(Math.round(this.x + (dx / d) * passo), Math.round(this.y))) ny = this.y;
-      else if (sim.mundo.andavel(Math.round(this.x), Math.round(this.y + (dy / d) * passo))) nx = this.x;
+      if (this.passa(mundo, Math.round(this.x + (dx / d) * passo), Math.round(this.y))) ny = this.y;
+      else if (this.passa(mundo, Math.round(this.x), Math.round(this.y + (dy / d) * passo))) nx = this.x;
       else if (++this.travado > 40) { this.alvo = null; this.travado = 0; return; }
       else return;
     }

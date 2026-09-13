@@ -73,6 +73,8 @@ const AGUA_DO_POCO = 15;
 const RAIO_CURRAL = 7;
 /** Lenha por rodada de cerca. A primeira sai mais barata — cerca de galho. */
 export const MADEIRA_CERCA = 6;
+/** Lenha de uma jangada. Mais que uma oca: é tronco grosso, amarrado. */
+export const MADEIRA_JANGADA = 14;
 
 let proximoId = 0;
 
@@ -111,6 +113,8 @@ export class Tribo {
     this.plantios = 0;             // roças de pé dentro do território
     this.madeira = 0;              // lenha estocada, para levantar abrigo
     this.comLider = false;         // tem alguém com dom de liderança
+    this.jangadas = 0;             // com uma, a tribo atravessa água
+    this.colonia = null;           // {x, y, vagas, ate} — terra além-mar para onde mandou gente
     this.mae = null;               // id da tribo de que esta se separou
     this.nascidaEm = 0;            // ano da cisão
     this.nacao = null;             // {id, nome, cor, membros:Set} — a federação
@@ -352,6 +356,13 @@ export class Tribo {
 
   relacaoCom(outra) { return this.relacoes.get(outra.id) || 'neutro'; }
 
+  get navega() { return this.jangadas > 0; }
+
+  /** Sem teto ou perto do teto da água: é quando a tribo pensa em ir embora. */
+  get apertada() {
+    return !this.temVagaEmCasa || (this.aguaPropria > 0 && this.pop >= this.aguaPara * 0.85);
+  }
+
   /** Mãe, filha ou irmã. É o que o `encontro` consulta antes de brigar por terra. */
   ehParente(outra) {
     return this.mae === outra.id || outra.mae === this.id
@@ -543,6 +554,9 @@ export function encontrarSitioDeOca(mundo, tribo, sorte) {
     const i = mundo.idx(x, y);
     if (mundo.terreno[i] === T.PLANTACAO || mundo.terreno[i] === T.AGUA) continue;
     if (tribo.ocas.some((o) => Math.abs(o.x - x) < 2 && Math.abs(o.y - y) < 2)) continue;
+    // a outra metade do distrito: oca não nasce dentro do pasto, senão o curral
+    // que cresce engole a aldeia e a separação some em vinte anos
+    if (tribo.curral && tribo.dentroDoCurral(x, y)) continue;
     return { x, y };
   }
   return null;
