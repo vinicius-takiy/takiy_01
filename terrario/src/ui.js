@@ -81,6 +81,20 @@ export class Interface {
       grupos.appendChild(b);
     }
 
+    // Dica de rolagem: a fileira de pincéis é mais larga que a tela em telefone
+    // deitado, e sem isto nada avisa que há mais. As bordas esfumadas ligam e
+    // desligam conforme sobra pincel de cada lado.
+    const marcarRolagem = () => {
+      const resto = grupos.scrollWidth - grupos.clientWidth - grupos.scrollLeft;
+      grupos.classList.toggle('temMais', resto > 4);
+      grupos.classList.toggle('temAntes', grupos.scrollLeft > 4);
+    };
+    grupos.addEventListener('scroll', marcarRolagem, { passive: true });
+    addEventListener('resize', marcarRolagem);
+    addEventListener('orientationchange', () => setTimeout(marcarRolagem, 160));
+    marcarRolagem();
+    this.marcarRolagem = marcarRolagem;
+
     el('raio').oninput = (e) => {
       this.raio = Number(e.target.value);
       el('raioOut').textContent = String(this.raio);

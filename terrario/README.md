@@ -490,7 +490,35 @@ meio da leitura, e o segundo toque rearmava em vez de agir — pior do que não
 perguntar. Mundo já guardado é descartado de primeira, sem cerimônia: um jogo que
 pergunta duas vezes por nada ensina a pessoa a tocar duas vezes sem ler.
 
-## A cerca segura
+## Cabe no telefone
+
+O jogo se diz de telefone desde o primeiro dia, mas ninguém tinha medido onde os
+controles caem. Medido agora, em seis telas reais, o retrato era feio e o
+paisagem era pior:
+
+- A paleta comia **30% da altura** num iPhone SE deitado. Com a barra de estado e
+  a crônica por cima, sobrava uma faixa fina de mundo no meio — num jogo que se
+  joga olhando, esse é o defeito principal.
+- Sete dos dezoito pincéis ficavam fora da tela, e nada dizia que a fileira
+  rolava: o último aparecia cortado no canto e lia como defeito.
+- Em pé, o botão **Mundos** começava em x=370 numa tela de 375 — o painel de
+  guardar, inalcançável. Justo o painel que existe para não perder o mundo.
+
+O que mudou: uma faixa compacta para tela baixa (todo iPhone deitado cai nela)
+que encolhe barra de estado, crônica, pincéis e botões juntos — paleta de 111px
+para 84, ou 22% em vez de 30%. Numa tela de 375 de altura o rótulo do pincel sai
+e fica o ícone; quem diz o nome é o painel de ferramenta ativa, que reaparece
+quando a paleta encolhe, porque encolhida ele é a única coisa que diz qual pincel
+está na mão. Em pé, onde sobra altura e falta largura, a fileira **quebra em duas
+linhas** em vez de rolar: os dezoito ficam à vista de uma vez. E a borda esfumada
+avisa, só do lado onde ainda há pincel, que a fileira continua.
+
+Dezoito verificações novas varrem seis tamanhos (SE, mini, 15 e Pro Max, deitados
+e em pé) e afirmam três coisas em cada: todo controle cabe na tela, nenhum painel
+cai em cima do outro, e a paleta não passa de 28% da altura deitado (34% em pé).
+É a verificação que faltava — o botão fora da tela não quebrava teste nenhum.
+
+## A cerca segura## A cerca segura
 
 Antes o curral era só uma preferência de destino: bicho assustado atravessava o
 mourão como se não houvesse nada ali. Agora o gado **não passa**, nem em pânico

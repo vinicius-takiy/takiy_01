@@ -58,7 +58,11 @@
     color:var(--dim);border-bottom:1px solid var(--linha);display:flex;justify-content:space-between;align-items:center}
   #cronica h2 span::before{content:"";display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--ouro);box-shadow:0 0 9px var(--ouro);margin:0 7px 1px 0}
   #cronica h2 button{background:none;border:none;color:var(--tinta);opacity:.7;font:inherit;cursor:pointer;padding:0 2px}
-  #linhas{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:4px 0}
+  /* Rolada para o fim, a lista corta a linha de cima ao meio e aquilo lê como
+     defeito de recorte. Esfumaçada, lê como "tem mais acima", que é o que é. */
+  #linhas{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:4px 0;
+    mask-image:linear-gradient(180deg,transparent,#000 14px);
+    -webkit-mask-image:linear-gradient(180deg,transparent,#000 14px)}
   #linhas p{margin:0;padding:4px 11px;font-size:11.5px;line-height:1.35;display:flex;gap:7px}
   #linhas i{font-style:normal;opacity:.45;font-variant-numeric:tabular-nums;flex:none;min-width:34px}
   #linhas em{font-style:normal;flex:1}
@@ -70,8 +74,18 @@
   /* ---- paleta ---- */
   #paleta{margin-top:auto;padding:0 calc(9px + var(--sar)) calc(9px + var(--sab)) calc(9px + var(--sal));filter:drop-shadow(0 12px 24px rgba(0,0,0,.2))}
   .paleta-painel{overflow:hidden}
+  /* A fileira de pincéis rola, e num telefone deitado metade deles fica fora da
+     tela sem nada dizendo isso: o último aparecia cortado no canto e parecia
+     defeito, não continuação. A borda esfumada é a dica — e só aparece do lado
+     onde ainda há pincel, senão vira enfeite que mente. */
   #grupos{display:flex;gap:5px;padding:6px 7px 5px;overflow-x:auto;-webkit-overflow-scrolling:touch;align-items:stretch;scrollbar-width:none}
   #grupos::-webkit-scrollbar{display:none}
+  #grupos.temMais{mask-image:linear-gradient(90deg,#000 calc(100% - 30px),transparent);
+    -webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 30px),transparent)}
+  #grupos.temAntes{mask-image:linear-gradient(90deg,transparent,#000 30px);
+    -webkit-mask-image:linear-gradient(90deg,transparent,#000 30px)}
+  #grupos.temAntes.temMais{mask-image:linear-gradient(90deg,transparent,#000 30px,#000 calc(100% - 30px),transparent);
+    -webkit-mask-image:linear-gradient(90deg,transparent,#000 30px,#000 calc(100% - 30px),transparent)}
   .pincel{flex:none;pointer-events:auto;background:transparent;border:1px solid transparent;
     border-radius:9px;color:var(--tinta);padding:5px 6px 4px;min-width:54px;cursor:pointer;
     display:flex;flex-direction:column;align-items:center;gap:3px;font:inherit;transition:background .18s,border-color .18s,transform .18s}
@@ -224,6 +238,7 @@
     .globo::before{left:7px;right:7px;bottom:6px;height:11px}.globo::after{left:17px;bottom:13px}
     .tela h1{font-size:29px}.chamada{margin-bottom:9px}.passos{margin-bottom:8px}.tela .dica{margin-bottom:9px}
   }
+
   @media(max-width:680px){
     #estado div{min-width:50px;padding-left:8px;padding-right:8px}#estado div:nth-child(5){display:none}
     #cronica{width:min(260px,55vw)}#ferramenta{display:none}.pincel{min-width:51px}
@@ -232,8 +247,69 @@
     #estado{right:calc(10px + var(--sar))}#estado div{flex:1}#tempo{top:calc(67px + var(--sat))}
     #fita{top:calc(71px + var(--sat));max-width:calc(100vw - 220px)}
     #cronica{top:calc(119px + var(--sat));left:calc(10px + var(--sal));right:auto;width:min(260px,calc(100vw - 20px));max-height:24vh}
-    #paleta{padding-left:6px;padding-right:6px}.pincel{min-width:57px}#ajustes{gap:6px}#ajustes label{display:none}
+    /* Em pé sobra altura e falta largura: os dezoito pincéis pediam 722px de
+       rolagem numa tela de 375, ou seja, dois terços deles escondidos. Aqui a
+       fileira quebra em linhas — custa altura, que em pé é o que há de sobra. */
+    #paleta{padding-left:6px;padding-right:6px}
+    #grupos{flex-wrap:wrap;justify-content:center;overflow-x:visible;gap:3px;padding:5px 5px 4px;
+      mask-image:none;-webkit-mask-image:none}
+    /* Sem rótulo os dezoito cabem em duas fileiras em vez de três: 222px de
+       paleta viram 130 numa tela de 667, e continuam todos à vista. Quem diz o
+       nome é o painel de ferramenta ativa, logo abaixo. */
+    .pincel{min-width:36px;padding:4px 3px 3px;gap:2px}
+    .pincel .rot{display:none}
+    .pincel .amostra{width:25px;height:25px}
+    .divisor{display:none}
+    #ferramenta{display:flex;min-width:0}#ferramenta span{display:none}
+    /* Em pé a linha de baixo não cabe numa linha só: sem quebrar, "Mundos"
+       começava em x=370 numa tela de 375 e o painel de guardar ficava
+       inalcançável — justo o painel que existe para não perder o mundo. */
+    #ajustes{flex-wrap:wrap;row-gap:5px}
+    #ajustes input{min-width:60px}
+    #ajustes{gap:6px}#ajustes label{display:none}
     .abertura-card{padding:24px 18px}.passos{grid-template-columns:1fr}.passos span{display:flex;gap:8px}.passos b{display:inline}
+  }
+  /* ---- faixa compacta: telefone DEITADO, que é o alvo declarado do jogo ----
+     Todo iPhone deitado cai aqui (SE 375, 15 393, Pro Max 430). Medido antes de
+     mexer: a paleta comia 111px de uma tela de 375 — 30% — e com a barra de
+     estado e a crônica por cima sobrava uma faixa fina de mundo no meio. Num
+     jogo que se joga olhando, isso é o defeito principal, não um detalhe de
+     acabamento. Aqui tudo encolhe junto: nada some, tudo cabe. */
+  @media(max-height:440px){
+    #estado div{padding:5px 9px 4px;min-width:46px}
+    #estado b{font-size:14px}#estado span{font-size:7px;letter-spacing:.12em}
+    #tempo button{min-width:37px;padding:7px 9px;font-size:11px}
+    #fita{top:calc(60px + var(--sat))}
+    #fita button{padding:3px 8px;font-size:9.5px}
+    #cronica{top:calc(60px + var(--sat));width:min(272px,40vw);max-height:27vh}
+    #cronica h2{padding:6px 10px;font-size:8.5px}
+    #linhas p{padding:3px 10px;font-size:10.5px}
+    #grupos{gap:4px;padding:5px 6px 4px}
+    .pincel{min-width:46px;padding:4px 5px 3px;gap:2px}
+    .pincel .amostra{width:23px;height:23px;border-radius:7px}
+    .pincel .amostra svg{width:14px;height:14px}
+    .pincel .rot{font-size:7.5px}
+    /* "Ferramenta ativa" repete o que o pincel aceso já diz, e come 145px da
+       única linha onde moram os botões — mas só enquanto os pincéis estão à
+       vista. Com a paleta encolhida ele é a ÚNICA coisa que diz qual pincel
+       está na mão, e é para isso que o encolher existe. */
+    #ferramenta{display:none}
+    #paleta.fechada #ferramenta{display:flex;min-width:0}
+    #paleta.fechada #ferramenta span{display:none}
+    #ajustes{padding:4px 8px 5px;gap:6px}
+    #ajustes button{padding:5px 9px;font-size:9.5px}
+    #recado{padding:5px 10px;font-size:9.5px}
+    #paleta{padding-bottom:calc(6px + var(--sab))}
+  }
+  /* SE e mini deitados: 375 de altura. O rótulo do pincel sai — o ícone e a cor
+     já identificam, e o painel de ferramenta ativa diz o nome de quem está
+     selecionado. Vale os 11px que sobram para o mundo. */
+  @media(max-height:385px){
+    .pincel{min-width:39px;padding:4px 4px 3px}
+    .pincel .rot{display:none}
+    #ferramenta{display:flex;min-width:0}
+    #ferramenta span{display:none}
+    #ferramenta strong{font-size:10px}
   }
   @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}}
 </style>

@@ -815,18 +815,58 @@ const novo = await estado();
 checar('novo mundo recomeça do zero', novo.humanos === 0 && novo.ano < 5, `ano ${novo.ano}, ${novo.humanos} pessoas`);
 await foto('novo-mundo');
 
-// --- retrato: o jogo se apresenta como mobile e precisa funcionar nas duas orientações ---
+// --- responsividade: o jogo é de telefone, e telefone tem seis tamanhos ---
+// A verificação que faltava. O botão "Mundos" chegou a começar em x=370 numa
+// tela de 375 — o painel de guardar, inalcançável, justo o que existe para não
+// perder o mundo — e nada acusou, porque ninguém media onde os controles caem.
+// Aqui se afirma o mínimo de cada tela: tudo dentro, nada em cima de nada, e a
+// paleta sem comer o mundo (media 30% de uma tela de 375 antes desta rodada).
+const TELAS = [
+  ['SE deitado',    667, 375], ['mini deitado', 812, 375],
+  ['15 deitado',    852, 393], ['Max deitado',  932, 430],
+  ['SE em pé',      375, 667], ['15 em pé',     393, 852],
+];
+const medir = () => pagina.evaluate(() => {
+  const cx = (e) => { const r = e.getBoundingClientRect();
+    return { l: r.left, r: r.right, t: r.top, b: r.bottom, h: r.height }; };
+  const fora = [];
+  // Todo controle que se toca: se não cabe na tela, não existe.
+  for (const e of document.querySelectorAll('#tempo button, #ajustes button, #estado, #paleta, .dobrar')) {
+    const c = cx(e);
+    if (c.l < -1 || c.r > innerWidth + 1 || c.t < -1 || c.b > innerHeight + 1) {
+      fora.push(e.id || e.textContent.trim().slice(0, 12));
+    }
+  }
+  const cai = {};
+  for (const id of ['estado', 'tempo', 'fita', 'cronica', 'paleta']) {
+    const e = document.getElementById(id);
+    if (e && e.offsetParent !== null) cai[id] = cx(e);
+  }
+  const bate = (a, b) => a && b && a.l < b.r - 1 && b.l < a.r - 1 && a.t < b.b - 1 && b.t < a.b - 1;
+  const colide = [];
+  for (const [x, y] of [['estado', 'tempo'], ['estado', 'fita'], ['estado', 'cronica'],
+                        ['tempo', 'cronica'], ['fita', 'cronica'], ['fita', 'paleta'],
+                        ['cronica', 'paleta']]) {
+    if (bate(cai[x], cai[y])) colide.push(`${x}×${y}`);
+  }
+  return { fora, colide, paleta: cai.paleta.h / innerHeight,
+           rolaDeitado: document.documentElement.scrollWidth - innerWidth };
+});
+for (const [nome, l, a] of TELAS) {
+  await pagina.setViewportSize({ width: l, height: a });
+  await pagina.waitForTimeout(260);
+  const m = await medir();
+  checar(`${nome}: todo controle cabe na tela`, m.fora.length === 0 && m.rolaDeitado <= 0,
+         m.fora.length ? `fora: ${m.fora.join(', ')}` : `${l}×${a}`);
+  checar(`${nome}: nenhum painel em cima do outro`, m.colide.length === 0,
+         m.colide.join(', ') || `${l}×${a}`);
+  // Deitado é o formato apertado: em pé sobra altura e a paleta pode crescer.
+  const teto = a < l ? 0.28 : 0.34;
+  checar(`${nome}: a paleta deixa o mundo aparecer`, m.paleta <= teto,
+         `paleta com ${(m.paleta * 100).toFixed(0)}% da altura, teto ${(teto * 100) | 0}%`);
+}
 await pagina.setViewportSize({ width: 390, height: 844 });
 await pagina.waitForTimeout(250);
-const retratoOk = await pagina.evaluate(() => {
-  const estado = document.getElementById('estado').getBoundingClientRect();
-  const tempo = document.getElementById('tempo').getBoundingClientRect();
-  const cronica = document.getElementById('cronica').getBoundingClientRect();
-  const paleta = document.getElementById('paleta').getBoundingClientRect();
-  return estado.left >= 0 && estado.right <= innerWidth && paleta.left >= 0 && paleta.right <= innerWidth
-    && estado.bottom <= tempo.top && tempo.bottom <= cronica.top;
-});
-checar('a interface se adapta ao modo retrato', retratoOk);
 await foto('retrato');
 
 checar('nenhum erro no console', problemas.length === 0, problemas.slice(0, 3).join(' | '));
