@@ -495,17 +495,24 @@ const gestos = await pagina.evaluate(async () => {
   // Mede pela matriz. Amostra em quatro instantes e fica com a maior diferença:
   // as duas poses oscilam no tempo e num instante qualquer elas podem coincidir
   // — foi assim que "arar × enfrentar" reprovou com 0,05 num gesto que difere.
+  // Lê a matriz DESTA pessoa, não a instância zero. A instância zero é o
+  // primeiro humano daquele ofício em `sim.humanos`, e `membros[0]` da tribo
+  // só coincidia com ele por sorte — bastava a cisão levar o fundador para
+  // outra tribo e o teste media um estranho parado: "diferença 0,00".
+  const DOMS = { lavrador: 1, cacador: 1, construtor: 1, minerador: 1,
+                 lider: 1, guarda: 1, pastor: 1, pescador: 1, artesao: 1 };
+  const domDe = (p) => (p.dom in DOMS ? p.dom : 'lavrador');
   const ler = (obra) => {
     const h = gente[0];
     h.obra = obra;
     const amostras = [];
     for (let q = 0; q < 4; q++) {
       render.atualizarSeres(sim, 0.11);
-      const dom = h.dom in { lavrador: 1, cacador: 1, construtor: 1, minerador: 1,
-                             lider: 1, guarda: 1, pastor: 1, pescador: 1 } ? h.dom : 'lavrador';
+      const dom = domDe(h);
+      const indice = sim.humanos.filter((p) => p.viva && domDe(p) === dom).indexOf(h);
       const fig = render.figuras.get(`humano:${dom}`);
       const malha = fig.tribo || fig.natural;
-      amostras.push(Array.from(malha.instanceMatrix.array.slice(0, 12)));
+      amostras.push(Array.from(malha.instanceMatrix.array.slice(indice * 16, indice * 16 + 12)));
     }
     return amostras;
   };
@@ -777,8 +784,9 @@ const nacao = await pagina.evaluate(() => {
   if (!mae) return null;
   mae.era = Math.max(mae.era, 2);
   mae.celeiro += 600;
-  // gente bastante para rachar; a cisão é 20% por revisão acima de 34
-  for (let k = 0; k < 44; k++) {
+  // Gente bastante para rachar: a cisão é 20% por revisão acima de 34 — ou de
+  // 51 com líder, e numa tribo pequena 44 a mais não chegava lá ("não rachou").
+  for (let k = 0; k < 64; k++) {
     sim.soltar('humano', mae.cx + (sim.sorte() - .5) * 8, mae.cy + (sim.sorte() - .5) * 8);
     const h = sim.humanos[sim.humanos.length - 1];
     h.tribo = mae; mae.membros.push(h); h.idade = 20;
