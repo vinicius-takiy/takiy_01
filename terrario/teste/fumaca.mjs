@@ -735,6 +735,53 @@ checar('o muro sobe e aparece em cena', eras && eras.murosEmCena === eras.muros 
 checar('o poço aparece em cena', eras && eras.pocosEmCena > 0);
 checar('o muro define um dentro e um fora', eras && eras.feraFora);
 
+// --- nação: a cisão que soma em vez de dividir ---
+// Antes a filha nascia neutra e em era zero, a seis tiles da mãe: guerra na
+// certa e 42% da população de volta ao Bando a cada racha. É o que travava a
+// civilização em aldeia. Aqui se força um racha e se olha o que a filha leva.
+const nacao = await pagina.evaluate(() => {
+  const { sim } = window.__terrario;
+  const mae = sim.tribos[0];
+  if (!mae) return null;
+  mae.era = Math.max(mae.era, 2);
+  mae.celeiro += 600;
+  // gente bastante para rachar; a cisão é 20% por revisão acima de 34
+  for (let k = 0; k < 44; k++) {
+    sim.soltar('humano', mae.cx + (sim.sorte() - .5) * 8, mae.cy + (sim.sorte() - .5) * 8);
+    const h = sim.humanos[sim.humanos.length - 1];
+    h.tribo = mae; mae.membros.push(h); h.idade = 20;
+  }
+  // só a filha NOVA conta: o mundo já rodou cem anos e a tribo pode ter filhas
+  // de antes, nascidas com a era que a mãe tinha na época
+  const antigas = new Set(sim.tribos.map((t) => t.id));
+  let filha = null;
+  for (let k = 0; k < 60 && !filha; k++) {
+    sim.revisarTribos(1);
+    filha = sim.tribos.find((t) => t.mae === mae.id && !antigas.has(t.id));
+  }
+  if (!filha) return { filha: null };
+  const aoNascer = { era: filha.era, eraDaMae: mae.era, relacao: filha.relacaoCom(mae),
+                     memoria: filha.memoria.fera === mae.memoria.fera };
+  // uma geração aliada e a nação se forma
+  filha.nascidaEm = sim.ano - 13;
+  mae.definirRelacao(filha, 'aliada');
+  sim.revisarTribos(1);
+  const federada = !!filha.nacao && filha.nacao === mae.nacao;
+  const mesmaCor = filha.cor === mae.cor;
+  // e o inspetor conta
+  document.getElementById('fita').querySelectorAll('button')[0]?.click();
+  window.__terrario.iface.inspecionar(sim, Math.round(mae.cx), Math.round(mae.cy));
+  const painel = document.querySelector('#inspetor dl').textContent;
+  return { filha: filha.nome, aoNascer, federada, mesmaCor, painel: /Nação/.test(painel),
+           almas: mae.nacao ? mae.nacao.pop : 0 };
+});
+checar('a filha da cisão nasce aliada e herda a era',
+       nacao && nacao.filha && nacao.aoNascer.relacao === 'aliada' && nacao.aoNascer.era >= nacao.aoNascer.eraDaMae - 1,
+       nacao && nacao.filha ? `${nacao.filha}: ${nacao.aoNascer.relacao}, era ${nacao.aoNascer.era} (mãe ${nacao.aoNascer.eraDaMae})` : 'não rachou');
+checar('uma geração aliada e a filha entra na nação da mãe', nacao && nacao.federada && nacao.mesmaCor,
+       nacao && nacao.federada ? `nação com ${nacao.almas} almas, uma cor só` : 'sem nação');
+checar('o inspetor diz a nação', nacao && nacao.painel);
+
 // --- painéis que encolhem: a tela é o jogo ---
 const naTela = (sel) => pagina.locator(sel).isVisible();
 await pagina.locator('#dobrarEstado').click();

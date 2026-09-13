@@ -13,7 +13,7 @@
 
 import { Mundo, T } from './mundo.js';
 import { Humano, Rebanho, Predador, Peixe, Jacare } from './agentes.js';
-import { Tribo } from './tribos.js';
+import { Tribo, Nacao } from './tribos.js';
 
 const CHAVE = 'terrario:mundos';
 const VERSAO = 1;
@@ -58,6 +58,8 @@ export function empacotar(sim, nome) {
     curral: t.curral, ocas: t.ocas.map((o) => [o.x, o.y]),
     era: t.era, fontes: t.fontes, muros: t.muros.map((m) => [m.x, m.y]),
     relacoes: [...t.relacoes.entries()],
+    mae: t.mae, nascidaEm: t.nascidaEm, corPropria: t.corPropria,
+    nacao: t.nacao ? t.nacao.id : null,
   }));
 
   const gente = sim.humanos.filter((h) => h.viva).map((h) => [
@@ -141,12 +143,29 @@ export function desempacotar(Simulacao, pacote) {
       era: d.era || 0, fontes: d.fontes || [],
       muros: (d.muros || []).map(([x, y]) => ({ x, y })),
       relacoes: new Map(d.relacoes), membros: [],
+      mae: d.mae ?? null, nascidaEm: d.nascidaEm || 0,
+      corPropria: d.corPropria ?? d.cor,
     });
     if (t.curral) t.recalcularCerca(m);
     porId.set(t.id, t);
   }
   sim.tribos = [...porId.values()];
   sim.porId = porId;
+  // As nações voltam pela sede: quem guardou `nacao: id` entra na nação cuja
+  // sede é a tribo com aquele id. A sede pode ter morrido — aí a nação se
+  // refaz em torno de quem sobrou.
+  const nacoes = new Map();
+  for (const d of pacote.tribos) {
+    if (d.nacao === null || d.nacao === undefined) continue;
+    const t = porId.get(d.id);
+    let n = nacoes.get(d.nacao);
+    if (!n) {
+      const sede = porId.get(d.nacao) || t;
+      n = new Nacao(sede);
+      nacoes.set(d.nacao, n);
+    }
+    if (t !== n.sede) n.admitir(t);
+  }
   Tribo.retomarIds(Math.max(0, ...sim.tribos.map((t) => t.id)) + 1);
 
   sim.humanos = pacote.gente.map(([x, y, idade, exp, fome, dom, tribo, descanso]) => {

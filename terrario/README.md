@@ -490,6 +490,47 @@ meio da leitura, e o segundo toque rearmava em vez de agir — pior do que não
 perguntar. Mundo já guardado é descartado de primeira, sem cerimônia: um jogo que
 pergunta duas vezes por nada ensina a pessoa a tocar duas vezes sem ler.
 
+## A nação: a cisão que soma
+
+O jogador viu o que o teste não media: "as tribos vão ficando grandes e se
+repartem, e no que se repartem não sabem cooperar e sempre tretam — nisso a
+civilização não desenvolve". Estava certo, e por dois motivos no código.
+
+A filha nascia **neutra**, a seis tiles da mãe. `encontro()` trata vizinho neutro
+"espremido" como disputa de terra, e a filha é sempre espremida: ia à guerra na
+mesma taxa que um estranho. Na semente 1234, 41 das 42 tribos tinham mãe — o
+mundo inteiro era uma família que só sabia brigar. E a filha nascia em **era
+zero**: cada cisão devolvia 42% da população ao Bando. A maior tribo chegava ao
+feudo, rachava, e a metade recomeçava do nada brigando com a outra metade.
+`eras agora 43222100` era a foto disso.
+
+Agora a filha herda quem a mãe é: o degrau de baixo (o conhecimento vai junto;
+a mina e o muro, não), a memória, e a aliança. Parente raramente disputa terra e
+se reconcilia mais fácil do que estranho sela aliança — mas ainda rompe por fome
+e ainda guerreia depois de romper. Tecnologia se difunde entre aliadas, e dentro
+da nação quase de graça: sem isso cada aldeia pagava 380 de minério pelo ferro
+sozinha, e a filha sem mina ficava na pedra ao lado da mãe no ferro.
+
+E a **nação**: filha que ficou aliada da mãe por uma geração entra na nação
+dela, que nasce na primeira que entra. Não é fusão — cada aldeia segue com o seu
+celeiro e as suas obras. É uma cor só no mapa, um nome, e uma conta: gente e
+ofício contam pela nação para as eras altas. Uma aldeia de doze pessoas com um
+artesão que mora na aldeia irmã pode chegar ao feudo, porque o feudo é um
+domínio de várias aldeias sob um senhor, não uma aldeia enorme.
+
+Dois limites que o teste cobrou. Sem teto, a nação engolia o mundo: toda tribo é
+filha de alguém, a federação virou um celeiro único de mil pares de aliança, e a
+guerra zerou nas cinco sementes — o que o comentário do `comerciar` já tinha
+avisado. Cinco aldeias por nação, contíguas; a sexta filha funda a dela. E
+vizinho farto também disputa terra, só que menos: a regra antiga isentava o par
+farto de vez, e num mundo de quinhentas pessoas sem uma faminta ficavam 174
+pares espremidos e nenhum brigando.
+
+O resultado, na semente 7: `eras agora 44422211` contra `43222100` — três feudos
+onde havia um — nação de 183 almas, zero guerras entre parentes e 23 entre
+estranhos. Teste de mundo em **10 falhas**, o melhor da história do jogo, e todas
+as dez são da ecologia; nenhuma da civilização.
+
 ## Cabe no telefone
 
 O jogo se diz de telefone desde o primeiro dia, mas ninguém tinha medido onde os

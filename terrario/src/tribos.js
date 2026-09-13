@@ -45,14 +45,15 @@ export const ERAS = [
   {
     nome: 'Era do Bronze', raio: 1.42, abrigo: 1.1, forca: 1.8, tecnologia: 0.78,
     conta: 'Mina, cobre trabalhado, muro erguido, um minerador e um artesão.',
+    // Obra é da aldeia (mina, muro); ofício é da nação. Ver `temOficioNaNacao`.
     exige: (t) => t.temMina && t.tecnologia >= 1 && t.muros.length >= 8
-                && t.temOficio('minerador') && t.temOficio('artesao'),
+                && t.temOficioNaNacao('minerador') && t.temOficioNaNacao('artesao'),
   },
   {
     nome: 'Feudo', raio: 1.62, abrigo: 1.6, forca: 2.3, tecnologia: 0.66,
-    conta: 'Muro fechado, celeiro farto, líder à frente e ofício de sobra.',
-    exige: (t) => t.comLider && t.muros.length >= 20 && t.pop >= 32
-                && t.celeiro > t.pop * 6 && t.temOficio('artesao') && t.temOficio('guarda'),
+    conta: 'Muro fechado, celeiro farto, líder à frente, e uma nação de trinta e duas almas.',
+    exige: (t) => t.comLider && t.muros.length >= 20 && t.popDaNacao >= 32
+                && t.celeiro > t.pop * 6 && t.temOficioNaNacao('artesao') && t.temOficioNaNacao('guarda'),
   },
 ];
 const CUSTO_TEC = [0, 40, 140, 380];
@@ -81,6 +82,7 @@ export class Tribo {
     const k = this.id % NOMES.length;
     this.nome = NOMES[(k + (usados % 3) * 5) % NOMES.length];
     this.cor = CORES[this.id % CORES.length];
+    this.corPropria = this.cor;    // a cor de antes de entrar numa nação
     this.cx = x; this.cy = y;
     this.membros = [];
     this.celeiro = 6;
@@ -109,6 +111,9 @@ export class Tribo {
     this.plantios = 0;             // roças de pé dentro do território
     this.madeira = 0;              // lenha estocada, para levantar abrigo
     this.comLider = false;         // tem alguém com dom de liderança
+    this.mae = null;               // id da tribo de que esta se separou
+    this.nascidaEm = 0;            // ano da cisão
+    this.nacao = null;             // {id, nome, cor, membros:Set} — a federação
     this.ocas = [];                // {x, y}
     this.viva = true;
     this.nascimentos = 0;
@@ -347,6 +352,34 @@ export class Tribo {
 
   relacaoCom(outra) { return this.relacoes.get(outra.id) || 'neutro'; }
 
+  /** Mãe, filha ou irmã. É o que o `encontro` consulta antes de brigar por terra. */
+  ehParente(outra) {
+    return this.mae === outra.id || outra.mae === this.id
+        || (this.mae !== null && this.mae === outra.mae);
+  }
+
+  /** Da mesma nação, ou ela mesma. */
+  daMesmaNacao(outra) { return this === outra || (!!this.nacao && this.nacao === outra.nacao); }
+
+  /**
+   * Gente e ofícios contam pela nação, não pela aldeia. É o que a federação
+   * muda de concreto: uma aldeia de doze pessoas com um artesão que mora na
+   * aldeia irmã pode subir de era — o feudo é um domínio de várias aldeias sob
+   * um senhor, não uma aldeia enorme. Sem nação, a nação é ela mesma.
+   */
+  get popDaNacao() {
+    if (!this.nacao) return this.pop;
+    let n = 0;
+    for (const t of this.nacao.tribos) if (t.viva) n += t.pop;
+    return n;
+  }
+  temOficioNaNacao(dom) {
+    if (this.temOficio(dom)) return true;
+    if (!this.nacao) return false;
+    for (const t of this.nacao.tribos) if (t.viva && t !== this && t.temOficio(dom)) return true;
+    return false;
+  }
+
   get aliadas() { return [...this.relacoes.values()].filter((r) => r === 'aliada').length; }
 
   definirRelacao(outra, estado) {
@@ -399,15 +432,89 @@ export function encontro(a, b, distancia, cronica, sorte) {
   }
 
   const diplomacia = (a.comLider ? 1.7 : 1) * (b.comLider ? 1.7 : 1);
-  if (atual === 'neutro' && espremidas && !(a.farta && b.farta) && sorte() < 0.035 / diplomacia) {
+  const parentes = a.ehParente(b);
+
+  // Disputa de terra é coisa de estranho, quase sempre. A filha nasce a seis
+  // tiles da mãe — sempre "espremida" — e sem isto ia à guerra na mesma taxa
+  // que um vizinho qualquer: na semente 1234, 41 das 42 tribos tinham mãe e o
+  // mundo inteiro era uma família que só sabia brigar. Parente ainda rompe por
+  // fome (acima) e ainda pode guerrear depois de romper; só raramente começa
+  // por aí.
+  const rixa = parentes ? 0.2 : 1;   // briga em família existe, mas é a exceção
+  // Vizinho farto também disputa terra — só que menos. A regra antiga isentava
+  // o par farto de vez, e num mundo de quinhentas pessoas sem uma faminta a
+  // guerra zerava nas cinco sementes: 174 pares espremidos, nenhum brigando.
+  // Território é o que dois reinos prósperos querem ao mesmo tempo.
+  const fartura = a.farta && b.farta ? 0.3 : 1;
+  if (atual === 'neutro' && espremidas && sorte() < 0.035 * rixa * fartura / diplomacia) {
     a.definirRelacao(b, 'guerra');
     cronica(`${a.nome} e ${b.nome} disputam a mesma terra`, a, 'guerra');
+    return;
+  }
+
+  // Parente neutro faz as pazes mais fácil do que estranho sela aliança, e não
+  // precisa estar farto: sangue é o que sobra quando a comida falta.
+  if (atual === 'neutro' && parentes && a.aliadas < 4 && b.aliadas < 4 && sorte() < 0.06 * diplomacia) {
+    a.definirRelacao(b, 'aliada');
+    cronica(`${a.nome} e ${b.nome} se reconciliam`, a, 'alianca');
     return;
   }
 
   if (atual === 'neutro' && a.farta && b.farta && a.aliadas < 3 && b.aliadas < 3 && sorte() < 0.02 * diplomacia) {
     a.definirRelacao(b, 'aliada');
     cronica(`${a.nome} e ${b.nome} selam aliança`, a, 'alianca');
+  }
+}
+
+/**
+ * Tecnologia se difunde entre aliadas — e dentro da nação, quase de graça. É
+ * o que faz aliança valer alguma coisa além de comida: sem isto cada aldeia
+ * tinha que pagar 380 de minério pelo ferro sozinha, e a filha que nascia sem
+ * mina ficava na pedra para sempre ao lado da mãe no ferro.
+ */
+export function difundirTecnologia(a, b, cronica, sorte) {
+  if (a.tecnologia === b.tecnologia) return;
+  const [sabe, aprende] = a.tecnologia > b.tecnologia ? [a, b] : [b, a];
+  const chance = a.daMesmaNacao(b) ? 0.12 : 0.03;
+  if (sorte() > chance) return;
+  aprende.tecnologia++;
+  cronica(`${aprende.nome} aprende o ${TECNOLOGIAS[aprende.tecnologia].toLowerCase()} com ${sabe.nome}`, aprende, 'tec');
+}
+
+/**
+ * A nação: mãe e filhas que ficaram aliadas viram uma coisa só de nome, de
+ * cor e de conta. Não é fusão — cada aldeia segue com o seu celeiro e as suas
+ * obras — é o degrau entre "tribo" e "cidade", e é o que deixa uma população
+ * espalhada em cinco aldeias chegar ao feudo em vez de cinco bandos.
+ */
+/** Aldeias por nação. Sem teto a nação engolia o mundo: toda tribo é filha de
+ *  alguém, a federação virava um celeiro único de mil pares de aliança, e a
+ *  guerra zerava nas cinco sementes — o que o `comerciar` já tinha avisado.
+ *  Cinco aldeias é um reino pequeno; a sexta filha funda o dela. */
+export const TAMANHO_NACAO = 5;
+
+export class Nacao {
+  constructor(sede) {
+    this.id = sede.id;
+    this.nome = sede.nome;
+    this.cor = sede.cor;
+    this.sede = sede;
+    this.tribos = new Set([sede]);
+    sede.nacao = this;
+  }
+  get pop() { let n = 0; for (const t of this.tribos) if (t.viva) n += t.pop; return n; }
+  get vivas() { return [...this.tribos].filter((t) => t.viva); }
+  get cheia() { return this.vivas.length >= TAMANHO_NACAO; }
+  admitir(t) {
+    this.tribos.add(t);
+    t.nacao = this;
+    t.cor = this.cor;        // no mapa, a nação é uma cor só
+    for (const o of this.tribos) if (o !== t && o.viva) t.definirRelacao(o, 'aliada');
+  }
+  expulsar(t) {
+    this.tribos.delete(t);
+    t.nacao = null;
+    t.cor = t.corPropria;
   }
 }
 

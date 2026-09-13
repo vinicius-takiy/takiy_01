@@ -5,7 +5,7 @@
 
 import { Mundo, N, T, TERRENOS, mulberry } from './mundo.js';
 import { Humano, Rebanho, Predador, Peixe, Jacare, ESPECIES, ANO, MADEIRA_OCA, PEDRA_MURO } from './agentes.js';
-import { Tribo, ERAS, encontro, comerciar, encontrarSitioDeOca, reiniciarIds, TECNOLOGIAS, MADEIRA_CERCA,
+import { Tribo, Nacao, ERAS, encontro, comerciar, difundirTecnologia, encontrarSitioDeOca, reiniciarIds, TECNOLOGIAS, MADEIRA_CERCA,
          VOCACOES, CHAVES_VOCACAO, rende, sortearVocacao, temLider } from './tribos.js';
 
 // Teto de segurança, não regra de jogo: quando a ecologia encosta nele é sinal
@@ -83,6 +83,7 @@ export class Simulacao {
     this.empates = 0;
     this.saques = 0;
     this.matilhasFormadas = 0;
+    this.nacoesFundadas = 0;
     this.ferasVindasDaMata = 0;
     // Por que o bicho morre. É a única forma de saber se uma espécie sumiu de
     // fome, de caçada ou de velhice — e sem saber isso não se calibra nada.
@@ -482,9 +483,21 @@ export class Simulacao {
       nova.celeiro = t.celeiro * 0.4;
       t.celeiro *= 0.6;
       nova.tecnologia = t.tecnologia;
+      // A filha herda quem a mãe é. Antes nascia neutra e em era zero: cada
+      // cisão devolvia 42% da população ao Bando e punha um vizinho "espremido"
+      // — e portanto em guerra — a seis tiles. Era o que travava a civilização
+      // em aldeia: a maior tribo chegava ao feudo, rachava, e a metade recomeçava
+      // do nada brigando com a outra metade. Ela leva o degrau de baixo (o
+      // conhecimento vem junto; a mina e o muro, não), a memória e a aliança.
+      nova.mae = t.id;
+      nova.nascidaEm = this.ano;
+      nova.era = Math.max(0, t.era - 1);
+      nova.memoria = { ...t.memoria };
+      t.definirRelacao(nova, 'aliada');
       this.tribos.push(nova);
       this.porId.set(nova.id, nova);
-      this.cronica(`${t.nome} se divide; parte fundar ${nova.nome}`, nova, 'cisao');
+      if (t.nacao && !t.nacao.cheia) t.nacao.admitir(nova);
+      this.cronica(`${t.nome} se divide; ${nova.nome} nasce aliada${nova.nacao ? `, na nação de ${nova.nacao.nome}` : ''}`, nova, 'cisao');
     }
 
     // 3. território
@@ -553,7 +566,50 @@ export class Simulacao {
         const d = Math.hypot(A.cx - B.cx, A.cy - B.cy);
         if (d > A.raio + B.raio + 3) continue;
         encontro(A, B, d, (txt, t, tipo) => this.cronica(txt, t, tipo), this.sorte);
-        if (A.relacaoCom(B) === 'aliada') comerciar(A, B);
+        if (A.relacaoCom(B) === 'aliada') {
+          comerciar(A, B);
+          difundirTecnologia(A, B, (txt, t, tipo) => this.cronica(txt, t, tipo), this.sorte);
+        }
+      }
+    }
+
+    // 4a. Nação. Filha que ficou aliada da mãe por uma geração entra na nação
+    //     dela — e a nação nasce na primeira que entra. A mãe precisa estar na
+    //     Era da Pedra: bando não funda nação, e é isso que faz a federação ser
+    //     um degrau conquistado e não um carimbo automático da cisão.
+    //     Quem rompe a aliança, ou vai à guerra com alguém da nação, sai dela.
+    for (const t of this.tribos) {
+      if (t.nacao) {
+        // Sai quem rompeu com a sede ou guerreia com alguém de dentro. Só
+        // guerra não bastava: a aliança rompida por fome deixava a tribo dentro
+        // da nação sem ser aliada de ninguém.
+        const sede = t.nacao.sede;
+        const rompeu = t !== sede && (!sede.viva || t.relacaoCom(sede) !== 'aliada');
+        const briga = [...t.nacao.tribos].some((o) => o !== t && o.viva && t.relacaoCom(o) === 'guerra');
+        if (rompeu || briga) {
+          const nome = t.nacao.nome;
+          t.nacao.expulsar(t);
+          this.cronica(`${t.nome} deixa a nação de ${nome}`, t, 'rompimento');
+        }
+        continue;
+      }
+      if (t.mae === null) continue;
+      const mae = this.porId.get(t.mae);
+      if (!mae || !mae.viva || mae.era < 2) continue;
+      if (t.relacaoCom(mae) !== 'aliada' || this.ano - t.nascidaEm < 12) continue;
+      // Nação é contígua e tem teto: a filha que andou para longe, ou que chega
+      // quando o reino já tem cinco aldeias, fica aliada da mãe mas fora — e
+      // quando ela mesma rachar, funda a sua.
+      if (Math.hypot(t.cx - mae.cx, t.cy - mae.cy) > t.raio + mae.raio + 3) continue;
+      if (mae.nacao && mae.nacao.cheia) continue;
+      const nova = !mae.nacao;
+      const nacao = mae.nacao || new Nacao(mae);
+      nacao.admitir(t);
+      if (nova) {
+        this.nacoesFundadas++;
+        this.cronica(`${mae.nome} e ${t.nome} formam a nação de ${nacao.nome}`, mae, 'nacao');
+      } else {
+        this.cronica(`${t.nome} entra na nação de ${nacao.nome}`, t, 'nacao');
       }
     }
 
@@ -1104,6 +1160,10 @@ export class Simulacao {
       pastoreando: this.tribos.filter((t) => t.temPasto).length,
       currais: this.tribos.filter((t) => t.curral).length,
       eraMaxima: this.tribos.reduce((m, t) => Math.max(m, t.era), 0),
+      nacoes: new Set(this.tribos.filter((t) => t.nacao).map((t) => t.nacao)).size,
+      naNacao: this.tribos.filter((t) => t.nacao).length,
+      maiorNacao: this.tribos.reduce((m, t) => Math.max(m, t.nacao ? t.nacao.pop : 0), 0),
+      filhasComEra: this.tribos.filter((t) => t.mae !== null && t.era >= 1).length,
       pocos: this.tribos.reduce((n, t) => n + t.fontes.filter((f) => f.tipo === 'poco').length, 0),
       muros: this.tribos.reduce((n, t) => n + t.muros.length, 0),
       comSede: this.tribos.filter((t) => t.pop >= 6 && t.comSede).length,
@@ -1115,6 +1175,8 @@ export class Simulacao {
       abrigos: this.tribos.reduce((s, t) => s + t.ocas.length, 0),
       semAbrigo: this.tribos.filter((t) => t.pop >= 3 && !t.temVagaEmCasa).length,
       guerras: this.tribos.reduce((s, t) => s + [...t.relacoes.values()].filter((r) => r === 'guerra').length, 0) / 2,
+      guerrasEntreParentes: this.tribos.reduce((s, t) => s + [...t.relacoes.entries()]
+        .filter(([id, r]) => r === 'guerra' && (t.mae === id || this.porId.get(id)?.mae === t.id)).length, 0) / 2,
       aliancas: this.tribos.reduce((s, t) => s + [...t.relacoes.values()].filter((r) => r === 'aliada').length, 0) / 2,
       mortesPorFome: this.mortesPorFome,
       mortesPorPredador: this.mortesPorPredador,

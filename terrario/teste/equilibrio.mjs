@@ -64,10 +64,10 @@ function rodar(semente) {
   // Picos medidos a cada tique: amostrar de vinte em vinte anos deixa passar
   // exatamente o que interessa quando o mundo colapsa entre duas amostras.
   const pico = { humanos: 0, tribos: 0, plantando: 0, pastoreando: 0, minerando: 0,
-                 guerras: 0, aliancas: 0, maiorTribo: 0, predadores: 0, tec: 0,
+                 guerras: 0, guerrasEntreParentes: 0, aliancas: 0, maiorTribo: 0, predadores: 0, tec: 0,
                  currais: 0, guardas: 0, gado: 0, peixes: 0, jacares: 0, pescados: 0,
                  bois: 0, capivaras: 0, lebres: 0, brotos: 0, queimando: 0,
-                 eraMaxima: 0, pocos: 0, muros: 0 };
+                 eraMaxima: 0, pocos: 0, muros: 0, nacoes: 0, naNacao: 0, maiorNacao: 0, filhasComEra: 0 };
   const linha = [];
   const dt = 1 / 12;
   const passos = Math.ceil((anos * ANO) / dt);
@@ -111,6 +111,11 @@ function avaliar({ pico, fim }) {
     ['alguma tribo chega à Era da Pedra', pico.eraMaxima >= 2, `era ${pico.eraMaxima}`],
     ['alguma tribo ergue muro', pico.muros > 0, `${pico.muros} trechos`],
     ['alguma guerra estoura', pico.guerras > 0, `pico ${pico.guerras}`],
+    // Civilização é o que se acumula. Filha que nasce em era zero e em guerra
+    // com a mãe devolve a população ao Bando a cada cisão; a nação é o
+    // contrário disso — a cisão que soma em vez de dividir.
+    ['a filha da cisão herda a era', pico.filhasComEra > 0, `${pico.filhasComEra} filhas com era`],
+    ['alguma nação se forma', pico.nacoes > 0, `${pico.nacoes} nações, a maior com ${pico.maiorNacao} almas`],
     ['alguma aliança se forma', pico.aliancas > 0, `pico ${pico.aliancas}`],
     ['o rebanho selvagem sobrevive', fim.rebanhos > 0, `${fim.rebanhos}`],
     ['o predador não se extingue', fim.predadores > 0, `${fim.predadores}`],
@@ -177,6 +182,8 @@ console.log('\npicos  — pessoas', r.pico.humanos, '· tribos', r.pico.tribos, 
             '· tec', TEC[r.pico.tec]);
 console.log('mortes — fome', r.fim.mortesPorFome, '· fera', r.fim.mortesPorPredador, '· guerra', r.fim.mortesEmGuerra);
 const censo = r.fim.censo;
+console.log('nação  — nações', r.fim.nacoes, '· tribos federadas', r.fim.naNacao, 'de', r.fim.tribos,
+            '· maior', r.fim.maiorNacao, 'almas · guerras entre parentes no pico', r.pico.guerrasEntreParentes, 'de', r.pico.guerras);
 console.log('civil  — era máxima', r.pico.eraMaxima, '· poços', r.fim.pocos, '· muro', r.fim.muros,
             '· com sede', r.fim.comSede, '· eras agora',
             r.sim.tribos.map((t) => t.era).sort((a, b) => b - a).slice(0, 8).join(''));

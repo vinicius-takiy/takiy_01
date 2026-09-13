@@ -441,6 +441,10 @@ export class Interface {
     const proxima = ERAS[t.era + 1];
     dl.innerHTML = linhas([
       ['Era', `${ERAS[t.era].nome}`],
+      // nação e parentesco: é o que explica por que duas cores iguais no mapa
+      // não brigam, e por que uma aldeia de doze chegou ao feudo
+      ...(t.nacao ? [['Nação', `${t.nacao.nome} · ${t.nacao.vivas.length} aldeias, ${t.nacao.pop} almas`]] : []),
+      ...(t.mae !== null && sim.porId.get(t.mae)?.viva ? [['Filha de', sim.porId.get(t.mae).nome]] : []),
       // o que falta para o próximo degrau é a informação mais útil do painel:
       // é ela que diz ao jogador o que pintar ou soltar para a tribo evoluir
       ...(proxima ? [['Para subir', proxima.conta]] : [['', 'no topo do que sabe fazer']]),
