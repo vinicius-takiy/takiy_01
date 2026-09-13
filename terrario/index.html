@@ -143,6 +143,22 @@
     white-space:nowrap;transition:border-color .18s,background .18s,transform .18s}
   .linhaGuardar button:active,#listaMundos button:active{transform:scale(.95)}
   #avisoMundos{margin:0;font-size:10.5px;color:var(--ouro);min-height:0}
+
+  /* Recado: o aviso que precisa aparecer com o painel de mundos FECHADO — o de
+     guardar sozinho e o de descartar mundo não guardado. Mora dentro da paleta,
+     logo acima dos botões que o disparam: flutuando no alto da tela ele caía em
+     cima da barra de estado num telefone deitado, que é o único formato que
+     este jogo tem. */
+  #recado{display:none;padding:6px 11px;border-top:1px solid var(--linha);
+    font-size:10.5px;line-height:1.35;color:var(--claro);text-align:center}
+  #recado.on{display:block}
+  #recado.alerta{color:#f0c3b8;background:rgba(206,96,72,.14)}
+  /* Armado tem que gritar. "Mundo pelado" já é escrito em vermelho claro no
+     estado normal, então mudar só a cor do texto não mudava nada visível: o
+     botão armado precisa de fundo cheio para a pessoa ver que o toque seguinte
+     não é o mesmo toque. */
+  #recomecar.armado,#ilhaPronta.armado{background:var(--sangue)!important;color:#fff4ef!important;
+    border-color:var(--sangue)!important;font-weight:700}
   #avisoMundos:empty{display:none}
   #listaMundos{list-style:none;margin:0;padding:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
     display:flex;flex-direction:column;gap:6px}
@@ -265,6 +281,7 @@
   <div id="paleta">
     <div class="painel paleta-painel">
       <div id="grupos"></div>
+      <div id="recado" role="status" aria-live="polite"></div>
       <div id="ajustes">
         <div id="ferramenta"><div><span>Ferramenta ativa</span><strong id="ferramentaNome">Humano</strong></div></div>
         <label for="raio">Pincel</label>

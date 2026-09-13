@@ -575,6 +575,76 @@ checar('o terreno volta igual', registro.depois.mata === registro.antes.mata,
 checar('a semente volta junto', registro.depois.semente === registro.antes.semente);
 await pagina.evaluate(() => document.getElementById('mundos').classList.remove('on'));
 
+// --- guardar sozinho, e não deixar descartar o que não foi guardado ---
+// É o buraco que fez a pergunta aparecer: duas horas de mundo sumiam ao fechar
+// a aba ou ao tocar em "Mundo pelado", sem uma palavra e sem cópia nenhuma.
+const sozinho = await pagina.evaluate(() => {
+  const { iface } = window.__terrario;
+  const lista = () => JSON.parse(localStorage.getItem('terrario:mundos') || '[]');
+  localStorage.removeItem('terrario:mundos');
+  // mundo em curso que ninguém guardou: é este que a gravação sozinha protege
+  Object.assign(iface, { idDoMundo: null, nomeDoMundo: '', anoGuardado: 0, semEspaco: false });
+  const sim = window.__terrario.sim;
+  iface.guardarAoSair();
+  const um = lista();
+  // sair de novo não empilha rascunho: um slot só, sempre por cima
+  iface.anoGuardado = 0;
+  iface.guardarAoSair();
+  const dois = lista();
+  return { quantos: um.length, id: um[0]?.id, ano: um[0]?.resumo.ano, doSim: sim.ano,
+           depoisDeDuas: dois.length };
+});
+checar('sair da aba guarda o mundo sozinho', sozinho.quantos === 1 && sozinho.ano === sozinho.doSim,
+       `${sozinho.quantos} na prateleira, ano ${sozinho.ano} de ${sozinho.doSim}`);
+checar('o rascunho automático é um só slot', sozinho.depoisDeDuas === 1 && sozinho.id === 'auto',
+       `${sozinho.depoisDeDuas} na prateleira, slot "${sozinho.id}"`);
+
+const descarte = await pagina.evaluate(() => {
+  const { iface } = window.__terrario;
+  const botao = document.getElementById('recomecar');
+  const rotulo = botao.textContent;
+  // 1. mundo com anos por guardar: o primeiro toque avisa e não apaga nada
+  iface.anoGuardado = 0;
+  const gente = window.__terrario.sim.humanos.length;
+  botao.click();
+  const armado = { gente: window.__terrario.sim.humanos.length,
+                   rotulo: botao.textContent, aviso: document.getElementById('recado').classList.contains('on') };
+  // 2. o segundo toque descarta
+  botao.click();
+  const depois = window.__terrario.sim.humanos.length;
+  botao.textContent = rotulo;
+  return { gente, armado, depois };
+});
+checar('descartar mundo não guardado pede confirmação',
+       descarte.gente > 0 && descarte.armado.gente === descarte.gente && descarte.armado.aviso,
+       `${descarte.armado.gente} de ${descarte.gente} pessoas seguem lá, botão diz "${descarte.armado.rotulo}"`);
+checar('o segundo toque descarta mesmo', descarte.depois === 0, `${descarte.depois} pessoas`);
+
+const semPerda = await pagina.evaluate(() => {
+  const { iface } = window.__terrario;
+  // Mundo já guardado não faz pergunta: não há o que perder, e um jogo que
+  // pergunta duas vezes por nada ensina a pessoa a tocar duas vezes sem ler.
+  window.__terrario.sim.soltar('humano', 40, 40);
+  iface.anoGuardado = window.__terrario.sim.ano;
+  document.getElementById('recomecar').click();
+  return window.__terrario.sim.humanos.length;
+});
+checar('mundo guardado é descartado sem perguntar', semPerda === 0, `${semPerda} pessoas`);
+
+// Os testes daqui para baixo precisam de um mundo com tribo de pé, e os dois
+// acima acabaram de jogar o mundo fora de propósito. Quem o traz de volta é o
+// próprio rascunho automático — que é, afinal, o que ele existe para fazer.
+const voltou = await pagina.evaluate(() => {
+  document.getElementById('abrirMundos').click();
+  document.querySelector('#listaMundos .ler')?.click();
+  document.getElementById('mundos').classList.remove('on');
+  const s = window.__terrario.sim;
+  return { pessoas: s.humanos.length, tribos: s.tribos.length };
+});
+checar('o rascunho automático traz o mundo de volta',
+       voltou.pessoas > 0 && voltou.tribos > 0,
+       `${voltou.pessoas} pessoas, ${voltou.tribos} tribos`);
+
 // --- a cerca segura o gado, e a fera passa por cima dela ---
 const cerca = await pagina.evaluate(() => {
   const { sim } = window.__terrario;
@@ -730,7 +800,16 @@ checar('o guarda tem boneco próprio', curral && curral.guarda > 0, curral ? `${
 await foto('curral');
 
 // --- novo mundo não quebra nada ---
-await pagina.locator('#recomecar').click();
+// Dois toques, e os dois de dentro da página: o mundo aqui tem anos por
+// guardar, e desde que descartar passou a pedir confirmação é assim que se faz.
+// Pelo `locator` do Playwright os dois cliques ficavam a segundos um do outro
+// — checagem de estabilidade num laço a dez quadros por segundo — e a janela
+// de confirmação fechava no meio, deixando o teste medir o relógio da máquina.
+await pagina.evaluate(() => {
+  const b = document.getElementById('recomecar');
+  b.click();
+  if (b.classList.contains('armado')) b.click();
+});
 await pagina.waitForTimeout(900);
 const novo = await estado();
 checar('novo mundo recomeça do zero', novo.humanos === 0 && novo.ano < 5, `ano ${novo.ano}, ${novo.humanos} pessoas`);

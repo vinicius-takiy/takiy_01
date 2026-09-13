@@ -467,6 +467,29 @@ sessenta linhas da crônica. Se a gravação não couber, o jogo avisa em vez de
 morrer — quem está jogando há duas horas não perde a partida porque a nona
 gravação estourou a cota.
 
+### E se guarda sozinho
+
+Guardar à mão só protege quem se lembra de guardar. Faltavam os dois caminhos por
+onde o mundo sumia calado: fechar a aba e tocar em **Mundo pelado** ou **Ilha
+pronta** sem querer.
+
+Agora o jogo grava sozinho a cada trinta segundos de relógio de parede, e de novo
+quando a aba sai da frente — pelos dois eventos, `visibilitychange` e `pagehide`,
+porque no Safari do iPhone `beforeunload` não é de confiança. Quem já nomeou o
+mundo tem o seu slot e é nele que se grava, com o nome que deu; quem nunca
+guardou vai para um slot reservado, o **Rascunho**, sempre por cima. Um só: se
+cada mundo novo abrisse o seu, oito experimentos de dois minutos empurrariam para
+fora a partida de duas horas guardada à mão, que é o contrário do que isto existe
+para fazer. Mundo sem gente ou com menos de três anos não vale um slot.
+
+E os dois botões que jogam a partida fora passaram a perguntar — mas só quando há
+o que perder. Havendo, o primeiro toque arma o botão, que fica vermelho cheio e
+escrito *Descartar?*, e a paleta diz quantos anos estão em jogo; o segundo toque,
+dentro de dez segundos, descarta. Dez e não cinco: com cinco a janela fechava no
+meio da leitura, e o segundo toque rearmava em vez de agir — pior do que não
+perguntar. Mundo já guardado é descartado de primeira, sem cerimônia: um jogo que
+pergunta duas vezes por nada ensina a pessoa a tocar duas vezes sem ler.
+
 ## A cerca segura
 
 Antes o curral era só uma preferência de destino: bicho assustado atravessava o

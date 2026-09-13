@@ -10,6 +10,12 @@ import { TECNOLOGIAS, VOCACOES, CHAVES_VOCACAO, ERAS } from './tribos.js';
 
 const el = (id) => document.getElementById(id);
 
+// Quanto tempo o botão de descartar fica armado. Dez segundos, não cinco: quem
+// toca em "Mundo pelado" por engano lê o aviso, pensa e só então decide, e com
+// cinco a janela fechava no meio da leitura — o segundo toque rearmava em vez
+// de agir, que é pior do que não perguntar.
+const JANELA_DESCARTE = 10000;
+
 /** A caixa de peças. `ser` e `terreno` são os dois tipos de pincel de verdade. */
 export const PINCEIS = [
   { id: 'humano',   nome: 'Humano',  tipo: 'ser', ser: 'humano', quantos: 3, cor: 0xf2eddb },
@@ -44,6 +50,10 @@ export class Interface {
     this.aoAbrirMundo = aoAbrirMundo;
     this.mundoAtual = mundoAtual;      // devolve a Simulacao viva
     this.idDoMundo = null;             // slot em que este mundo foi guardado
+    this.nomeDoMundo = '';             // nome que o jogador deu, se deu
+    this.anoGuardado = 0;              // ano da última gravação, para saber o que se perde
+    this.ultimoAuto = 0;               // relógio de parede da última gravação sozinha
+    this.semEspaco = false;            // quota estourada: para de tentar sozinho
     this.seguindo = null;
     this.fixado = null;
     this.pincel = null;
@@ -84,8 +94,12 @@ export class Interface {
       };
     }
     el('enquadrar').onclick = aoEnquadrar;
-    el('recomecar').onclick = aoRecomecar;
-    el('ilhaPronta').onclick = aoIlhaPronta;
+    // Mundo pelado e Ilha pronta jogam fora a partida em curso. Antes iam
+    // direto: duas horas de mundo sumiam num toque errado, sem uma palavra.
+    // Agora só vão direto quando não há nada a perder; havendo, o primeiro
+    // toque arma o botão e diz o que está em jogo.
+    el('recomecar').onclick = () => this.pedirDescarte('recomecar', aoRecomecar);
+    el('ilhaPronta').onclick = () => this.pedirDescarte('ilhaPronta', aoIlhaPronta);
     // Todo painel grande encolhe com o mesmo botão e o mesmo gesto. Num
     // telefone deitado, crônica, paleta e barra de estado juntas comem metade
     // da tela — e a tela é o jogo.
@@ -114,7 +128,12 @@ export class Interface {
       // Guardar por cima do mesmo slot: quem salva de novo o mundo em que está
       // jogando quer atualizar aquele registro, não colecionar oito cópias dele.
       const r = guardar(sim, nome, this.idDoMundo);
-      this.idDoMundo = r.ok ? r.id : this.idDoMundo;
+      if (r.ok) {
+        this.idDoMundo = r.id;
+        this.nomeDoMundo = nome;
+        this.anoGuardado = sim.ano;
+        this.semEspaco = false;
+      }
       this.avisar(r.ok ? (r.aviso || `guardado como "${nome}"`) : r.erro);
       this.listarMundos();
     };
@@ -126,6 +145,105 @@ export class Interface {
     el('avisoMundos').textContent = texto || '';
     clearTimeout(this._avisoRelogio);
     this._avisoRelogio = setTimeout(() => { el('avisoMundos').textContent = ''; }, 4000);
+  }
+
+  /** Recado curto no alto da tela. O `avisar` acima mora dentro do painel de
+   *  mundos e só serve quando ele está aberto; guardar sozinho e descartar
+   *  mundo acontecem com o painel fechado. */
+  recado(texto, alerta = false, quanto = 3200) {
+    const r = el('recado');
+    r.textContent = texto || '';
+    r.classList.toggle('alerta', !!alerta);
+    // Não precisa abrir a paleta encolhida: `.fechada` esconde os pincéis, e o
+    // recado mora abaixo deles, na mesma faixa dos botões.
+    r.classList.toggle('on', !!texto);
+    clearTimeout(this._recadoRelogio);
+    if (texto) this._recadoRelogio = setTimeout(() => r.classList.remove('on'), quanto);
+  }
+
+  // ------------------------------------------------------- guardar sozinho
+  /** Anos de mundo que se perderiam se a aba fechasse agora. */
+  aPerder(sim) {
+    if (!sim || !sim.humanos.length) return 0;
+    return Math.max(0, sim.ano - this.anoGuardado);
+  }
+
+  /**
+   * Grava sem ninguém pedir. Chamado a cada quadro (ele mesmo se contém) e ao
+   * sair da aba.
+   *
+   * O slot: quem já guardou ou abriu um mundo tem o seu, e é nele que se grava,
+   * com o nome que a pessoa deu. Quem nunca guardou vai para o slot reservado
+   * `auto` — um só, sempre por cima. Se cada mundo novo abrisse o seu, oito
+   * experimentos de dois minutos empurrariam para fora a partida de duas horas
+   * que a pessoa guardou à mão, que é o oposto do que isto existe para fazer.
+   */
+  guardarSozinho(sim, agora = performance.now()) {
+    if (this.semEspaco || !sim) return false;
+    // Mundo sem gente ou recém-nascido não vale um slot: quem está só
+    // experimentando pincel não quer o registro cheio de rascunho.
+    if (!sim.humanos.length || sim.ano < 3) return false;
+    if (sim.ano - this.anoGuardado < 1) return false;
+    const nome = this.nomeDoMundo || `Rascunho do ano ${sim.ano}`;
+    const r = guardar(sim, nome, this.idDoMundo || 'auto');
+    this.ultimoAuto = agora;
+    if (!r.ok) {
+      // Sem espaço, insistir a cada trinta segundos só gasta bateria e enche a
+      // tela de recado. Cala e deixa o botão Guardar dizer o mesmo quando a
+      // pessoa tentar à mão.
+      this.semEspaco = true;
+      this.recado('Não há espaço no navegador para guardar este mundo.', true, 6000);
+      return false;
+    }
+    this.idDoMundo = r.id;
+    this.anoGuardado = sim.ano;
+    if (el('mundos').classList.contains('on')) this.listarMundos();
+    return true;
+  }
+
+  /** Chamado a cada quadro. Trinta segundos de relógio de parede entre uma
+   *  gravação e outra: empacotar o mundo custa poucos milissegundos, mas num
+   *  telefone a cada quadro isso vira engasgo visível. */
+  talvezGuardar(sim) {
+    const agora = performance.now();
+    if (agora - this.ultimoAuto < 30000) return;
+    this.ultimoAuto = agora;          // marca mesmo se não gravar, para não reavaliar em rajada
+    this.guardarSozinho(sim, agora);
+  }
+
+  /** A aba está indo embora. No Safari do iPhone `beforeunload` não é confiável
+   *  — quem avisa é `visibilitychange`/`pagehide`, e é a última chance. */
+  guardarAoSair() {
+    const sim = this.mundoAtual();
+    if (sim) this.guardarSozinho(sim);
+  }
+
+  /**
+   * Descartar o mundo em curso. Vai direto se não há o que perder; havendo,
+   * o primeiro toque arma o botão por cinco segundos e diz quanto está em jogo.
+   */
+  pedirDescarte(chave, acao) {
+    const sim = this.mundoAtual();
+    const perde = this.aPerder(sim);
+    const desarmar = () => {
+      clearTimeout(this._armadoRelogio);
+      if (this._armado) {
+        el(this._armado).classList.remove('armado');
+        el(this._armado).textContent = this._armadoRotulo;
+      }
+      this._armado = null;
+    };
+    if (this._armado === chave) { desarmar(); this.recado(''); acao(); return; }
+    desarmar();
+    if (perde < 1) { acao(); return; }
+    this._armado = chave;
+    this._armadoRotulo = el(chave).textContent;
+    el(chave).classList.add('armado');
+    el(chave).textContent = 'Descartar?';
+    this.recado(`Este mundo tem ${Math.round(perde)} ano${perde >= 2 ? 's' : ''} `
+              + 'que ainda não foram guardados. Toque de novo para descartar, '
+              + 'ou abra Mundos e guarde antes.', true, JANELA_DESCARTE);
+    this._armadoRelogio = setTimeout(desarmar, JANELA_DESCARTE);
   }
 
   mostrarMundos() {
@@ -158,6 +276,8 @@ export class Interface {
         const pacote = abrir(m.id);
         if (!pacote) return this.avisar('esse mundo sumiu do armazenamento');
         this.idDoMundo = m.id;
+        this.nomeDoMundo = m.nome;
+        this.anoGuardado = m.resumo.ano;
         el('nomeMundo').value = m.nome;
         el('mundos').classList.remove('on');
         this.aoAbrirMundo(pacote);

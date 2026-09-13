@@ -94,6 +94,8 @@ function trocarSim(nova) {
 
 function novoMundo(semente = (Math.random() * 65535) | 0, pelado = true) {
   iface.idDoMundo = null;
+  iface.nomeDoMundo = '';
+  iface.anoGuardado = 0;
   document.getElementById('nomeMundo').value = '';
   trocarSim(new Simulacao(semente, { pelado }));
 }
@@ -144,6 +146,7 @@ function quadro(agora) {
   iface.atualizarEstado(sim);
   iface.atualizarFita(sim);
   iface.atualizarCronica(sim);
+  iface.talvezGuardar(sim);
   renderer.render(cena, camera);
   publicar();
 }
@@ -160,6 +163,14 @@ function redimensionar() {
   camera.aspect = l / a;
   camera.updateProjectionMatrix();
 }
+// Última chance de gravar. Os dois eventos, e não só um: no Safari do iPhone
+// `beforeunload` não dispara de forma confiável, e trocar de aba nem sempre
+// gera `pagehide` — quem cobre o outro caso é `visibilitychange`.
+addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') iface.guardarAoSair();
+});
+addEventListener('pagehide', () => iface.guardarAoSair());
+
 addEventListener('resize', redimensionar);
 addEventListener('orientationchange', () => setTimeout(redimensionar, 120));
 redimensionar();
