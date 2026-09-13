@@ -886,6 +886,78 @@ checar('o mourão pisa no topo do tile', curral && curral.piorDesvio < 0.01,
 checar('o guarda tem boneco próprio', curral && curral.guarda > 0, curral ? `${curral.guarda} em cena` : '');
 await foto('curral');
 
+// --- cidade: casa em quarteirão, rua na faixa ---
+// O jogador pediu "cidade com ruas". A pergunta que este teste faz é se a
+// grade é uma grade de verdade: rua só na faixa, casa só no quarteirão, e o
+// calçamento chegando à tela. Sem isso, "rua" é um tile cinza espalhado.
+const cidade = await pagina.evaluate(() => {
+  const { sim, render } = window.__terrario;
+  const t = sim.tribos.reduce((m, o) => (!m || o.pop > m.pop ? o : m), null);
+  if (!t) return null;
+  t.era = Math.max(t.era, 3);
+  t.minerais += 900;
+  t.madeira += 400;
+  t.celeiro += 600;
+  // gente com ofício de obra, que é quem assenta pedra
+  for (let k = 0; k < 12; k++) {
+    sim.soltar('humano', t.cx + (sim.sorte() - .5) * 6, t.cy + (sim.sorte() - .5) * 6);
+    const h = sim.humanos[sim.humanos.length - 1];
+    h.tribo = t; t.membros.push(h); h.idade = 24;
+    h.dom = k % 2 ? 'construtor' : 'artesao';
+  }
+  for (let k = 0; k < 2600 && t.ruas < 14; k++) sim.tique(1 / 12);
+  render.aplicarSujos();
+  const m = sim.mundo;
+  let ruasNoMapa = 0, foraDaFaixa = 0;
+  for (let i = 0; i < m.n * m.n; i++) {
+    if (m.terreno[i] !== 11) continue;
+    ruasNoMapa++;
+    if (!t.naFaixa(i % m.n, (i / m.n) | 0)) foraDaFaixa++;
+  }
+  // Onde a tribo PORIA a próxima casa. Contar as ocas de pé não serve: as
+  // antigas são anteriores à planta (metade em cima da futura faixa, foi o que
+  // reprovou este teste com "12 de 29") e, na janela do teste, às vezes nenhuma
+  // nova é levantada — aí a conta fica "0 de 0" e não afirma nada. Perguntar
+  // pelo sítio é perguntar direto pela regra.
+  const sitios = [];
+  for (let k = 0; k < 12; k++) { const o = sim.sitioDeOca(t); if (o) sitios.push(o); }
+  const ocasNaFaixa = sitios.filter((o) => t.naFaixa(o.x, o.y)).length;
+  const ocasDepois = sitios.length;
+  // andar na rua é mais rápido — é para isso que ela existe
+  const h = t.membros.find((p) => p.viva && p.adulto);
+  const rua = { x: 0, y: 0 };
+  for (let i = 0; i < m.n * m.n; i++) if (m.terreno[i] === 11) { rua.x = i % m.n; rua.y = (i / m.n) | 0; break; }
+  const andar = (x, y) => {
+    h.x = x; h.y = y; h.obra = null; h.embarcado = false;
+    h.alvo = { x: x + 6, y };
+    const antes = h.x;
+    h.caminhar(1 / 12, sim);
+    return h.x - antes;
+  };
+  const naRua = andar(rua.x, rua.y);
+  const noCampo = andar(Math.round(t.cx), Math.round(t.cy) + 7);
+  // Num tile que é DESTA tribo. O centro dela pode estar em terreno reivindicado
+  // por uma irmã da mesma nação, e aí o painel conta a cidade da outra.
+  let meu = { x: Math.round(t.cx), y: Math.round(t.cy) };
+  for (const i of t.territorio) { meu = { x: i % m.n, y: (i / m.n) | 0 }; break; }
+  window.__terrario.iface.fixado = t.id;
+  window.__terrario.iface.inspecionar(sim, meu.x, meu.y);
+  const painel = document.querySelector('#inspetor dl').textContent;
+  return { ruas: t.ruas, ruasNoMapa, foraDaFaixa, ocasNaFaixa, ocasDepois, painel,
+           marco: !!t.marco, ehCidade: t.cidade, naRua, noCampo,
+           noPainel: /Cidade|Rua/.test(painel) };
+});
+checar('a tribo calça rua', cidade && cidade.ruas >= 8 && cidade.marco,
+       cidade ? `${cidade.ruas} tiles, marco ${cidade.marco ? 'fincado' : 'sem'}` : 'sem tribo');
+checar('rua só na faixa da grade', cidade && cidade.ruasNoMapa > 0 && cidade.foraDaFaixa === 0,
+       cidade ? `${cidade.ruasNoMapa} tiles, ${cidade.foraDaFaixa} fora do esquadro` : '');
+checar('a casa fica no quarteirão, não na rua', cidade && cidade.ocasDepois >= 6 && cidade.ocasNaFaixa === 0,
+       cidade ? `${cidade.ocasNaFaixa} de ${cidade.ocasDepois} sítios de casa caem na faixa` : '');
+checar('anda-se mais depressa na rua', cidade && cidade.naRua > cidade.noCampo * 1.1,
+       cidade ? `${cidade.naRua.toFixed(3)} contra ${cidade.noCampo.toFixed(3)} por tique` : '');
+checar('o inspetor conta a cidade', cidade && cidade.noPainel,
+       cidade ? cidade.painel.slice(0, 60).replace(/\s+/g, ' ') : '');
+
 // --- além-mar: a ilha deixa de ser parede ---
 // O jogador partiu o mapa em quatro ilhas e viu que ninguém atravessava. Aqui
 // se abre um canal de água de ponta a ponta, se dá jangada à tribo e se olha
@@ -896,11 +968,6 @@ const alemMar = await pagina.evaluate(() => {
   const mae = sim.tribos.reduce((m, t) => (!m || t.pop > m.pop ? t : m), null);
   if (!mae) return null;
   const m = sim.mundo;
-  // canal vertical a dez tiles da aldeia, de cima a baixo
-  const cx = Math.round(mae.cx) + 10;
-  for (let y = 0; y < m.n; y++) sim.pintar(cx, y, 1, { tipo: 'terreno', terreno: 0 });
-  render.aplicarSujos();
-  const ilhas = (m.rotularIlhas(), m.quantasIlhas);
   mae.jangadas = 1;
   mae.era = Math.max(mae.era, 2);
   mae.celeiro += 400;
@@ -909,7 +976,21 @@ const alemMar = await pagina.evaluate(() => {
     const h = sim.humanos[sim.humanos.length - 1];
     h.tribo = mae; mae.membros.push(h); h.idade = 22;
   }
-  const alvo = sim.escolherAlemMar(mae);
+  // Canal vertical de cima a baixo. Onde cortar depende do mundo sorteado: em
+  // `cx+10` fixo, às vezes o outro lado não tinha terra livre e boa e o teste
+  // reprovava por geografia, não por defeito. Corta e pergunta; se não sobrou
+  // destino, corta em outro lugar.
+  let ilhas = 0, alvo = null;
+  for (const off of [10, -10, 14, -14, 7, -7]) {
+    const cx = Math.round(mae.cx) + off;
+    if (cx < 2 || cx > m.n - 3) continue;
+    for (let y = 0; y < m.n; y++) sim.pintar(cx, y, 1, { tipo: 'terreno', terreno: 0 });
+    render.aplicarSujos();
+    m.ilhasSujas = true;
+    ilhas = (m.rotularIlhas(), m.quantasIlhas);
+    alvo = sim.escolherAlemMar(mae);
+    if (alvo) break;
+  }
   if (!alvo) return { ilhas, alvo: null };
   mae.colonia = { x: alvo.x, y: alvo.y, vagas: 6, ate: sim.ano + 40 };
   const minhaIlha = m.ilhaDe(Math.round(mae.cx), Math.round(mae.cy));

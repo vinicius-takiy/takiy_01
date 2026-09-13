@@ -6,7 +6,7 @@
 // é essa a peça que precisa ficar de pé, não a lista de tarefas.
 
 import { T, TERRENOS } from './mundo.js';
-import { rende, MADEIRA_CERCA, MADEIRA_JANGADA } from './tribos.js';
+import { rende, MADEIRA_CERCA, MADEIRA_JANGADA, PEDRA_RUA } from './tribos.js';
 
 /** Um ano de mundo em segundos de simulação. Toda taxa abaixo é por ano. */
 export const ANO = 4;
@@ -103,6 +103,7 @@ const OBRA = {
   lutar:     { dur: 0.3 },
   construirJangada: { dur: 0.9 },
   colonizar: { dur: 0.1 },
+  calcar:    { dur: 0.45 },
 };
 
 export class Humano {
@@ -430,6 +431,15 @@ export class Humano {
         const s = sim.sitioDeOca(t);
         if (s) { this.alvo = { x: s.x, y: s.y, obra: 'construir' }; return; }
       }
+      // Calçamento. Do bronze em diante, construtor e artesão assentam pedra na
+      // grade da cidade. Custa minério — o mesmo balde da tecnologia — e é de
+      // propósito: rua e ferro disputam a mesma picareta, e a tribo escolhe.
+      if (t.era >= 3 && t.minerais >= PEDRA_RUA
+          && (this.dom === 'construtor' || this.dom === 'artesao')
+          && sim.sorte() < 0.4 * rende(this, 'construir')) {
+        const r = sim.sitioDeRua(t);
+        if (r) { this.alvo = { x: r.x, y: r.y, obra: 'calcar' }; return; }
+      }
       // Jangada: quem tem costa, ofício de água ou de madeira, e lenha de sobra
       // depois do telhado. Uma só — é o que muda "ilha" de parede em caminho.
       // Só se há outra ilha: em mundo de ilha única a jangada era catorze de
@@ -673,8 +683,16 @@ export class Humano {
       return;
     }
     const mundo = sim.mundo;
-    const naAgua = mundo.ehAgua(Math.round(this.x), Math.round(this.y));
-    const passo = VEL * dt * (naAgua ? 0.7 : 1);   // jangada é mais lenta que perna
+    const aqui = mundo.dentro(Math.round(this.x), Math.round(this.y))
+      ? mundo.terreno[mundo.idx(Math.round(this.x), Math.round(this.y))] : T.TERRA;
+    // Rua não é enfeite: quem anda no calçamento vai 15% mais depressa. O número
+    // saiu de medida, e a medida precisou de dez sementes — com cinco, o mesmo
+    // teste dava 9, 12, 13 e 9 para 1,0, 1,15, 1,35 e 1,60, que não é curva de
+    // dose, é ruído de trajetória. Com dez: 20, 22 e 26 falhas. A 1,35 a tribo
+    // inteira anda mais depressa, faz mais de tudo — inclusive caçar — e a
+    // ecologia paga seis falhas por isso. A 1,15 o ganho existe e sai de graça.
+    // Jangada é mais lenta que perna.
+    const passo = VEL * dt * (aqui === T.AGUA ? 0.7 : aqui === T.RUA ? 1.15 : 1);
     let nx = this.x + (dx / d) * passo, ny = this.y + (dy / d) * passo;
     if (!this.passa(mundo, Math.round(nx), Math.round(ny))) {
       // contorna: tenta só um eixo antes de desistir do alvo

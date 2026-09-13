@@ -59,7 +59,7 @@ export function empacotar(sim, nome) {
     era: t.era, fontes: t.fontes, muros: t.muros.map((m) => [m.x, m.y]),
     relacoes: [...t.relacoes.entries()],
     mae: t.mae, nascidaEm: t.nascidaEm, corPropria: t.corPropria,
-    jangadas: t.jangadas, colonia: t.colonia,
+    jangadas: t.jangadas, colonia: t.colonia, ruas: t.ruas, marco: t.marco, ocasAoFincar: t.ocasAoFincar,
     nacao: t.nacao ? t.nacao.id : null,
   }));
 
@@ -147,6 +147,7 @@ export function desempacotar(Simulacao, pacote) {
       relacoes: new Map(d.relacoes), membros: [],
       mae: d.mae ?? null, nascidaEm: d.nascidaEm || 0,
       jangadas: d.jangadas || 0, colonia: d.colonia || null,
+      ruas: d.ruas || 0, marco: d.marco || null, ocasAoFincar: d.ocasAoFincar || 0,
       corPropria: d.corPropria ?? d.cor,
     });
     if (t.curral) t.recalcularCerca(m);

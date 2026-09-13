@@ -30,6 +30,7 @@ export const PINCEIS = [
   { divisor: true },
   { id: 'fertil',   nome: 'Terra fértil', tipo: 'terreno', terreno: T.FERTIL },
   { id: 'campo',    nome: 'Campo',        tipo: 'terreno', terreno: T.GRAMA },
+  { id: 'rua',      nome: 'Rua',          tipo: 'terreno', terreno: T.RUA },
   { id: 'terra',    nome: 'Terra nua',    tipo: 'terreno', terreno: T.TERRA },
   // Semente, não floresta pronta: o broto vira mata se a umidade deixar, e
   // morre de sede se não deixar. Plantar num descampado seco não dá nada.
@@ -443,6 +444,8 @@ export class Interface {
       ['Era', `${ERAS[t.era].nome}`],
       // nação e parentesco: é o que explica por que duas cores iguais no mapa
       // não brigam, e por que uma aldeia de doze chegou ao feudo
+      ...(t.cidade ? [['Cidade', `${t.ruas} tiles de rua, ${t.ocas.length} casas em quadra`]]
+                   : t.ruas ? [['Rua', `${t.ruas} tiles calçados`]] : []),
       ...(t.nacao ? [['Nação', `${t.nacao.nome} · ${t.nacao.vivas.length} aldeias, ${t.nacao.pop} almas`]] : []),
       ...(t.mae !== null && sim.porId.get(t.mae)?.viva ? [['Filha de', sim.porId.get(t.mae).nome]] : []),
       // o que falta para o próximo degrau é a informação mais útil do painel:
@@ -476,6 +479,7 @@ function icone(id) {
     fera: '<path d="m4 15 2-7 4 3 5-4 5 3-2 7-7 2Z"/><path d="m6 8-1-3 4 2m6 0 4-2-1 4"/>',
     fertil: '<path d="M4 18c5-1 11-1 16 0M6 14c4-1 8-1 12 0M9 10c2-.5 4-.5 6 0"/><path d="M12 10V5m0 0-3 2m3-2 3 2"/>',
     campo: '<path d="M5 19c1-5 2-8 4-12m2 12c0-6 1-10 3-14m1 14c1-4 2-7 4-10"/>',
+    rua: '<path d="M4 20 9 4m11 16L15 4"/><path d="M12 6v3m0 3v3m0 3v2"/>',
     terra: '<path d="M4 18c4-2 12-2 16 0M5 13c3 1 5 1 7 0s5-1 7 0M8 8h.01M15 7h.01"/>',
     semente: '<path d="M12 21c0-5 1-8 4-10M12 21c0-4-1-6-3-8"/><path d="M16 5c2 3 1 6-2 6-2 0-3-2-2-4s3-2 4-2Z"/>',
     agua: '<path d="M12 3S6 10 6 14a6 6 0 0 0 12 0c0-4-6-11-6-11Z"/><path d="M9 15c1 2 3 3 5 2"/>',

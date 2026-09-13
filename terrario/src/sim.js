@@ -5,7 +5,7 @@
 
 import { Mundo, N, T, TERRENOS, mulberry } from './mundo.js';
 import { Humano, Rebanho, Predador, Peixe, Jacare, ESPECIES, ANO, MADEIRA_OCA, PEDRA_MURO } from './agentes.js';
-import { Tribo, Nacao, ERAS, encontro, comerciar, difundirTecnologia, encontrarSitioDeOca, reiniciarIds, TECNOLOGIAS, MADEIRA_CERCA, MADEIRA_JANGADA,
+import { Tribo, Nacao, ERAS, encontro, comerciar, difundirTecnologia, encontrarSitioDeOca, reiniciarIds, TECNOLOGIAS, MADEIRA_CERCA, MADEIRA_JANGADA, PEDRA_RUA,
          VOCACOES, CHAVES_VOCACAO, rende, sortearVocacao, temLider } from './tribos.js';
 
 // Teto de segurança, não regra de jogo: quando a ecologia encosta nele é sinal
@@ -995,6 +995,18 @@ export class Simulacao {
         this.combater(h);
         break;
       }
+      case 'calcar': {
+        if (!t || t.minerais < PEDRA_RUA) break;
+        const i2 = mundo.idx(Math.round(h.x), Math.round(h.y));
+        if (mundo.terreno[i2] === T.RUA) break;
+        t.minerais -= PEDRA_RUA;
+        mundo.definir(i2, T.RUA);
+        mundo.base[i2] = T.RUA;      // calçamento é definitivo: a grama não volta
+        mundo.tocar(i2);
+        t.ruas++;
+        if (t.cidade) this.cronica(`${t.nome} vira cidade, com rua calçada`, t, 'cidade', true);
+        break;
+      }
       case 'construirJangada': {
         if (!t || t.madeira < MADEIRA_JANGADA) break;
         t.madeira -= MADEIRA_JANGADA;
@@ -1140,6 +1152,22 @@ export class Simulacao {
   }
 
   sitioDeOca(t) { return encontrarSitioDeOca(this.mundo, t, this.sorte); }
+  /**
+   * Onde calçar. O marco nasce aqui, na primeira vez que alguém vai assentar
+   * pedra: é o centro da tribo NAQUELE instante, e fica. Fixar a grade num
+   * ponto de verdade é o que impede a rua de sair de esquadro conforme o centro
+   * da tribo escorrega atrás da média das posições.
+   */
+  sitioDeRua(t) {
+    if (!t.marco) {
+      t.marco = { x: Math.round(t.cx), y: Math.round(t.cy) };
+      // A aldeia velha é anterior à planta: as casas que já estavam de pé ficam
+      // onde estão, algumas em cima da futura faixa. Guardar quantas eram é o
+      // que permite dizer depois se a grade foi respeitada pelas casas NOVAS.
+      t.ocasAoFincar = t.ocas.length;
+    }
+    return t.sitioDeRua(this.mundo);
+  }
   sitioDeMuro(t) { return t.sitioDeMuro(this.mundo, this.sorte); }
 
   // ------------------------------------------------------------- pincéis
@@ -1273,6 +1301,9 @@ export class Simulacao {
       pastoreando: this.tribos.filter((t) => t.temPasto).length,
       currais: this.tribos.filter((t) => t.curral).length,
       eraMaxima: this.tribos.reduce((m, t) => Math.max(m, t.era), 0),
+      ruas: this.tribos.reduce((n, t) => n + t.ruas, 0),
+      cidades: this.tribos.filter((t) => t.cidade).length,
+      maiorRua: this.tribos.reduce((m, t) => Math.max(m, t.ruas), 0),
       ilhas: (this.mundo.rotularIlhas(), this.mundo.quantasIlhas),
       jangadas: this.tribos.reduce((n, t) => n + t.jangadas, 0),
       expedicoes: this.expedicoes,

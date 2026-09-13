@@ -75,6 +75,9 @@ const RAIO_CURRAL = 7;
 export const MADEIRA_CERCA = 6;
 /** Lenha de uma jangada. Mais que uma oca: é tronco grosso, amarrado. */
 export const MADEIRA_JANGADA = 14;
+/** Minério por tile de rua. Sai do mesmo balde da tecnologia: calçar a cidade
+ *  atrasa o ferro, e é a tribo que escolhe onde gasta a picareta. */
+export const PEDRA_RUA = 6;
 
 let proximoId = 0;
 
@@ -113,6 +116,9 @@ export class Tribo {
     this.plantios = 0;             // roças de pé dentro do território
     this.madeira = 0;              // lenha estocada, para levantar abrigo
     this.comLider = false;         // tem alguém com dom de liderança
+    this.ruas = 0;                 // tiles calçados
+    this.marco = null;             // {x, y} — o umbigo da cidade, e a âncora da grade
+    this.ocasAoFincar = 0;         // quantas casas já existiam quando a grade nasceu
     this.jangadas = 0;             // com uma, a tribo atravessa água
     this.colonia = null;           // {x, y, vagas, ate} — terra além-mar para onde mandou gente
     this.mae = null;               // id da tribo de que esta se separou
@@ -358,6 +364,58 @@ export class Tribo {
 
   get navega() { return this.jangadas > 0; }
 
+  /**
+   * A grade da cidade. Um tile é FAIXA (por onde passa rua) quando está numa
+   * linha ou coluna múltipla de quatro a partir do marco; o resto é QUARTEIRÃO,
+   * onde as ocas se assentam. Blocos de 3×3 com ruas de um tile entre eles.
+   *
+   * A âncora é o `marco`, não o centro da tribo: `recentrar` arrasta o centro
+   * 5% por revisão, e uma grade que segue a média das posições sai de esquadro
+   * sozinha — as ruas calçadas ficariam atravessando as casas em vinte anos.
+   */
+  naFaixa(x, y) {
+    if (!this.marco) return false;
+    return (((x - this.marco.x) % 4) + 4) % 4 === 0 || (((y - this.marco.y) % 4) + 4) % 4 === 0;
+  }
+
+  /**
+   * Cidade é grade de pé: rua calçada e casas bastantes para ela servir.
+   *
+   * Dez e seis, não doze e oito. Calçar é preso a minério — seis por tile, do
+   * mesmo balde que paga o bronze e o ferro — e em trezentos anos a maior tribo
+   * de quatro das cinco sementes chegava a oito ou dez tiles, não a doze. Só a
+   * semente 42, que cria uma tribo rica e longeva, passava (53 tiles, três
+   * cidades). Um marco que quase nunca acontece não é marco, é enfeite.
+   */
+  get cidade() { return this.ruas >= 10 && this.ocas.length >= 6; }
+
+  /**
+   * O próximo tile a calçar: o pedaço de faixa mais perto do marco que ainda é
+   * chão cru. Crescer do centro para fora é o que faz a rua ser uma malha
+   * ligada em vez de calçada solta espalhada pelo domínio.
+   */
+  sitioDeRua(mundo) {
+    if (!this.marco) return null;
+    const alcance = Math.min(11, Math.round(this.raio * 0.7));
+    let melhor = null, perto = Infinity;
+    for (let dy = -alcance; dy <= alcance; dy++) {
+      for (let dx = -alcance; dx <= alcance; dx++) {
+        const x = this.marco.x + dx, y = this.marco.y + dy;
+        if (!mundo.dentro(x, y) || !this.naFaixa(x, y)) continue;
+        const i = mundo.idx(x, y);
+        const tipo = mundo.terreno[i];
+        if (tipo === T.RUA || tipo === T.AGUA || tipo === T.MONTANHA) continue;
+        // roça é comida e curral é gado: rua não passa por cima de nenhum dos dois
+        if (tipo === T.PLANTACAO) continue;
+        if (this.curral && this.dentroDoCurral(x, y)) continue;
+        if (this.ocas.some((o) => o.x === x && o.y === y)) continue;
+        const d = dx * dx + dy * dy;
+        if (d < perto) { perto = d; melhor = { x, y }; }
+      }
+    }
+    return melhor;
+  }
+
   /** Sem teto ou perto do teto da água: é quando a tribo pensa em ir embora. */
   get apertada() {
     return !this.temVagaEmCasa || (this.aguaPropria > 0 && this.pop >= this.aguaPara * 0.85);
@@ -545,14 +603,19 @@ export function comerciar(a, b) {
 }
 
 export function encontrarSitioDeOca(mundo, tribo, sorte) {
+  // Com marco de pé, a casa entra no quarteirão e deixa a faixa livre — é o que
+  // transforma um punhado de ocas espalhadas em quadra com rua. Sem marco (até o
+  // bronze), vale o sorteio de sempre.
+  const centro = tribo.marco || { x: tribo.cx, y: tribo.cy };
   for (let tentativa = 0; tentativa < 24; tentativa++) {
     const a = sorte() * Math.PI * 2;
     const d = sorte() * tribo.raio * 0.55;
-    const x = Math.round(tribo.cx + Math.cos(a) * d);
-    const y = Math.round(tribo.cy + Math.sin(a) * d);
+    const x = Math.round(centro.x + Math.cos(a) * d);
+    const y = Math.round(centro.y + Math.sin(a) * d);
     if (!mundo.andavel(x, y)) continue;
     const i = mundo.idx(x, y);
     if (mundo.terreno[i] === T.PLANTACAO || mundo.terreno[i] === T.AGUA) continue;
+    if (mundo.terreno[i] === T.RUA || tribo.naFaixa(x, y)) continue;
     if (tribo.ocas.some((o) => Math.abs(o.x - x) < 2 && Math.abs(o.y - y) < 2)) continue;
     // a outra metade do distrito: oca não nasce dentro do pasto, senão o curral
     // que cresce engole a aldeia e a separação some em vinte anos

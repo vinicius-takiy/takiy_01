@@ -11,7 +11,7 @@ const PASSO_ECO = 0.5;
 export const T = {
   AGUA: 0, AREIA: 1, GRAMA: 2, FERTIL: 3, FLORESTA: 4,
   ROCHA: 5, MONTANHA: 6, PLANTACAO: 7, PASTO: 8, TERRA: 9,
-  BROTO: 10,
+  BROTO: 10, RUA: 11,
 };
 
 /** O que pega fogo, e com que facilidade. Zero não queima. */
@@ -39,6 +39,10 @@ export const TERRENOS = {
   // Broto é floresta que ainda não é. Vira mata se a umidade deixar, e morre de
   // sede se não deixar — é o que faz plantar semente em terra seca não dar nada.
   [T.BROTO]:     { nome: 'Broto',       cor: 0x6f8f52, andavel: true,  forragem: 0.16 },
+  // Rua: chão batido com pedra assentada. Não alimenta ninguém e não pega fogo
+  // — e é por onde se anda depressa. A vegetação também não a reconquista: o
+  // que faz a rua durar é ela não estar na conta de `espalharVegetacao`.
+  [T.RUA]:       { nome: 'Rua',         cor: 0x9a9184, andavel: true,  forragem: 0.00 },
 };
 
 export class Mundo {

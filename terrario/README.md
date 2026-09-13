@@ -531,6 +531,53 @@ onde havia um — nação de 183 almas, zero guerras entre parentes e 23 entre
 estranhos. Teste de mundo em **10 falhas**, o melhor da história do jogo, e todas
 as dez são da ecologia; nenhuma da civilização.
 
+## A cidade: casa em quarteirão, rua na faixa
+
+O jogador pediu cidade com ruas. A grade nasce no **marco** — o centro da tribo
+no instante em que alguém vai assentar a primeira pedra, fincado ali para sempre.
+Fixar num ponto de verdade é o que impede a rua de sair de esquadro: `recentrar`
+arrasta o centro 5% por revisão, e uma grade que segue a média das posições
+atravessaria as próprias casas em vinte anos.
+
+A partir do marco, linha e coluna múltiplas de quatro são **faixa** (por onde
+passa rua) e o resto é **quarteirão** (onde a casa se assenta): blocos de 3×3 com
+ruas de um tile. Do bronze em diante, construtor e artesão calçam a faixa mais
+perto do marco que ainda é chão cru — crescer do centro para fora é o que faz
+uma malha ligada em vez de calçada solta. Rua não passa por cima de roça nem de
+curral. A aldeia velha é anterior à planta e fica onde está, metade dela em cima
+da futura faixa; as casas novas respeitam a grade.
+
+Custa **minério, do mesmo balde que paga o bronze e o ferro** — rua e ferro
+disputam a mesma picareta, e a tribo escolhe. É esse custo que faz a cidade ser
+rara: em trezentos anos a maior tribo chega a oito ou dez tiles em quatro das
+cinco sementes, e só a semente 42, que cria uma tribo rica e longeva, passa dos
+cinquenta e ergue três cidades.
+
+### O número que precisou de dez sementes
+
+Andar no calçamento é 15% mais rápido — e esse número quase saiu errado. Com as
+cinco sementes de sempre, o mesmo teste deu **9, 12, 13 e 9 falhas** para 1,0,
+1,15, 1,35 e 1,60. Isso não é curva de dose, é ruído de trajetória: mudar a
+velocidade de quem pisa em vinte e cinco tiles reordena o sorteio do mundo
+inteiro, e cinco sementes não separam uma coisa da outra.
+
+Com dez sementes, contando as falhas que não são a asserção da rua:
+
+| | falhas em 10 sementes |
+|---|---|
+| sem cidade | 21 |
+| cidade, sem bônus de velocidade | 20 |
+| cidade, bônus 1,15 | 22 |
+| cidade, bônus 1,35 | 26 |
+
+Agora é monotônico e legível. A grade em si é de graça. A 1,35 a tribo inteira
+anda mais depressa e faz mais de tudo — inclusive caçar — e a ecologia paga seis
+falhas por isso. A 1,15 o ganho existe e não custa nada.
+
+Fica registrado o que isto ensinou sobre o próprio instrumento: **para mudança
+que perturba trajetória, cinco sementes têm resolução de ±2 falhas.** Diferenças
+menores que isso, medidas em cinco sementes, não são resultado.
+
 ## O pasto é um distrito
 
 O curral era cercado no tile de grama mais perto de quem estava com a lenha na

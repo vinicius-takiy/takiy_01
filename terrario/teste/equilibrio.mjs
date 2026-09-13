@@ -67,7 +67,8 @@ function rodar(semente) {
                  guerras: 0, guerrasEntreParentes: 0, aliancas: 0, maiorTribo: 0, predadores: 0, tec: 0,
                  currais: 0, guardas: 0, gado: 0, peixes: 0, jacares: 0, pescados: 0,
                  bois: 0, capivaras: 0, lebres: 0, brotos: 0, queimando: 0,
-                 eraMaxima: 0, pocos: 0, muros: 0, nacoes: 0, naNacao: 0, maiorNacao: 0, filhasComEra: 0 };
+                 eraMaxima: 0, pocos: 0, muros: 0, nacoes: 0, naNacao: 0, maiorNacao: 0, filhasComEra: 0,
+                 ruas: 0, cidades: 0, maiorRua: 0 };
   const linha = [];
   const dt = 1 / 12;
   const passos = Math.ceil((anos * ANO) / dt);
@@ -116,6 +117,11 @@ function avaliar({ pico, fim }) {
     // contrário disso — a cisão que soma em vez de dividir.
     ['a filha da cisão herda a era', pico.filhasComEra > 0, `${pico.filhasComEra} filhas com era`],
     ['alguma nação se forma', pico.nacoes > 0, `${pico.nacoes} nações, a maior com ${pico.maiorNacao} almas`],
+    ['alguma tribo calça rua', pico.ruas > 0, `${pico.ruas} tiles`],
+    // Cidade não é obrigatória em toda semente: calçar é preso a minério, e há
+    // mundo pobre de veio. Mas em quatro das cinco alguém chega lá, e é o teto
+    // do que este jogo hoje sabe construir — se sumir de TODAS, algo quebrou.
+    ['a maior tribo passa de meia dúzia de ruas', pico.maiorRua >= 6, `${pico.maiorRua} tiles na maior`],
     ['alguma aliança se forma', pico.aliancas > 0, `pico ${pico.aliancas}`],
     ['o rebanho selvagem sobrevive', fim.rebanhos > 0, `${fim.rebanhos}`],
     ['o predador não se extingue', fim.predadores > 0, `${fim.predadores}`],
@@ -182,6 +188,8 @@ console.log('\npicos  — pessoas', r.pico.humanos, '· tribos', r.pico.tribos, 
             '· tec', TEC[r.pico.tec]);
 console.log('mortes — fome', r.fim.mortesPorFome, '· fera', r.fim.mortesPorPredador, '· guerra', r.fim.mortesEmGuerra);
 const censo = r.fim.censo;
+console.log('cidade — tiles de rua', r.fim.ruas, '· na maior tribo', r.pico.maiorRua,
+            '· cidades', r.fim.cidades, '(pico', r.pico.cidades + ')');
 console.log('mar    — ilhas', r.fim.ilhas, '· jangadas', r.fim.jangadas, '· expedições', r.fim.expedicoes,
             '· colonos', r.fim.colonos, '· colônias', r.fim.colonias);
 console.log('nação  — nações', r.fim.nacoes, '· tribos federadas', r.fim.naNacao, 'de', r.fim.tribos,
